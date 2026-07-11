@@ -26,6 +26,8 @@ bun.lockb
 /.playwright-mcp/
 /.azure/
 /.graphrag/
+/.lightrag/
+/.lightrag-*/
 /.vscode/
 /docs/audits/
 /docs/plans/

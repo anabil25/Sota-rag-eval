@@ -59,53 +59,37 @@ test('configure interactions update local component state without submitting ope
 	await audit.screenshot(page, testInfo, '02-configure-real-data');
 });
 
-test('local form actions persist session state without the Python backend', async ({
+test('operational form actions fail closed without the Python backend', async ({
 	page,
 	request
 }, testInfo) => {
 	const audit = new FlowAudit(testInfo);
+	const sessionBefore = await (await request.get('/api/ui/session')).json();
 	await audit.goto(page, '/flow/eval');
-	const generateForm = page.locator('form').filter({ hasText: 'Generate Eval Set' });
+	await audit.click(page.getByRole('button', { name: 'Generate new' }), 'select generate new');
+	const generateForm = page.locator('form').filter({
+		has: page.getByRole('heading', { level: 2, name: 'Generate New Eval Set' })
+	});
+	await expect(generateForm).toBeVisible();
 	await audit.fill(
 		generateForm.getByLabel('Operator context'),
 		'Real-data E2E operator context.',
 		'eval operator context'
 	);
-	await audit.fill(
-		generateForm.getByPlaceholder(/more cross-doc/),
-		'more cross-document sample questions',
-		'steering note'
-	);
-	await audit.click(generateForm.getByRole('button', { name: 'Add' }), 'append steering note');
-	await audit.click(generateForm.getByRole('button', { name: 'Save Steering' }), 'save steering');
-	await expect(page.getByRole('status')).toContainText('Draft saved');
+	const [response] = await Promise.all([
+		page.waitForResponse(
+			(candidate) =>
+				candidate.request().method() === 'POST' && candidate.url().includes('?/saveDraft')
+		),
+		audit.click(generateForm.getByRole('button', { name: 'Save Steering' }), 'save steering')
+	]);
+	expect(response.status()).toBe(503);
+	await expect(
+		page.getByRole('heading', { level: 1, name: 'The retrieval service isn’t responding' })
+	).toBeVisible();
 
-	await audit.goto(page, '/flow/configure');
-	await audit.click(page.getByRole('button', { name: /Quick baseline/ }), 'select quick baseline');
-	await audit.click(page.getByRole('button', { name: 'Save & Continue' }), 'save configure');
-	await page.waitForURL('**/flow/provision');
-	await expect(page.getByRole('heading', { level: 1, name: 'Provision & Index' })).toBeVisible();
-
-	await audit.goto(page, '/flow/compare');
-	const firstWinner = page.locator('input[name="winners"]').first();
-	if ((await firstWinner.count()) > 0) {
-		await firstWinner.check();
-		await audit.click(page.getByRole('button', { name: /Continue to Teardown/ }), 'save winners');
-		await page.waitForURL('**/flow/teardown');
-		await expect(page.getByRole('heading', { level: 1, name: 'Teardown' })).toBeVisible();
-	}
-
-	await audit.goto(page, '/settings');
-	await audit.fill(
-		page.getByLabel('Context'),
-		'Real-data E2E settings context.',
-		'settings context'
-	);
-	await audit.click(page.getByRole('button', { name: 'Save Settings' }), 'save settings');
-	await expect(page.getByRole('status')).toContainText('Settings saved');
-
-	const session = await (await request.get('/api/ui/session')).json();
-	expect(session.operator_context).toContain('Real-data E2E settings context.');
+	const sessionAfter = await (await request.get('/api/ui/session')).json();
+	expect(sessionAfter.operator_context).toBe(sessionBefore.operator_context);
 });
 
 test('review routes expose real run and eval detail pages', async ({ page, request }, testInfo) => {

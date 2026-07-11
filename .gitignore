@@ -20,6 +20,7 @@ logs
 # Generated local validation/data artifacts
 .graphrag/
 .lightrag/
+.lightrag-*/
 corpus/
 retrieve-core/corpus/
 retrieve-core/e2e_corpus/
