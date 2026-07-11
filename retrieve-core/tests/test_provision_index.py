@@ -23,7 +23,7 @@ class TestGraphRAGWorkerSettings:
             input_dir = root / "input"
             input_dir.mkdir()
 
-            _write_settings(
+            config = _write_settings(
                 root,
                 input_dir,
                 IndexRequest(
@@ -32,6 +32,10 @@ class TestGraphRAGWorkerSettings:
                     embedding_model="text-embedding-3-large",
                 ),
             )
+
+            assert config.reporting.type == "file"
+            assert config.reporting.connection_string is None
+            assert config.output_storage.type == "file"
 
             settings = yaml.safe_load((root / "settings.yaml").read_text(encoding="utf-8"))
 

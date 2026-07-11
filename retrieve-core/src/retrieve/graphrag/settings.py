@@ -188,7 +188,10 @@ def build_graphrag_settings(
             **blob_base,
             "base_dir": f"{run_prefix.strip('/')}/update-output",
         }
-        reporting = {**blob_base, "base_dir": f"{run_prefix.strip('/')}/logs"}
+        reporting = {
+            "type": "file",
+            "base_dir": (Path(input_dir).parent / "logs").as_posix(),
+        }
         cache = {
             "type": "json",
             "storage": {**blob_base, "base_dir": cache_prefix.strip("/")},
