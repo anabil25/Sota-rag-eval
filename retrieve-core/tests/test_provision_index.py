@@ -139,15 +139,15 @@ class TestGraphRAGWorkerSettings:
         assert parsed.output_storage.base_dir == f"runs/{fingerprint}/job123/output"
         assert parsed.cache.storage is not None
         assert parsed.cache.storage.base_dir == f"cache/{fingerprint}"
-        assert parsed.reporting.type == "blob"
+        assert parsed.reporting.type == "file"
+        assert parsed.reporting.connection_string is None
+        assert Path(parsed.reporting.base_dir).name == "logs"
         assert parsed.vector_store.type == "azure_ai_search"
         schemas = parsed.vector_store.index_schema
         assert schemas["entity_description"].index_name == "gr-aaaaaaaa-job12345-entity"
         assert schemas["community_full_content"].vector_size == 3_072
         assert schemas["text_unit_text"].index_name.endswith("-text-unit")
 
-    @patch("retrieve.graphrag_worker.app._set_status")
-    def test_workflow_callbacks_persist_progress(self, mock_set_status):
         from types import SimpleNamespace
 
         from retrieve.graphrag_worker.app import RetrieveWorkflowCallbacks
