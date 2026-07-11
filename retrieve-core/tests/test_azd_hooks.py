@@ -313,6 +313,42 @@ def test_postprovision_publishes_content_addressed_graph_image(monkeypatch, tmp_
     assert persisted["RETRIEVE_GRAPHRAG_IMAGE"] == ("azcrtest.azurecr.io/retrieve-graphrag:abc123")
 
 
+def test_postprovision_stages_minimal_graph_build_context(monkeypatch, tmp_path):
+    hook = _load_script("postprovision")
+    repo = tmp_path / "repo"
+    core = repo / "retrieve-core"
+    source = core / "src" / "retrieve"
+    corpus = repo / "corpus"
+    source.mkdir(parents=True)
+    corpus.mkdir()
+    (repo / ".dockerignore").write_text(".git\n", encoding="utf-8")
+    (core / "Dockerfile.graphrag-job").write_text("FROM scratch\n", encoding="utf-8")
+    (core / "pyproject.toml").write_text("[project]\n", encoding="utf-8")
+    (source / "worker.py").write_text("WORKER = True\n", encoding="utf-8")
+    (corpus / "policy.md").write_text("# Policy\n", encoding="utf-8")
+    (repo / "retrieve.db").write_text("local state", encoding="utf-8")
+    (repo / "logs").mkdir()
+    (repo / "logs" / "worker.log").write_text("local log", encoding="utf-8")
+    monkeypatch.setattr(hook, "REPO_ROOT", repo)
+
+    with hook.graph_build_context() as context:
+        relative_files = {
+            path.relative_to(context).as_posix()
+            for path in context.rglob("*")
+            if path.is_file()
+        }
+        assert relative_files == {
+            ".dockerignore",
+            "corpus/policy.md",
+            "retrieve-core/Dockerfile.graphrag-job",
+            "retrieve-core/pyproject.toml",
+            "retrieve-core/src/retrieve/worker.py",
+        }
+        staged_context = context
+
+    assert not staged_context.exists()
+
+
 def test_postprovision_retries_transient_authorization(monkeypatch):
     hook = _load_script("postprovision")
     results = iter(
