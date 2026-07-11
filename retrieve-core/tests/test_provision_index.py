@@ -134,6 +134,7 @@ class TestGraphRAGWorkerSettings:
             )
             settings = yaml.safe_load((root / "settings.yaml").read_text(encoding="utf-8"))
 
+        assert settings["reporting"]["base_dir"] == (root / "logs").as_posix()
         parsed = validate_graphrag_settings(settings)
         assert parsed.output_storage.type == "blob"
         assert parsed.output_storage.base_dir == f"runs/{fingerprint}/job123/output"
@@ -142,6 +143,7 @@ class TestGraphRAGWorkerSettings:
         assert parsed.reporting.type == "file"
         assert parsed.reporting.connection_string is None
         assert Path(parsed.reporting.base_dir).name == "logs"
+        assert Path(parsed.reporting.base_dir).parent.name == root.name
         assert parsed.vector_store.type == "azure_ai_search"
         schemas = parsed.vector_store.index_schema
         assert schemas["entity_description"].index_name == "gr-aaaaaaaa-job12345-entity"

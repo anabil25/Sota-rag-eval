@@ -377,6 +377,7 @@ def _write_settings(
             f"gr-{corpus_fingerprint[:8]}-{job_id[:8]}" if corpus_fingerprint and job_id else ""
         ),
         embedding_dimensions=request.embedding_dimensions,
+        reporting_dir=root / "logs",
     )
     config = validate_graphrag_settings(settings)
     (root / "settings.yaml").write_text(

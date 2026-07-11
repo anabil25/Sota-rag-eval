@@ -122,6 +122,7 @@ def build_graphrag_settings(
     search_endpoint: str = "",
     vector_index_prefix: str = "",
     embedding_dimensions: int = 3_072,
+    reporting_dir: str | Path = "logs",
 ) -> dict[str, Any]:
     """Build a GraphRAG 3.1-compatible configuration mapping.
 
@@ -190,7 +191,7 @@ def build_graphrag_settings(
         }
         reporting = {
             "type": "file",
-            "base_dir": (Path(input_dir).parent / "logs").as_posix(),
+            "base_dir": Path(reporting_dir).as_posix(),
         }
         cache = {
             "type": "json",
