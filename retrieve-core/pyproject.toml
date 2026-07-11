@@ -18,7 +18,7 @@ dependencies = [
     "requests>=2.31",
     "azure-identity>=1.16",
     "azure-storage-blob>=12.20",
-    "azure-search-documents>=11.6",
+    "azure-search-documents==11.7.0b2",
     "beautifulsoup4>=4.12",
     "markdownify>=0.13",
     "fastapi>=0.115",

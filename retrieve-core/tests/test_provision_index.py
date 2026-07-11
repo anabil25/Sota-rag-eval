@@ -757,6 +757,39 @@ class TestSearchIndexBuilder:
             "graphrag", "https://test.search.windows.net", "test-gr", "", "", ""
         )
 
+    def test_agentic_query_maps_reference_keys_to_document_ids(self):
+        from retrieve.indexing.advanced import query_agentic_kb
+
+        reference = SimpleNamespace(
+            as_dict=lambda: {"doc_key": "chunk-key", "id": "0"},
+        )
+        kb_client = MagicMock()
+        kb_client.retrieve.return_value = SimpleNamespace(references=[reference])
+        search_client = MagicMock()
+        search_client.get_document.return_value = {
+            "doc_id": "714-1_alaska_residency.md",
+        }
+        with (
+            patch(
+                "azure.search.documents.knowledgebases.KnowledgeBaseRetrievalClient",
+                return_value=kb_client,
+            ),
+            patch("azure.search.documents.SearchClient", return_value=search_client),
+            patch("retrieve.indexing.advanced.DefaultAzureCredential"),
+        ):
+            document_ids, latency_ms = query_agentic_kb(
+                "https://test.search.windows.net",
+                "test-agentic-kb",
+                "What is residency?",
+            )
+
+        assert document_ids == ["714-1_alaska_residency.md"]
+        assert latency_ms >= 0
+        search_client.get_document.assert_called_once_with(
+            key="chunk-key",
+            selected_fields=["doc_id", "metadata_storage_name", "title"],
+        )
+
     def test_foundry_cohere_multivector_uses_rest_payloads(self):
         from retrieve.indexing.advanced import create_multivector_index
 

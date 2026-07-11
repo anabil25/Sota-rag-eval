@@ -805,15 +805,13 @@ def query_agentic_kb(
     try:
         from azure.search.documents.knowledgebases import KnowledgeBaseRetrievalClient
         from azure.search.documents.knowledgebases.models import (
-            KnowledgeBaseMessage,
-            KnowledgeBaseMessageTextContent,
             KnowledgeBaseRetrievalRequest,
+            KnowledgeRetrievalSemanticIntent,
         )
-    except ModuleNotFoundError:
-        log.warning(
-            "Azure Search KnowledgeBase SDK is not installed; falling back to base index query"
-        )
-        return _query_agentic_kb_base_index(endpoint, kb_name, query, top_k, credential)
+    except ModuleNotFoundError as exc:
+        raise RuntimeError(
+            "Agentic retrieval requires azure-search-documents==11.7.0b2"
+        ) from exc
 
     kb_client = KnowledgeBaseRetrievalClient(
         endpoint=endpoint,
@@ -822,11 +820,10 @@ def query_agentic_kb(
     )
 
     request = KnowledgeBaseRetrievalRequest(
-        messages=[
-            KnowledgeBaseMessage(
-                role="user",
-                content=[KnowledgeBaseMessageTextContent(text=query)],
-            ),
+        intents=[
+            KnowledgeRetrievalSemanticIntent(
+                search=query,
+            )
         ],
     )
 
@@ -836,68 +833,46 @@ def query_agentic_kb(
     try:
         result = kb_client.retrieve(retrieval_request=request)
         latency_ms = (_time.perf_counter() - start) * 1000
+        references = list(getattr(result, "references", None) or [])
+        if not references:
+            raise RuntimeError("Knowledge Base returned no structured references")
 
-        # Extract references from response
-        chunk_ids = []
-        if result.response:
-            for resp in result.response:
-                if hasattr(resp, "content") and resp.content:
-                    for content_item in resp.content:
-                        text = getattr(content_item, "text", "")
-                        # Extract ref_ids from response text
-                        import re
+        from azure.search.documents import SearchClient
 
-                        refs = re.findall(r"\[ref_id:(\d+)\]", text)
-                        chunk_ids.extend(refs)
-                # Extract from references if available
-                if hasattr(result, "references") and result.references:
-                    for ref in result.references:
-                        ref_data = getattr(ref, "source_data", {}) or {}
-                        doc_id = ref_data.get("doc_id", "") or ref_data.get("title", "")
-                        if doc_id:
-                            chunk_ids.append(str(doc_id))
+        index_name = kb_name if kb_name.endswith("-base") else f"{kb_name}-base"
+        search_client = SearchClient(endpoint, index_name, credential)
+        document_ids: list[str] = []
+        for reference in references:
+            reference_data = (
+                reference.as_dict() if hasattr(reference, "as_dict") else vars(reference)
+            )
+            source_data = reference_data.get("source_data") or {}
+            if hasattr(source_data, "as_dict"):
+                source_data = source_data.as_dict()
+            doc_id = source_data.get("doc_id") if isinstance(source_data, dict) else ""
+            if not doc_id:
+                doc_key = str(reference_data.get("doc_key") or "")
+                if not doc_key:
+                    continue
+                document = search_client.get_document(
+                    key=doc_key,
+                    selected_fields=["doc_id", "metadata_storage_name", "title"],
+                )
+                doc_id = (
+                    document.get("doc_id")
+                    or document.get("metadata_storage_name")
+                    or document.get("title")
+                )
+            normalized = str(doc_id or "")
+            if normalized and normalized not in document_ids:
+                document_ids.append(normalized)
 
-        return chunk_ids[:top_k], latency_ms
+        if not document_ids:
+            raise RuntimeError("Knowledge Base references could not be mapped to documents")
+        return document_ids[:top_k], latency_ms
     except Exception as e:
         latency_ms = (_time.perf_counter() - start) * 1000
-        log.warning("Agentic KB query failed: %s", e)
-        return [], latency_ms
-
-
-def _query_agentic_kb_base_index(
-    endpoint: str,
-    kb_name: str,
-    query: str,
-    top_k: int,
-    credential: DefaultAzureCredential,
-) -> tuple[list[str], float]:
-    import time as _time
-
-    from azure.search.documents import SearchClient
-    from azure.search.documents.models import VectorizableTextQuery
-
-    index_name = kb_name if kb_name.endswith("-base") else f"{kb_name}-base"
-    client = SearchClient(endpoint, index_name, credential)
-    start = _time.perf_counter()
-    results = client.search(
-        search_text=query,
-        vector_queries=[
-            VectorizableTextQuery(
-                text=query,
-                k_nearest_neighbors=50,
-                fields="content_vector",
-            )
-        ],
-        top=top_k,
-        scoring_statistics="global",
-    )
-    chunk_ids: list[str] = []
-    for result in results:
-        chunk_id = result.get("chunk_id") or result.get("id") or result.get("metadata_storage_name")
-        if chunk_id:
-            chunk_ids.append(str(chunk_id))
-    latency_ms = (_time.perf_counter() - start) * 1000
-    return chunk_ids[:top_k], latency_ms
+        raise RuntimeError(f"Agentic KB query failed after {latency_ms:.1f} ms: {e}") from e
 
 
 # ── GraphRAG indexing ─────────────────────────────────────────────────
