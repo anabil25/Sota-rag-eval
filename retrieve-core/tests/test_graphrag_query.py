@@ -175,6 +175,57 @@ def test_remote_query_returns_only_structured_document_ids(mock_post):
     assert payload["corpus_fingerprint"] == "f" * 64
 
 
+@patch("retrieve.indexing.advanced.execute_graphrag_query")
+@patch("retrieve.indexing.advanced.load_successful_graphrag_run_config")
+def test_localhost_query_reads_successful_blob_run(mock_load_config, mock_query, tmp_path):
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from retrieve.indexing.advanced import query_graphrag
+    from retrieve.ingest.manifest import build_manifest_entry, write_corpus_manifest
+    from retrieve.ingest.plugin import ConvertedDoc
+    from retrieve.ingest.run import save_doc
+
+    doc = ConvertedDoc(
+        "100-3",
+        "Confidentiality",
+        "",
+        "https://example.test/100-3.htm",
+        "Confidential information is protected.",
+    )
+    output = save_doc(doc, tmp_path)
+    manifest = write_corpus_manifest(
+        tmp_path,
+        [build_manifest_entry(doc, output, tmp_path)],
+    )
+    fingerprint = manifest["corpus_fingerprint"]
+    mock_load_config.return_value = object()
+    mock_query.side_effect = AsyncMock(
+        return_value=SimpleNamespace(document_ids=("100-3",))
+    )
+
+    document_ids, latency_ms = query_graphrag(
+        query="What is confidential?",
+        corpus_dir=str(tmp_path),
+        storage_account="teststore",
+        output_container="graphrag",
+        search_endpoint="https://test.search.windows.net",
+        artifact_prefix=f"runs/{fingerprint}/job123",
+        corpus_fingerprint=fingerprint,
+    )
+
+    assert document_ids == ["100-3"]
+    assert latency_ms >= 0
+    mock_load_config.assert_called_once_with(
+        storage_account="teststore",
+        output_container="graphrag",
+        artifact_prefix=f"runs/{fingerprint}/job123",
+        corpus_fingerprint=fingerprint,
+        search_endpoint="https://test.search.windows.net",
+    )
+    mock_query.assert_awaited_once()
+
+
 @pytest.mark.asyncio
 async def test_internal_query_endpoint_is_default_off(monkeypatch):
     from fastapi import HTTPException

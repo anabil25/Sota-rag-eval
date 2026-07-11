@@ -261,6 +261,9 @@ def query_ai_search(
             graph_worker_endpoint=kwargs.get("graph_worker_endpoint", ""),
             artifact_prefix=kwargs.get("graph_worker_artifact_prefix", ""),
             corpus_fingerprint=kwargs.get("corpus_fingerprint", ""),
+            storage_account=kwargs.get("storage_account", ""),
+            output_container=kwargs.get("graph_output_container", "graphrag"),
+            search_endpoint=endpoint,
         )
 
     elif arch_name == "lightrag":
@@ -634,6 +637,10 @@ def _eval_variant(
                     "graph_worker_artifact_prefix", ""
                 ),
                 corpus_fingerprint=arch_config.get("corpus_fingerprint", ""),
+                storage_account=arch_config.get("storage_account", ""),
+                graph_output_container=arch_config.get(
+                    "graph_output_container", "graphrag"
+                ),
             )
 
             # Compute metrics — normalize IDs for matching

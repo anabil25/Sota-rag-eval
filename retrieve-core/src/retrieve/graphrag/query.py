@@ -3,11 +3,21 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 from dataclasses import asdict, dataclass
 from typing import Any, Literal
 
+import yaml
+from azure.identity import DefaultAzureCredential
+from azure.storage.blob import BlobServiceClient
+
+from retrieve.graphrag.settings import validate_graphrag_settings
+
 GraphRagQueryMode = Literal["local", "global", "drift", "basic"]
+_IMMUTABLE_RUN_PREFIX = re.compile(
+    r"^runs/(?P<fingerprint>[0-9a-f]{64})/(?P<job_id>[A-Za-z0-9-]{3,128})$"
+)
 
 
 @dataclass(frozen=True)
@@ -44,6 +54,71 @@ class GraphRagQueryResult:
             "context": self.context,
             "latency_ms": self.latency_ms,
         }
+
+
+def load_successful_graphrag_run_config(
+    *,
+    storage_account: str,
+    output_container: str,
+    artifact_prefix: str,
+    corpus_fingerprint: str,
+    search_endpoint: str,
+    credential: Any | None = None,
+) -> Any:
+    """Load and boundary-check one immutable, successful GraphRAG run."""
+    normalized_prefix = artifact_prefix.strip("/")
+    match = _IMMUTABLE_RUN_PREFIX.fullmatch(normalized_prefix)
+    if not match or match.group("fingerprint") != corpus_fingerprint:
+        raise ValueError("artifact_prefix is not an immutable run for this corpus fingerprint")
+    if not storage_account or not output_container or not search_endpoint:
+        raise ValueError("Blob-backed GraphRAG queries require storage and Search endpoints")
+
+    blob_service = BlobServiceClient(
+        account_url=f"https://{storage_account}.blob.core.windows.net",
+        credential=credential
+        or DefaultAzureCredential(exclude_interactive_browser_credential=True),
+    )
+    container = blob_service.get_container_client(output_container)
+    job_id = match.group("job_id")
+    try:
+        status_payload = container.download_blob(f"jobs/{job_id}/status.json").readall()
+        status = json.loads(bytes(status_payload).decode("utf-8"))
+    except Exception as exc:
+        raise ValueError(f"GraphRAG run status is unavailable for {job_id}") from exc
+    if not isinstance(status, dict):
+        raise ValueError("GraphRAG run status must be a JSON object")
+    if status.get("state") != "succeeded" or status.get("artifact_prefix") != normalized_prefix:
+        raise ValueError("GraphRAG query requires a successful immutable run")
+
+    try:
+        settings_payload = container.download_blob(
+            f"{normalized_prefix}/settings.yaml"
+        ).readall()
+        settings = yaml.safe_load(bytes(settings_payload).decode("utf-8"))
+    except Exception as exc:
+        raise ValueError("Persisted GraphRAG settings are unavailable") from exc
+    if not isinstance(settings, dict):
+        raise ValueError("Persisted GraphRAG settings must be a YAML mapping")
+    config = validate_graphrag_settings(settings)
+
+    expected_account_url = f"https://{storage_account}.blob.core.windows.net"
+    expected_output_dir = f"{normalized_prefix}/output"
+    if (
+        config.output_storage.type != "blob"
+        or config.output_storage.account_url != expected_account_url
+        or config.output_storage.container_name != output_container
+        or config.output_storage.base_dir != expected_output_dir
+    ):
+        raise ValueError("Persisted GraphRAG output storage is outside the approved run boundary")
+    if (
+        config.vector_store.type != "azure_ai_search"
+        or config.vector_store.url != search_endpoint
+        or config.vector_store.api_key
+    ):
+        raise ValueError(
+            "Persisted GraphRAG vector storage is outside the approved Search boundary"
+        )
+    return config
 
 
 def _as_list(value: Any) -> list[str]:

@@ -54,6 +54,10 @@ from rich.console import Console
 
 from retrieve.backoff import BackoffPolicy, call_with_backoff, is_retryable_http_response
 from retrieve.graphrag.safety import GraphRagRunScope, validate_graphrag_run_scope
+from retrieve.graphrag.query import (
+    execute_graphrag_query,
+    load_successful_graphrag_run_config,
+)
 from retrieve.graphrag.settings import build_graphrag_settings, validate_graphrag_settings
 from retrieve.ingest.manifest import load_corpus_manifest
 from retrieve.observability import emit_progress
@@ -1075,6 +1079,9 @@ def query_graphrag(
     graph_worker_endpoint: str = "",
     artifact_prefix: str = "",
     corpus_fingerprint: str = "",
+    storage_account: str = "",
+    output_container: str = "graphrag",
+    search_endpoint: str = "",
 ) -> tuple[list[str], float]:
     """Query GraphRAG and return canonical document IDs plus latency."""
     import time as _time
@@ -1110,11 +1117,34 @@ def query_graphrag(
         latency_ms = (_time.perf_counter() - start) * 1000
         return [str(document_id) for document_id in document_ids], latency_ms
 
+    if storage_account or artifact_prefix or corpus_fingerprint:
+        if not storage_account or not artifact_prefix or not corpus_fingerprint:
+            raise RuntimeError(
+                "Blob-backed GraphRAG queries require storage account, immutable "
+                "artifact prefix, and corpus fingerprint"
+            )
+        config = load_successful_graphrag_run_config(
+            storage_account=storage_account,
+            output_container=output_container,
+            artifact_prefix=artifact_prefix,
+            corpus_fingerprint=corpus_fingerprint,
+            search_endpoint=search_endpoint,
+        )
+        manifest = load_corpus_manifest(corpus_dir)
+        result = asyncio.run(
+            execute_graphrag_query(
+                config=config,
+                corpus_manifest=manifest,
+                query=query,
+                mode=mode,
+            )
+        )
+        latency_ms = (_time.perf_counter() - start) * 1000
+        return list(result.document_ids), latency_ms
+
     from pathlib import Path
 
     import yaml
-
-    from retrieve.graphrag.query import execute_graphrag_query
 
     settings_file = Path(output_dir) / "settings.yaml"
     if not settings_file.is_file():
