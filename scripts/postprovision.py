@@ -5,9 +5,12 @@ from __future__ import annotations
 import json
 import hashlib
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
+from contextlib import contextmanager
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -61,6 +64,24 @@ def graph_image_tag() -> str:
         digest.update(path.read_bytes())
         digest.update(b"\0")
     return digest.hexdigest()[:16]
+
+
+@contextmanager
+def graph_build_context():
+    with tempfile.TemporaryDirectory(prefix="retrieve-graphrag-build-") as temp_dir:
+        context = Path(temp_dir)
+        source_core = REPO_ROOT / "retrieve-core"
+        target_core = context / "retrieve-core"
+        target_core.mkdir()
+        shutil.copy2(REPO_ROOT / ".dockerignore", context / ".dockerignore")
+        shutil.copy2(
+            source_core / "Dockerfile.graphrag-job",
+            target_core / "Dockerfile.graphrag-job",
+        )
+        shutil.copy2(source_core / "pyproject.toml", target_core / "pyproject.toml")
+        shutil.copytree(source_core / "src", target_core / "src")
+        shutil.copytree(REPO_ROOT / "corpus", context / "corpus")
+        yield context
 
 
 def _authorization_failure(output: str) -> bool:
@@ -120,22 +141,23 @@ def publish_graph_image() -> None:
     resource_group = required("AZURE_RESOURCE_GROUP")
     job_name = required("AZURE_GRAPHRAG_JOB_NAME")
     image = f"retrieve-graphrag:{graph_image_tag()}"
-    _run_with_auth_retry(
-        [
-            "az",
-            "acr",
-            "build",
-            "--registry",
-            registry,
-            "--image",
-            image,
-            "--file",
-            str(REPO_ROOT / "retrieve-core" / "Dockerfile.graphrag-job"),
-            "--no-logs",
-            str(REPO_ROOT),
-        ],
-        "GraphRAG ACR build",
-    )
+    with graph_build_context() as context:
+        _run_with_auth_retry(
+            [
+                "az",
+                "acr",
+                "build",
+                "--registry",
+                registry,
+                "--image",
+                image,
+                "--file",
+                "retrieve-core/Dockerfile.graphrag-job",
+                "--no-logs",
+                str(context),
+            ],
+            "GraphRAG ACR build",
+        )
     full_image = f"{registry_endpoint}/{image}"
     _run_with_auth_retry(
         [

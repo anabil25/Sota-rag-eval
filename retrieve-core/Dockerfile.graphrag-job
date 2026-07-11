@@ -1,7 +1,8 @@
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    NLTK_DATA=/usr/local/share/nltk_data
 
 RUN groupadd --system retrieve && useradd --system --gid retrieve --create-home retrieve
 
@@ -12,6 +13,7 @@ COPY --chown=retrieve:retrieve retrieve-core/src ./src
 COPY --chown=retrieve:retrieve corpus ./corpus
 
 RUN pip install --no-cache-dir ".[graphrag]"
+RUN python -c "import os, nltk; packages=('brown','treebank','averaged_perceptron_tagger_eng','punkt','punkt_tab'); [nltk.download(package, download_dir=os.environ['NLTK_DATA'], quiet=True, raise_on_error=True) for package in packages]"
 RUN mkdir -p /tmp/retrieve && chown retrieve:retrieve /tmp/retrieve
 
 USER retrieve

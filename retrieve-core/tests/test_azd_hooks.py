@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -282,7 +283,7 @@ def test_postprovision_approves_search_storage_private_link(monkeypatch):
     assert approvals[0][1] == "Search Storage private endpoint approval"
 
 
-def test_postprovision_publishes_content_addressed_graph_image(monkeypatch):
+def test_postprovision_publishes_content_addressed_graph_image(monkeypatch, tmp_path):
     hook = _load_script("postprovision")
     values = {
         "AZURE_CONTAINER_REGISTRY_NAME": "azcrtest",
@@ -295,6 +296,7 @@ def test_postprovision_publishes_content_addressed_graph_image(monkeypatch):
     calls = []
     persisted = {}
     monkeypatch.setattr(hook, "graph_image_tag", lambda: "abc123")
+    monkeypatch.setattr(hook, "graph_build_context", lambda: nullcontext(tmp_path))
     monkeypatch.setattr(
         hook,
         "_run_with_auth_retry",
@@ -306,6 +308,7 @@ def test_postprovision_publishes_content_addressed_graph_image(monkeypatch):
 
     assert calls[0][0][:3] == ["az", "acr", "build"]
     assert "retrieve-graphrag:abc123" in calls[0][0]
+    assert calls[0][0][-1] == str(tmp_path)
     assert calls[1][0][:4] == ["az", "containerapp", "job", "update"]
     assert persisted["RETRIEVE_GRAPHRAG_IMAGE"] == ("azcrtest.azurecr.io/retrieve-graphrag:abc123")
 
