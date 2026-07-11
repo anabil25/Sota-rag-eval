@@ -66,6 +66,7 @@ class AzureConfig(BaseModel):
     resource_token: str = ""
     storage_account: str = ""
     corpus_container: str = "corpus"
+    corpus_fingerprint: str = ""
     graph_output_container: str = "graphrag"
     ai_services_endpoint: str = ""
     search_endpoint: str = ""

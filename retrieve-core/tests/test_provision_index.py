@@ -475,6 +475,67 @@ class TestIndexOrchestrator:
     @patch("retrieve.indexing.run.upload_corpus")
     @patch("retrieve.indexing.run.create_index_for_architecture")
     @patch("retrieve.indexing.run.wait_for_indexer")
+    def test_index_reuses_attested_private_corpus(
+        self,
+        mock_wait,
+        mock_create,
+        mock_upload,
+        mock_sleep,
+        tmp_path,
+    ):
+        from retrieve.ingest.manifest import build_manifest_entry, write_corpus_manifest
+        from retrieve.ingest.plugin import ConvertedDoc
+        from retrieve.ingest.run import save_doc
+
+        document = ConvertedDoc(
+            "100",
+            "Policy",
+            "",
+            "https://example.test/100.htm",
+            "Policy body",
+        )
+        output = save_doc(document, tmp_path)
+        manifest = write_corpus_manifest(
+            tmp_path,
+            [build_manifest_entry(document, output, tmp_path)],
+        )
+        db_path = tmp_path / "retrieve.db"
+        db = RetrieveDB(db_path)
+        db.register_architecture(
+            "hybrid",
+            {
+                "search_endpoint": "https://test.search.windows.net",
+                "index_name": "test-hybrid",
+                "storage_account": "teststore",
+                "ai_services_endpoint": "https://test-ai.openai.azure.com",
+                "corpus_fingerprint": manifest["corpus_fingerprint"],
+            },
+        )
+        db.conn.execute("UPDATE architectures SET status = 'provisioned'")
+        db.conn.commit()
+        db.close()
+        mock_wait.return_value = {
+            "status": "success",
+            "item_count": 1,
+            "failed_count": 0,
+            "errors": [],
+        }
+        cfg = RetrieveConfig()
+        cfg.db_path = db_path
+        cfg.architectures = ["hybrid"]
+        cfg.corpus.output_dir = str(tmp_path)
+
+        from retrieve.indexing.run import index_corpus
+
+        index_corpus(cfg)
+
+        mock_upload.assert_not_called()
+        mock_create.assert_called_once()
+
+    @patch("retrieve.indexing.run.time.sleep")
+    @patch("retrieve.indexing.run.upload_corpus")
+    @patch("retrieve.indexing.run.create_index_for_architecture")
+    @patch("retrieve.indexing.run.wait_for_indexer")
     def test_index_corpus_flow(self, mock_wait, mock_create, mock_upload, mock_sleep):
         mock_upload.return_value = 10
         mock_wait.return_value = {
@@ -640,7 +701,7 @@ class TestSearchIndexBuilder:
         mock_idxr_client.return_value.create_or_update_data_source_connection.assert_called_once()
         mock_idx_client.return_value.create_or_update_index.assert_called_once()
         indexer_payload = mock_rest_put.call_args.args[2]
-        assert indexer_payload["executionEnvironment"] == "private"
+        assert indexer_payload["parameters"]["configuration"]["executionEnvironment"] == "private"
 
     @patch("retrieve.indexing.search_index._search_rest_put")
     @patch("retrieve.indexing.search_index.SearchIndexerClient")
@@ -664,7 +725,7 @@ class TestSearchIndexBuilder:
         mock_idxr_client.return_value.create_or_update_skillset.assert_called_once()
         mock_idx_client.return_value.create_or_update_index.assert_called_once()
         indexer_payload = mock_rest_put.call_args.args[2]
-        assert indexer_payload["executionEnvironment"] == "private"
+        assert indexer_payload["parameters"]["configuration"]["executionEnvironment"] == "private"
 
     @patch("retrieve.indexing.search_index._search_rest_put")
     @patch("retrieve.indexing.search_index.SearchIndexerClient")
@@ -686,7 +747,7 @@ class TestSearchIndexBuilder:
         # Same as hybrid but with semantic config
         mock_idx_client.return_value.create_or_update_index.assert_called_once()
         indexer_payload = mock_rest_put.call_args.args[2]
-        assert indexer_payload["executionEnvironment"] == "private"
+        assert indexer_payload["parameters"]["configuration"]["executionEnvironment"] == "private"
 
     def test_unimplemented_architecture(self):
         from retrieve.indexing.search_index import create_index_for_architecture
@@ -732,7 +793,7 @@ class TestSearchIndexBuilder:
         assert mapping["source"] == "/document/chunks/*/aml_vector_data/float/0"
 
         indexer_payload = mock_put.call_args_list[2].args[2]
-        assert indexer_payload["executionEnvironment"] == "private"
+        assert indexer_payload["parameters"]["configuration"]["executionEnvironment"] == "private"
 
         mock_indexer_client.return_value.create_or_update_skillset.assert_not_called()
         mock_indexer_client.return_value.create_or_update_indexer.assert_not_called()
@@ -787,7 +848,7 @@ class TestSearchIndexBuilder:
         assert mapping["source"] == "/document/chunks/*/content_vector"
 
         indexer_payload = mock_put.call_args_list[2].args[2]
-        assert indexer_payload["executionEnvironment"] == "private"
+        assert indexer_payload["parameters"]["configuration"]["executionEnvironment"] == "private"
 
         mock_indexer_client.return_value.create_or_update_skillset.assert_not_called()
         mock_indexer_client.return_value.create_or_update_indexer.assert_not_called()

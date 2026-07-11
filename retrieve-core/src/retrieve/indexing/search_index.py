@@ -107,7 +107,11 @@ def _search_rest_put(
         json=payload,
         timeout=timeout,
     )
-    response.raise_for_status()
+    if response.status_code >= 400:
+        raise RuntimeError(
+            f"Search REST PUT failed for {path}: {response.status_code} "
+            f"{response.text.strip() or '<empty response>'}"
+        )
 
 
 def _create_private_indexer(
@@ -140,7 +144,6 @@ def build_private_indexer_payload(indexer: SearchIndexer) -> dict:
         "dataSourceName": indexer.data_source_name,
         "targetIndexName": indexer.target_index_name,
         "disabled": indexer.is_disabled,
-        "executionEnvironment": "private",
     }
     optional = {
         "description": indexer.description,
@@ -158,6 +161,13 @@ def build_private_indexer_payload(indexer: SearchIndexer) -> dict:
             if value is not None
         }
     )
+    parameters = payload.setdefault("parameters", {})
+    if not isinstance(parameters, dict):
+        raise ValueError("Search indexer parameters must serialize to an object")
+    configuration = parameters.setdefault("configuration", {})
+    if not isinstance(configuration, dict):
+        raise ValueError("Search indexer configuration must serialize to an object")
+    configuration["executionEnvironment"] = "private"
     return payload
 
 

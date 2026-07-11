@@ -9,7 +9,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from retrieve.ingest.manifest import build_manifest_entry, write_corpus_manifest
+from retrieve.graphrag_worker.protocol import format_job_result
+from retrieve.ingest.manifest import (
+    build_manifest_entry,
+    load_corpus_manifest,
+    write_corpus_manifest,
+)
 from retrieve.ingest.plugin import ConvertedDoc
 from retrieve.ingest.run import save_doc
 
@@ -113,6 +118,18 @@ def test_postprovision_seeds_verified_manifest_in_azure(monkeypatch, tmp_path):
 
     monkeypatch.setattr(hook, "_run_with_auth_retry", run)
     monkeypatch.setattr(hook, "start_container_job", start)
+    monkeypatch.setattr(
+        hook,
+        "_job_logs",
+        lambda *_args: format_job_result(
+            {
+                "kind": "seed",
+                "state": "succeeded",
+                "document_count": 1,
+                "corpus_fingerprint": manifest["corpus_fingerprint"],
+            }
+        ),
+    )
     monkeypatch.setattr(hook, "set_azd_value", persisted.__setitem__)
 
     hook.upload_canonical_corpus(delays=())
@@ -121,6 +138,59 @@ def test_postprovision_seeds_verified_manifest_in_azure(monkeypatch, tmp_path):
     assert starts[0]["subscription_id"] == "sub-test"
     assert commands[0][1] == "Azure-side corpus seed status"
     assert persisted["RETRIEVE_CORPUS_FINGERPRINT"] == manifest["corpus_fingerprint"]
+
+
+def test_postprovision_retries_failed_corpus_seed(monkeypatch, tmp_path):
+    hook = _load_script("postprovision")
+    document = ConvertedDoc(
+        policy_id="100",
+        title="Policy",
+        parent="",
+        source_url="https://example.test/100.htm",
+        markdown="Policy body",
+    )
+    output = save_doc(document, tmp_path)
+    write_corpus_manifest(
+        tmp_path,
+        [build_manifest_entry(document, output, tmp_path)],
+    )
+    manifest = load_corpus_manifest(tmp_path)
+    monkeypatch.setenv("RETRIEVE_CORPUS_DIR", str(tmp_path))
+    monkeypatch.setenv("AZURE_RESOURCE_GROUP", "rg-test")
+    monkeypatch.setenv("AZURE_SUBSCRIPTION_ID", "sub-test")
+    monkeypatch.setenv("AZURE_GRAPHRAG_JOB_NAME", "azgrjtest")
+    starts = iter(("seed-one", "seed-two"))
+    statuses = iter(("Failed", "Succeeded"))
+    persisted = {}
+    sleeps = []
+
+    monkeypatch.setattr(hook, "start_container_job", lambda **_kwargs: next(starts))
+    monkeypatch.setattr(
+        hook,
+        "_json_command",
+        lambda *_args, **_kwargs: {"properties": {"status": next(statuses)}},
+    )
+    log_calls = iter(
+        (
+            "No replicas found",
+            format_job_result(
+                {
+                    "kind": "seed",
+                    "state": "succeeded",
+                    "document_count": 1,
+                    "corpus_fingerprint": manifest["corpus_fingerprint"],
+                }
+            ),
+        )
+    )
+    monkeypatch.setattr(hook, "_job_logs", lambda *_args: next(log_calls))
+    monkeypatch.setattr(hook, "set_azd_value", persisted.__setitem__)
+    monkeypatch.setattr(hook.time, "sleep", sleeps.append)
+
+    hook.upload_canonical_corpus(delays=(), retry_delays=(7,))
+
+    assert sleeps == [7]
+    assert "RETRIEVE_CORPUS_FINGERPRINT" in persisted
 
 
 def test_worker_seed_enforces_manifest_bounded_mirror(monkeypatch, tmp_path):
@@ -272,6 +342,7 @@ def test_postprovision_syncs_localhost_contract_and_selected_architectures(monke
         "AZURE_RESOURCE_TOKEN": "abc123",
         "AZURE_STORAGE_ACCOUNT_NAME": "azsttest",
         "AZURE_STORAGE_CORPUS_CONTAINER": "corpus",
+        "RETRIEVE_CORPUS_FINGERPRINT": "f" * 64,
         "AZURE_STORAGE_GRAPH_CONTAINER": "graphrag",
         "AZURE_AI_SERVICES_ENDPOINT": "https://azaitest.cognitiveservices.azure.com/",
         "AZURE_SEARCH_ENDPOINT": "https://azsrtest.search.windows.net",
@@ -305,6 +376,7 @@ def test_postprovision_syncs_localhost_contract_and_selected_architectures(monke
     assert graphrag is not None
     assert graphrag["status"] == "provisioned"
     assert graphrag["config"]["graph_job_name"] == "azgrjtest"
+    assert graphrag["config"]["corpus_fingerprint"] == "f" * 64
     assert graphrag["config"]["graph_output_container"] == "graphrag"
     assert db.get_generation_preferences("ui_session")["provision_done"] is True
     db.close()

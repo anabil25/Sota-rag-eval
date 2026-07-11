@@ -1494,7 +1494,7 @@ def _create_lightrag(
             history_messages=history_messages or [],
             base_url=endpoint,
             api_version=api_version,
-            client_configs=client_configs,
+            openai_client_configs=client_configs,
             **kwargs,
         )
 

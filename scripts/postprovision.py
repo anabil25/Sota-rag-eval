@@ -23,6 +23,7 @@ from retrieve.ingest.manifest import (  # noqa: E402
     MANIFEST_FILENAME,
     load_corpus_manifest,
 )
+from retrieve.graphrag_worker.protocol import parse_job_result  # noqa: E402
 from retrieve.indexing.container_job import start_container_job  # noqa: E402
 
 
@@ -292,6 +293,7 @@ def _job_logs(job_name: str, execution_name: str) -> str:
 def upload_canonical_corpus(
     *,
     delays: tuple[int, ...] = tuple(10 for _ in range(60)),
+    retry_delays: tuple[int, ...] = (20,),
 ) -> None:
     corpus_dir = Path(os.environ.get("RETRIEVE_CORPUS_DIR", REPO_ROOT / "corpus"))
     if not (corpus_dir / MANIFEST_FILENAME).is_file():
@@ -305,16 +307,6 @@ def upload_canonical_corpus(
     resource_group = required("AZURE_RESOURCE_GROUP")
     subscription_id = required("AZURE_SUBSCRIPTION_ID")
     job_name = required("AZURE_GRAPHRAG_JOB_NAME")
-    execution_name = start_container_job(
-        job_name=job_name,
-        resource_group=resource_group,
-        subscription_id=subscription_id,
-        environment=[
-            "GRAPH_WORKER_MODE=seed",
-            "BUNDLED_CORPUS_DIR=/app/corpus",
-        ],
-    )
-
     terminal_states = {
         "succeeded",
         "failed",
@@ -323,42 +315,73 @@ def upload_canonical_corpus(
         "stopped",
         "timedout",
     }
-    state = ""
-    details = ""
-    for attempt in range(len(delays) + 1):
-        execution = _json_command(
-            [
-                "az",
-                "containerapp",
-                "job",
-                "execution",
-                "show",
-                "--resource-group",
-                resource_group,
-                "--name",
-                job_name,
-                "--job-execution-name",
-                execution_name,
-                "--subscription",
-                subscription_id,
-                "--output",
-                "json",
-                "--only-show-errors",
+    last_failure = ""
+    for seed_attempt in range(len(retry_delays) + 1):
+        execution_name = start_container_job(
+            job_name=job_name,
+            resource_group=resource_group,
+            subscription_id=subscription_id,
+            environment=[
+                "GRAPH_WORKER_MODE=seed",
+                "BUNDLED_CORPUS_DIR=/app/corpus",
             ],
-            "Azure-side corpus seed status",
         )
-        properties = execution.get("properties", {}) if isinstance(execution, dict) else {}
-        state = str(properties.get("status") or execution.get("status") or "").lower()
-        details = str(properties.get("statusDetails") or "")
-        if state in terminal_states:
+
+        state = ""
+        details = ""
+        for attempt in range(len(delays) + 1):
+            execution = _json_command(
+                [
+                    "az",
+                    "containerapp",
+                    "job",
+                    "execution",
+                    "show",
+                    "--resource-group",
+                    resource_group,
+                    "--name",
+                    job_name,
+                    "--job-execution-name",
+                    execution_name,
+                    "--subscription",
+                    subscription_id,
+                    "--output",
+                    "json",
+                    "--only-show-errors",
+                ],
+                "Azure-side corpus seed status",
+            )
+            properties = execution.get("properties", {}) if isinstance(execution, dict) else {}
+            state = str(properties.get("status") or execution.get("status") or "").lower()
+            details = str(properties.get("statusDetails") or "")
+            if state in terminal_states:
+                break
+            if attempt < len(delays):
+                time.sleep(delays[attempt])
+        if state == "succeeded":
+            logs = _job_logs(job_name, execution_name)
+            seed_result = parse_job_result(logs)
+            if (
+                seed_result.get("kind") != "seed"
+                or seed_result.get("state") != "succeeded"
+                or seed_result.get("corpus_fingerprint") != manifest["corpus_fingerprint"]
+                or seed_result.get("document_count") != manifest["document_count"]
+            ):
+                raise RuntimeError("Azure-side corpus seed returned a mismatched result")
             break
-        if attempt < len(delays):
-            time.sleep(delays[attempt])
-    if state != "succeeded":
+
         logs = _job_logs(job_name, execution_name)
-        raise RuntimeError(
-            f"Azure-side corpus seed ended as {state or 'unknown'}: {details}\n{logs}".strip()
+        last_failure = (
+            f"Azure-side corpus seed ended as {state or 'unknown'}: {details}\n{logs}"
+        ).strip()
+        if seed_attempt >= len(retry_delays):
+            raise RuntimeError(last_failure)
+        retry_delay = retry_delays[seed_attempt]
+        print(
+            f"[postprovision] corpus seed execution failed; retrying in "
+            f"{retry_delay}s ({seed_attempt + 1}/{len(retry_delays)})."
         )
+        time.sleep(retry_delay)
 
     count = int(manifest["document_count"])
     fingerprint = str(manifest["corpus_fingerprint"])
@@ -377,6 +400,7 @@ def _output_contract() -> dict[str, str]:
         "resource_token": required("AZURE_RESOURCE_TOKEN"),
         "storage_account": required("AZURE_STORAGE_ACCOUNT_NAME"),
         "corpus_container": required("AZURE_STORAGE_CORPUS_CONTAINER"),
+        "corpus_fingerprint": required("RETRIEVE_CORPUS_FINGERPRINT"),
         "graph_output_container": required("AZURE_STORAGE_GRAPH_CONTAINER"),
         "ai_services_endpoint": required("AZURE_AI_SERVICES_ENDPOINT"),
         "search_endpoint": required("AZURE_SEARCH_ENDPOINT"),
@@ -427,6 +451,7 @@ def sync_local_runtime_contract() -> None:
             "resource_token": outputs["resource_token"],
             "storage_account": outputs["storage_account"],
             "corpus_container": outputs["corpus_container"],
+            "corpus_fingerprint": outputs["corpus_fingerprint"],
             "graph_output_container": outputs["graph_output_container"],
             "ai_services_endpoint": outputs["ai_services_endpoint"],
             "search_endpoint": outputs["search_endpoint"],

@@ -12,6 +12,8 @@ COPY --chown=retrieve:retrieve retrieve-core/src ./src
 COPY --chown=retrieve:retrieve corpus ./corpus
 
 RUN pip install --no-cache-dir ".[graphrag]"
+RUN mkdir -p /tmp/retrieve && chown retrieve:retrieve /tmp/retrieve
 
 USER retrieve
+WORKDIR /tmp/retrieve
 CMD ["python", "-m", "retrieve.graphrag_worker.run_job"]

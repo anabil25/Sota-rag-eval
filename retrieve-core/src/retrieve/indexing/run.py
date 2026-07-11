@@ -23,6 +23,7 @@ from retrieve.indexing.search_index import (
     rerun_indexer,
     wait_for_indexer,
 )
+from retrieve.ingest.manifest import load_corpus_manifest
 from retrieve.observability import emit_error, emit_progress, step
 
 log = logging.getLogger(__name__)
@@ -84,12 +85,30 @@ def index_corpus(cfg: RetrieveConfig, *, dry_run: bool = False):
         # 1. Upload corpus to blob
         console.print("\n[bold]Step 1: Upload corpus to blob[/bold]")
         corpus_dir = cfg.corpus.output_dir
-        with step("index.upload_corpus"):
-            synchronization = upload_corpus(
-                corpus_dir,
-                storage_account,
-                dry_run=dry_run,
+        synchronized_fingerprint = str(first_config.get("corpus_fingerprint") or "")
+        local_fingerprint = ""
+        if synchronized_fingerprint:
+            local_fingerprint = str(load_corpus_manifest(corpus_dir)["corpus_fingerprint"])
+        reuse_private_seed = (
+            not dry_run
+            and synchronized_fingerprint
+            and synchronized_fingerprint == local_fingerprint
+        )
+        if reuse_private_seed:
+            synchronization = int(load_corpus_manifest(corpus_dir)["document_count"])
+            emit_progress(
+                "Reusing attested private Blob corpus",
+                stage="index.upload.reuse",
+                file_count=synchronization,
+                corpus_fingerprint=local_fingerprint,
             )
+        else:
+            with step("index.upload_corpus"):
+                synchronization = upload_corpus(
+                    corpus_dir,
+                    storage_account,
+                    dry_run=dry_run,
+                )
         if isinstance(synchronization, BlobMirrorPlan):
             emit_progress(
                 "Blob corpus mirror dry run complete",
@@ -99,11 +118,12 @@ def index_corpus(cfg: RetrieveConfig, *, dry_run: bool = False):
             return {"blob_mirror_plan": synchronization.to_dict(), "dry_run": True}
         if synchronization == 0:
             return
-        emit_progress(
-            f"Synchronized {synchronization} managed files",
-            stage="index.upload",
-            file_count=synchronization,
-        )
+        if not reuse_private_seed:
+            emit_progress(
+                f"Synchronized {synchronization} managed files",
+                stage="index.upload",
+                file_count=synchronization,
+            )
 
         # 2. Create indexes per architecture
         console.print("\n[bold]Step 2: Create search indexes[/bold]\n")
