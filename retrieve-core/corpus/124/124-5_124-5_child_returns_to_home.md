@@ -1,0 +1,27 @@
+---
+policy_id: "124-5"
+title: "124-5 Child Returns to Home"
+parent: "124 Title IV-E / DPA Transfer Protocols"
+source_url: "C:\Users\nabilahmed\Documents\Code\alaska policy eval\policies\124\124-5_child_returns_to_home.md"
+last_ingested: "2026-03-31"
+cross_references:
+  - "{'id': '124-4', 'keywords': 'HCB waiver, waiver approval'}"
+  - "{'id': '124-6', 'keywords': 'TEFRA Medicaid, OCS custody'}"
+---
+
+Administrative Procedures Manual
+
+[Click here to see this page in full context](#)
+
+124-5          CHILD RETURNS TO HOME
+
+Sometimes children in OCSOffice of Children's Services custody are returned home for a trial home visit. A trial home visit can last up to six months or for a different time period ordered by the court. During this time, OCSOffice of Children's Services maintains custody of the child and monitors the child and family situation. The parent(s) may apply for Temporary Assistance and MAGIModified Adjusted Gross Income Medicaid when the child is placed at home for a trial home visit. If there is not already an open TATemporary Assistance case, the child can be added. The following procedures apply:
+
+1. The child who is place at home for a trial home visit will continue to receive Medicaid under the Title IV-E case number and OCSOffice of Children's Services will maintain the case.
+2. The child is included in the Alaska Temporary Assistance Program case, but remains coded out of the household or "Foster Care" on the MAGIModified Adjusted Gross Income Medicaid case.
+3. If the child is released from custody (not a trial visit) and the child returns to the home, OCSOffice of Children's Services will close the 060 Medicaid case giving timely notice of adverse action and notify DPADivision of Public Assistance. Medicaid for the child, MAGIModified Adjusted Gross Income Medicaid or TEFRATax Equity and Fiscal Responsibility Act coverage, will resume if the child is otherwise eligible.
+
+|  |  |  |
+| --- | --- | --- |
+| [Previous Section](124-4_children_in_custody_found_eligible_for_hcb_waiver_services.md) |  | [Next Section](124-6_tefra_medicaid_eligible_child_taken_into_ocs_custody.md) |
+|  |  | [2017-01 (03/17)](../transmittals/transmittal_2017-01.md) |

@@ -1,0 +1,6034 @@
+{
+  "paths": {
+    "/aliases": {
+      "get": {
+        "operationId": "Aliases_List",
+        "description": "Lists all aliases available for a search service.",
+        "params": [
+          "?",
+          "Accept",
+          "?"
+        ]
+      },
+      "post": {
+        "operationId": "Aliases_Create",
+        "description": "Creates a new search alias.",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "alias"
+        ]
+      }
+    },
+    "/aliases('{aliasName}')": {
+      "get": {
+        "operationId": "Aliases_Get",
+        "description": "Retrieves an alias definition.",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "aliasName"
+        ]
+      },
+      "put": {
+        "operationId": "Aliases_CreateOrUpdate",
+        "description": "Creates a new search alias or updates an alias if it already exists.",
+        "params": [
+          "?",
+          "Accept",
+          "If-Match",
+          "If-None-Match",
+          "Prefer",
+          "?",
+          "aliasName",
+          "alias"
+        ]
+      },
+      "delete": {
+        "operationId": "Aliases_Delete",
+        "description": "Deletes a search alias and its associated mapping to an index. This operation is permanent, with no recovery option. The mapped index is untouched by ",
+        "params": [
+          "?",
+          "Accept",
+          "If-Match",
+          "If-None-Match",
+          "?",
+          "aliasName"
+        ]
+      }
+    },
+    "/datasources": {
+      "get": {
+        "operationId": "DataSources_List",
+        "description": "Lists all datasources available for a search service.",
+        "params": [
+          "?",
+          "Accept",
+          "$select",
+          "?"
+        ]
+      },
+      "post": {
+        "operationId": "DataSources_Create",
+        "description": "Creates a new datasource.",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "dataSourceConnection"
+        ]
+      }
+    },
+    "/datasources('{dataSourceName}')": {
+      "get": {
+        "operationId": "DataSources_Get",
+        "description": "Retrieves a datasource definition.",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "dataSourceName"
+        ]
+      },
+      "put": {
+        "operationId": "DataSources_CreateOrUpdate",
+        "description": "Creates a new datasource or updates a datasource if it already exists.",
+        "params": [
+          "?",
+          "Accept",
+          "If-Match",
+          "If-None-Match",
+          "Prefer",
+          "ignoreResetRequirements",
+          "?",
+          "dataSourceName",
+          "dataSource"
+        ]
+      },
+      "delete": {
+        "operationId": "DataSources_Delete",
+        "description": "Deletes a datasource.",
+        "params": [
+          "?",
+          "Accept",
+          "If-Match",
+          "If-None-Match",
+          "?",
+          "dataSourceName"
+        ]
+      }
+    },
+    "/indexers": {
+      "get": {
+        "operationId": "Indexers_List",
+        "description": "Lists all indexers available for a search service.",
+        "params": [
+          "?",
+          "Accept",
+          "$select",
+          "?"
+        ]
+      },
+      "post": {
+        "operationId": "Indexers_Create",
+        "description": "Creates a new indexer.",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "indexer"
+        ]
+      }
+    },
+    "/indexers('{indexerName}')": {
+      "get": {
+        "operationId": "Indexers_Get",
+        "description": "Retrieves an indexer definition.",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "indexerName"
+        ]
+      },
+      "put": {
+        "operationId": "Indexers_CreateOrUpdate",
+        "description": "Creates a new indexer or updates an indexer if it already exists.",
+        "params": [
+          "?",
+          "Accept",
+          "If-Match",
+          "If-None-Match",
+          "Prefer",
+          "ignoreResetRequirements",
+          "disableCacheReprocessingChangeDetection",
+          "?",
+          "indexerName",
+          "indexer"
+        ]
+      },
+      "delete": {
+        "operationId": "Indexers_Delete",
+        "description": "Deletes an indexer.",
+        "params": [
+          "?",
+          "Accept",
+          "If-Match",
+          "If-None-Match",
+          "?",
+          "indexerName"
+        ]
+      }
+    },
+    "/indexers('{indexerName}')/search.reset": {
+      "post": {
+        "operationId": "Indexers_Reset",
+        "description": "Resets the change tracking state associated with an indexer.",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "indexerName"
+        ]
+      }
+    },
+    "/indexers('{indexerName}')/search.resetdocs": {
+      "post": {
+        "operationId": "Indexers_ResetDocs",
+        "description": "Resets specific documents in the datasource to be selectively re-ingested by the indexer.",
+        "params": [
+          "?",
+          "Accept",
+          "overwrite",
+          "?",
+          "indexerName",
+          "keysOrIds"
+        ]
+      }
+    },
+    "/indexers('{indexerName}')/search.resync": {
+      "post": {
+        "operationId": "Indexers_Resync",
+        "description": "Resync selective options from the datasource to be re-ingested by the indexer.\"",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "indexerName",
+          "indexerResync"
+        ]
+      }
+    },
+    "/indexers('{indexerName}')/search.run": {
+      "post": {
+        "operationId": "Indexers_Run",
+        "description": "Runs an indexer on-demand.",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "indexerName"
+        ]
+      }
+    },
+    "/indexers('{indexerName}')/search.status": {
+      "get": {
+        "operationId": "Indexers_GetStatus",
+        "description": "Returns the current status and execution history of an indexer.",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "indexerName"
+        ]
+      }
+    },
+    "/indexes": {
+      "get": {
+        "operationId": "Indexes_List",
+        "description": "Lists all indexes available for a search service.",
+        "params": [
+          "?",
+          "Accept",
+          "?"
+        ]
+      },
+      "post": {
+        "operationId": "Indexes_Create",
+        "description": "Creates a new search index.",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "index"
+        ]
+      }
+    },
+    "/indexes('{indexName}')": {
+      "get": {
+        "operationId": "Indexes_Get",
+        "description": "Retrieves an index definition.",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "indexName"
+        ]
+      },
+      "put": {
+        "operationId": "Indexes_CreateOrUpdate",
+        "description": "Creates a new search index or updates an index if it already exists.",
+        "params": [
+          "?",
+          "Accept",
+          "If-Match",
+          "If-None-Match",
+          "allowIndexDowntime",
+          "Prefer",
+          "?",
+          "indexName",
+          "index"
+        ]
+      },
+      "delete": {
+        "operationId": "Indexes_Delete",
+        "description": "Deletes a search index and all the documents it contains. This operation is permanent, with no recovery option. Make sure you have a master copy of yo",
+        "params": [
+          "?",
+          "Accept",
+          "If-Match",
+          "If-None-Match",
+          "?",
+          "indexName"
+        ]
+      }
+    },
+    "/indexes('{indexName}')/docs": {
+      "get": {
+        "operationId": "Documents_SearchGet",
+        "description": "Searches for documents in the index.",
+        "params": [
+          "?",
+          "Accept",
+          "x-ms-query-source-authorization",
+          "x-ms-enable-elevated-read",
+          "search",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "indexName"
+        ]
+      }
+    },
+    "/indexes('{indexName}')/docs/$count": {
+      "get": {
+        "operationId": "Documents_Count",
+        "description": "Queries the number of documents in the index.",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "indexName"
+        ]
+      }
+    },
+    "/indexes('{indexName}')/docs/search.autocomplete": {
+      "get": {
+        "operationId": "Documents_AutocompleteGet",
+        "description": "Autocompletes incomplete query terms based on input text and matching terms in the index.",
+        "params": [
+          "?",
+          "Accept",
+          "search",
+          "suggesterName",
+          "autocompleteMode",
+          "$filter",
+          "fuzzy",
+          "highlightPostTag",
+          "highlightPreTag",
+          "minimumCoverage",
+          "searchFields",
+          "$top",
+          "?",
+          "indexName"
+        ]
+      }
+    },
+    "/indexes('{indexName}')/docs/search.index": {
+      "post": {
+        "operationId": "Documents_Index",
+        "description": "Sends a batch of document write actions to the index.",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "indexName",
+          "batch"
+        ]
+      }
+    },
+    "/indexes('{indexName}')/docs/search.post.autocomplete": {
+      "post": {
+        "operationId": "Documents_AutocompletePost",
+        "description": "Autocompletes incomplete query terms based on input text and matching terms in the index.",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "indexName",
+          "body"
+        ]
+      }
+    },
+    "/indexes('{indexName}')/docs/search.post.search": {
+      "post": {
+        "operationId": "Documents_SearchPost",
+        "description": "Searches for documents in the index.",
+        "params": [
+          "?",
+          "Accept",
+          "x-ms-query-source-authorization",
+          "x-ms-enable-elevated-read",
+          "?",
+          "indexName",
+          "body"
+        ]
+      }
+    },
+    "/indexes('{indexName}')/docs/search.post.suggest": {
+      "post": {
+        "operationId": "Documents_SuggestPost",
+        "description": "Suggests documents in the index that match the given partial query text.",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "indexName",
+          "body"
+        ]
+      }
+    },
+    "/indexes('{indexName}')/docs/search.suggest": {
+      "get": {
+        "operationId": "Documents_SuggestGet",
+        "description": "Suggests documents in the index that match the given partial query text.",
+        "params": [
+          "?",
+          "Accept",
+          "search",
+          "suggesterName",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "indexName"
+        ]
+      }
+    },
+    "/indexes('{indexName}')/docs('{key}')": {
+      "get": {
+        "operationId": "Documents_Get",
+        "description": "Retrieves a document from the index.",
+        "params": [
+          "?",
+          "Accept",
+          "x-ms-query-source-authorization",
+          "x-ms-enable-elevated-read",
+          "key",
+          "$select",
+          "?",
+          "indexName"
+        ]
+      }
+    },
+    "/indexes('{indexName}')/search.analyze": {
+      "post": {
+        "operationId": "Indexes_Analyze",
+        "description": "Shows how an analyzer breaks text into tokens.",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "indexName",
+          "request"
+        ]
+      }
+    },
+    "/indexes('{indexName}')/search.stats": {
+      "get": {
+        "operationId": "Indexes_GetStatistics",
+        "description": "Returns statistics for the given index, including a document count and storage usage.",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "indexName"
+        ]
+      }
+    },
+    "/indexstats": {
+      "get": {
+        "operationId": "GetIndexStatsSummary",
+        "description": "Retrieves a summary of statistics for all indexes in the search service.",
+        "params": [
+          "?",
+          "Accept",
+          "?"
+        ]
+      }
+    },
+    "/knowledgebases": {
+      "get": {
+        "operationId": "KnowledgeBases_List",
+        "description": "Lists all knowledge bases available for a search service.",
+        "params": [
+          "?",
+          "Accept",
+          "?"
+        ]
+      },
+      "post": {
+        "operationId": "KnowledgeBases_Create",
+        "description": "Creates a new knowledge base.",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "knowledgeBase"
+        ]
+      }
+    },
+    "/knowledgebases('{knowledgeBaseName}')": {
+      "get": {
+        "operationId": "KnowledgeBases_Get",
+        "description": "Retrieves a knowledge base definition.",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "knowledgeBaseName"
+        ]
+      },
+      "put": {
+        "operationId": "KnowledgeBases_CreateOrUpdate",
+        "description": "Creates a new knowledge base or updates a knowledge base if it already exists.",
+        "params": [
+          "?",
+          "Accept",
+          "If-Match",
+          "If-None-Match",
+          "Prefer",
+          "?",
+          "knowledgeBaseName",
+          "knowledgeBase"
+        ]
+      },
+      "delete": {
+        "operationId": "KnowledgeBases_Delete",
+        "description": "Deletes a knowledge base.",
+        "params": [
+          "?",
+          "Accept",
+          "If-Match",
+          "If-None-Match",
+          "?",
+          "knowledgeBaseName"
+        ]
+      }
+    },
+    "/knowledgebases('{knowledgeBaseName}')/retrieve": {
+      "post": {
+        "operationId": "KnowledgeRetrieval_Retrieve",
+        "description": "KnowledgeBase retrieves relevant data from backing stores.",
+        "params": [
+          "?",
+          "Accept",
+          "knowledgeBaseName",
+          "x-ms-query-source-authorization",
+          "?",
+          "retrievalRequest"
+        ]
+      }
+    },
+    "/knowledgesources": {
+      "get": {
+        "operationId": "KnowledgeSources_List",
+        "description": "Lists all knowledge sources available for a search service.",
+        "params": [
+          "?",
+          "Accept",
+          "?"
+        ]
+      },
+      "post": {
+        "operationId": "KnowledgeSources_Create",
+        "description": "Creates a new knowledge source.",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "knowledgeSource"
+        ]
+      }
+    },
+    "/knowledgesources('{sourceName}')": {
+      "get": {
+        "operationId": "KnowledgeSources_Get",
+        "description": "Retrieves a knowledge source definition.",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "sourceName"
+        ]
+      },
+      "put": {
+        "operationId": "KnowledgeSources_CreateOrUpdate",
+        "description": "Creates a new knowledge source or updates an knowledge source if it already exists.",
+        "params": [
+          "?",
+          "Accept",
+          "If-Match",
+          "If-None-Match",
+          "Prefer",
+          "?",
+          "sourceName",
+          "knowledgeSource"
+        ]
+      },
+      "delete": {
+        "operationId": "KnowledgeSources_Delete",
+        "description": "Deletes an existing knowledge source.",
+        "params": [
+          "?",
+          "Accept",
+          "If-Match",
+          "If-None-Match",
+          "?",
+          "sourceName"
+        ]
+      }
+    },
+    "/knowledgesources('{sourceName}')/status": {
+      "get": {
+        "operationId": "KnowledgeSources_GetStatus",
+        "description": "Retrieves the status of a knowledge source.",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "sourceName"
+        ]
+      }
+    },
+    "/servicestats": {
+      "get": {
+        "operationId": "GetServiceStatistics",
+        "description": "Gets service level statistics for a search service.",
+        "params": [
+          "?",
+          "Accept",
+          "?"
+        ]
+      }
+    },
+    "/skillsets": {
+      "get": {
+        "operationId": "Skillsets_List",
+        "description": "List all skillsets in a search service.",
+        "params": [
+          "?",
+          "Accept",
+          "$select",
+          "?"
+        ]
+      },
+      "post": {
+        "operationId": "Skillsets_Create",
+        "description": "Creates a new skillset in a search service.",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "skillset"
+        ]
+      }
+    },
+    "/skillsets('{skillsetName}')": {
+      "get": {
+        "operationId": "Skillsets_Get",
+        "description": "Retrieves a skillset in a search service.",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "skillsetName"
+        ]
+      },
+      "put": {
+        "operationId": "Skillsets_CreateOrUpdate",
+        "description": "Creates a new skillset in a search service or updates the skillset if it already exists.",
+        "params": [
+          "?",
+          "Accept",
+          "If-Match",
+          "If-None-Match",
+          "Prefer",
+          "ignoreResetRequirements",
+          "disableCacheReprocessingChangeDetection",
+          "?",
+          "skillsetName",
+          "skillset"
+        ]
+      },
+      "delete": {
+        "operationId": "Skillsets_Delete",
+        "description": "Deletes a skillset in a search service.",
+        "params": [
+          "?",
+          "Accept",
+          "If-Match",
+          "If-None-Match",
+          "?",
+          "skillsetName"
+        ]
+      }
+    },
+    "/skillsets('{skillsetName}')/search.resetskills": {
+      "post": {
+        "operationId": "Skillsets_ResetSkills",
+        "description": "Reset an existing skillset in a search service.",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "skillsetName",
+          "skillNames"
+        ]
+      }
+    },
+    "/synonymmaps": {
+      "get": {
+        "operationId": "SynonymMaps_List",
+        "description": "Lists all synonym maps available for a search service.",
+        "params": [
+          "?",
+          "Accept",
+          "$select",
+          "?"
+        ]
+      },
+      "post": {
+        "operationId": "SynonymMaps_Create",
+        "description": "Creates a new synonym map.",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "synonymMap"
+        ]
+      }
+    },
+    "/synonymmaps('{synonymMapName}')": {
+      "get": {
+        "operationId": "SynonymMaps_Get",
+        "description": "Retrieves a synonym map definition.",
+        "params": [
+          "?",
+          "Accept",
+          "?",
+          "synonymMapName"
+        ]
+      },
+      "put": {
+        "operationId": "SynonymMaps_CreateOrUpdate",
+        "description": "Creates a new synonym map or updates a synonym map if it already exists.",
+        "params": [
+          "?",
+          "Accept",
+          "If-Match",
+          "If-None-Match",
+          "Prefer",
+          "?",
+          "synonymMapName",
+          "synonymMap"
+        ]
+      },
+      "delete": {
+        "operationId": "SynonymMaps_Delete",
+        "description": "Deletes a synonym map.",
+        "params": [
+          "?",
+          "Accept",
+          "If-Match",
+          "If-None-Match",
+          "?",
+          "synonymMapName"
+        ]
+      }
+    },
+    "/indexes?_overload=listWithSelectedProperties": {
+      "get": {
+        "operationId": "Indexes_ListWithSelectedProperties",
+        "description": "Lists all indexes available for a search service.",
+        "params": [
+          "?",
+          "Accept",
+          "$select",
+          "?"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "AIFoundryModelCatalogName": {
+      "description": "The name of the embedding model from the Azure AI Foundry Catalog that will be called.",
+      "enum": [
+        "OpenAI-CLIP-Image-Text-Embeddings-vit-base-patch32",
+        "OpenAI-CLIP-Image-Text-Embeddings-ViT-Large-Patch14-336",
+        "Facebook-DinoV2-Image-Embeddings-ViT-Base",
+        "Facebook-DinoV2-Image-Embeddings-ViT-Giant",
+        "Cohere-embed-v3-english",
+        "Cohere-embed-v3-multilingual",
+        "Cohere-embed-v4"
+      ]
+    },
+    "AIServices": {
+      "description": "Parameters for AI Services.",
+      "required": [
+        "uri"
+      ],
+      "properties": [
+        "uri",
+        "apiKey"
+      ]
+    },
+    "AIServicesAccountIdentity": {
+      "description": "The multi-region account of an Azure AI service resource that's attached to a skillset.",
+      "required": [
+        "subdomainUrl"
+      ],
+      "properties": [
+        "identity",
+        "subdomainUrl"
+      ],
+      "extends": [
+        "CognitiveServicesAccount"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.AIServicesByIdentity"
+    },
+    "AIServicesAccountKey": {
+      "description": "The account key of an Azure AI service resource that's attached to a skillset, to be used with the resource's subdomain.",
+      "required": [
+        "key",
+        "subdomainUrl"
+      ],
+      "properties": [
+        "key",
+        "subdomainUrl"
+      ],
+      "extends": [
+        "CognitiveServicesAccount"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.AIServicesByKey"
+    },
+    "AIServicesVisionParameters": {
+      "description": "Specifies the AI Services Vision parameters for vectorizing a query image or text.",
+      "required": [
+        "modelVersion",
+        "resourceUri"
+      ],
+      "properties": [
+        "modelVersion",
+        "resourceUri",
+        "apiKey",
+        "authIdentity"
+      ]
+    },
+    "AIServicesVisionVectorizer": {
+      "description": "Clears the identity property of a datasource.",
+      "properties": [
+        "aiServicesVisionParameters"
+      ],
+      "extends": [
+        "VectorSearchVectorizer"
+      ],
+      "discriminator": "aiServicesVision"
+    },
+    "AMLParameters": {
+      "description": "Specifies the properties for connecting to an AML vectorizer.",
+      "required": [
+        "uri"
+      ],
+      "properties": [
+        "uri",
+        "key",
+        "resourceId",
+        "timeout",
+        "region",
+        "modelName"
+      ]
+    },
+    "AMLVectorizer": {
+      "description": "Specifies an Azure Machine Learning endpoint deployed via the Azure AI Foundry Model Catalog for generating the vector embedding of a query string.",
+      "properties": [
+        "amlParameters"
+      ],
+      "extends": [
+        "VectorSearchVectorizer"
+      ],
+      "discriminator": "aml"
+    },
+    "AnalyzeRequest": {
+      "description": "Specifies some text and analysis components used to break that text into tokens.",
+      "required": [
+        "text"
+      ],
+      "properties": [
+        "text",
+        "analyzer",
+        "tokenizer",
+        "normalizer",
+        "tokenFilters",
+        "charFilters"
+      ]
+    },
+    "AnalyzeResult": {
+      "description": "The result of testing an analyzer on text.",
+      "required": [
+        "tokens"
+      ],
+      "properties": [
+        "tokens"
+      ]
+    },
+    "AnalyzedTokenInfo": {
+      "description": "Information about a token returned by an analyzer.",
+      "required": [
+        "token",
+        "startOffset",
+        "endOffset",
+        "position"
+      ],
+      "properties": [
+        "token",
+        "startOffset",
+        "endOffset",
+        "position"
+      ]
+    },
+    "AsciiFoldingTokenFilter": {
+      "description": "Converts alphabetic, numeric, and symbolic Unicode characters which are not in the first 127 ASCII characters (the \"Basic Latin\" Unicode block) into their ASCII equivalents, if such equivalents exist.",
+      "properties": [
+        "preserveOriginal"
+      ],
+      "extends": [
+        "TokenFilter"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.AsciiFoldingTokenFilter"
+    },
+    "AutocompleteItem": {
+      "description": "The result of Autocomplete requests.",
+      "required": [
+        "text",
+        "queryPlusText"
+      ],
+      "properties": [
+        "text",
+        "queryPlusText"
+      ]
+    },
+    "AutocompleteMode": {
+      "description": "Specifies the mode for Autocomplete. The default is 'oneTerm'. Use 'twoTerms' to get shingles and 'oneTermWithContext' to use the current context in producing autocomplete terms.",
+      "enum": [
+        "oneTerm",
+        "twoTerms",
+        "oneTermWithContext"
+      ]
+    },
+    "AutocompleteRequest": {
+      "description": "Parameters for fuzzy matching, and other autocomplete query behaviors.",
+      "required": [
+        "search",
+        "suggesterName"
+      ],
+      "properties": [
+        "search",
+        "autocompleteMode",
+        "filter",
+        "fuzzy",
+        "highlightPostTag",
+        "highlightPreTag",
+        "minimumCoverage",
+        "searchFields",
+        "suggesterName",
+        "top"
+      ]
+    },
+    "AutocompleteResult": {
+      "description": "The result of Autocomplete query.",
+      "required": [
+        "value"
+      ],
+      "properties": [
+        "@search.coverage",
+        "value"
+      ]
+    },
+    "AzureActiveDirectoryApplicationCredentials": {
+      "description": "Credentials of a registered application created for your search service, used for authenticated access to the encryption keys stored in Azure Key Vault.",
+      "required": [
+        "applicationId"
+      ],
+      "properties": [
+        "applicationId",
+        "applicationSecret"
+      ]
+    },
+    "AzureBlobKnowledgeSource": {
+      "description": "Configuration for Azure Blob Storage knowledge source.",
+      "required": [
+        "azureBlobParameters"
+      ],
+      "properties": [
+        "azureBlobParameters"
+      ],
+      "extends": [
+        "KnowledgeSource"
+      ],
+      "discriminator": "azureBlob"
+    },
+    "AzureBlobKnowledgeSourceParameters": {
+      "description": "Parameters for Azure Blob Storage knowledge source.",
+      "required": [
+        "connectionString",
+        "containerName"
+      ],
+      "properties": [
+        "connectionString",
+        "containerName",
+        "folderPath",
+        "isADLSGen2",
+        "ingestionParameters",
+        "createdResources"
+      ]
+    },
+    "AzureBlobKnowledgeSourceParams": {
+      "description": "Specifies runtime parameters for a azure blob knowledge source",
+      "extends": [
+        "KnowledgeSourceParams"
+      ],
+      "discriminator": "azureBlob"
+    },
+    "AzureMachineLearningSkill": {
+      "description": "The AML skill allows you to extend AI enrichment with a custom Azure Machine Learning (AML) model. Once an AML model is trained and deployed, an AML skill integrates it into AI enrichment.",
+      "properties": [
+        "uri",
+        "key",
+        "resourceId",
+        "timeout",
+        "region",
+        "degreeOfParallelism"
+      ],
+      "extends": [
+        "SearchIndexerSkill"
+      ],
+      "discriminator": "#Microsoft.Skills.Custom.AmlSkill"
+    },
+    "AzureOpenAIEmbeddingSkill": {
+      "description": "Allows you to generate a vector embedding for a given text input using the Azure OpenAI resource.",
+      "properties": [
+        "resourceUri",
+        "deploymentId",
+        "apiKey",
+        "authIdentity",
+        "modelName",
+        "dimensions"
+      ],
+      "extends": [
+        "SearchIndexerSkill"
+      ],
+      "discriminator": "#Microsoft.Skills.Text.AzureOpenAIEmbeddingSkill"
+    },
+    "AzureOpenAIModelName": {
+      "description": "The Azure Open AI model name that will be called.",
+      "enum": [
+        "text-embedding-ada-002",
+        "text-embedding-3-large",
+        "text-embedding-3-small",
+        "gpt-4o",
+        "gpt-4o-mini",
+        "gpt-4.1",
+        "gpt-4.1-mini",
+        "gpt-4.1-nano",
+        "gpt-5",
+        "gpt-5-mini",
+        "gpt-5-nano"
+      ]
+    },
+    "AzureOpenAITokenizerParameters": {
+      "description": "Azure OpenAI Tokenizer parameters.",
+      "properties": [
+        "encoderModelName",
+        "allowedSpecialTokens"
+      ]
+    },
+    "AzureOpenAIVectorizer": {
+      "description": "Specifies the Azure OpenAI resource used to vectorize a query string.",
+      "properties": [
+        "azureOpenAIParameters"
+      ],
+      "extends": [
+        "VectorSearchVectorizer"
+      ],
+      "discriminator": "azureOpenAI"
+    },
+    "AzureOpenAIVectorizerParameters": {
+      "description": "Specifies the parameters for connecting to the Azure OpenAI resource.",
+      "properties": [
+        "resourceUri",
+        "deploymentId",
+        "apiKey",
+        "authIdentity",
+        "modelName"
+      ]
+    },
+    "AzureOpenAiParameters": {
+      "description": "Specifies the parameters for connecting to the Azure OpenAI resource.",
+      "properties": [
+        "resourceUri",
+        "deploymentId",
+        "apiKey",
+        "authIdentity",
+        "modelName"
+      ]
+    },
+    "BM25SimilarityAlgorithm": {
+      "description": "Ranking function based on the Okapi BM25 similarity algorithm. BM25 is a TF-IDF-like algorithm that includes length normalization (controlled by the 'b' parameter) as well as term frequency saturation",
+      "properties": [
+        "k1",
+        "b"
+      ],
+      "extends": [
+        "SimilarityAlgorithm"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.BM25Similarity"
+    },
+    "BinaryQuantizationCompression": {
+      "description": "Contains configuration options specific to the binary quantization compression method used during indexing and querying.",
+      "extends": [
+        "VectorSearchCompression"
+      ],
+      "discriminator": "binaryQuantization"
+    },
+    "BlobIndexerDataToExtract": {
+      "description": "Specifies the data to extract from Azure blob storage and tells the indexer which data to extract from image content when \"imageAction\" is set to a value other than \"none\".  This applies to embedded i",
+      "enum": [
+        "storageMetadata",
+        "allMetadata",
+        "contentAndMetadata"
+      ]
+    },
+    "BlobIndexerImageAction": {
+      "description": "Determines how to process embedded images and image files in Azure blob storage.  Setting the \"imageAction\" configuration to any value other than \"none\" requires that a skillset also be attached to th",
+      "enum": [
+        "none",
+        "generateNormalizedImages",
+        "generateNormalizedImagePerPage"
+      ]
+    },
+    "BlobIndexerPDFTextRotationAlgorithm": {
+      "description": "Determines algorithm for text extraction from PDF files in Azure blob storage.",
+      "enum": [
+        "none",
+        "detectAngles"
+      ]
+    },
+    "BlobIndexerParsingMode": {
+      "description": "Represents the parsing mode for indexing from an Azure blob data source.",
+      "enum": [
+        "default",
+        "text",
+        "delimitedText",
+        "json",
+        "jsonArray",
+        "jsonLines",
+        "markdown"
+      ]
+    },
+    "CharFilter": {
+      "description": "Base type for character filters.",
+      "required": [
+        "@odata.type",
+        "name"
+      ],
+      "properties": [
+        "@odata.type",
+        "name"
+      ]
+    },
+    "CharFilterName": {
+      "description": "Defines the names of all character filters supported by the search engine.",
+      "enum": [
+        "html_strip"
+      ]
+    },
+    "ChatCompletionCommonModelParameters": {
+      "description": "Common language model parameters for Chat Completions. If omitted, default values are used.",
+      "properties": [
+        "model",
+        "frequencyPenalty",
+        "presencePenalty",
+        "maxTokens",
+        "temperature",
+        "seed",
+        "stop"
+      ]
+    },
+    "ChatCompletionExtraParametersBehavior": {
+      "description": "Specifies how 'extraParameters' should be handled by Azure AI Foundry. Defaults to 'error'.",
+      "enum": [
+        "passThrough",
+        "drop",
+        "error"
+      ]
+    },
+    "ChatCompletionResponseFormat": {
+      "description": "Determines how the language model's response should be serialized. Defaults to 'text'.",
+      "properties": [
+        "type",
+        "jsonSchemaProperties"
+      ]
+    },
+    "ChatCompletionResponseFormatType": {
+      "description": "Specifies how the LLM should format the response.",
+      "enum": [
+        "text",
+        "jsonObject",
+        "jsonSchema"
+      ]
+    },
+    "ChatCompletionSchema": {
+      "description": "Object defining the custom schema the model will use to structure its output.",
+      "properties": [
+        "type",
+        "properties",
+        "required",
+        "additionalProperties"
+      ]
+    },
+    "ChatCompletionSchemaProperties": {
+      "description": "Properties for JSON schema response format.",
+      "properties": [
+        "name",
+        "description",
+        "strict",
+        "schema"
+      ]
+    },
+    "ChatCompletionSkill": {
+      "description": "A skill that calls a language model via Azure AI Foundry's Chat Completions endpoint.",
+      "required": [
+        "uri"
+      ],
+      "properties": [
+        "uri",
+        "httpHeaders",
+        "httpMethod",
+        "timeout",
+        "batchSize",
+        "degreeOfParallelism",
+        "authResourceId",
+        "authIdentity",
+        "apiKey",
+        "commonModelParameters",
+        "extraParameters",
+        "extraParametersBehavior",
+        "responseFormat"
+      ],
+      "extends": [
+        "SearchIndexerSkill"
+      ],
+      "discriminator": "#Microsoft.Skills.Custom.ChatCompletionSkill"
+    },
+    "CjkBigramTokenFilter": {
+      "description": "Forms bigrams of CJK terms that are generated from the standard tokenizer. This token filter is implemented using Apache Lucene.",
+      "properties": [
+        "ignoreScripts",
+        "outputUnigrams"
+      ],
+      "extends": [
+        "TokenFilter"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.CjkBigramTokenFilter"
+    },
+    "CjkBigramTokenFilterScripts": {
+      "description": "Scripts that can be ignored by CjkBigramTokenFilter.",
+      "enum": [
+        "han",
+        "hiragana",
+        "katakana",
+        "hangul"
+      ]
+    },
+    "ClassicSimilarityAlgorithm": {
+      "description": "Legacy similarity algorithm which uses the Lucene TFIDFSimilarity implementation of TF-IDF. This variation of TF-IDF introduces static document length normalization as well as coordinating factors tha",
+      "extends": [
+        "SimilarityAlgorithm"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.ClassicSimilarity"
+    },
+    "ClassicTokenizer": {
+      "description": "Grammar-based tokenizer that is suitable for processing most European-language documents. This tokenizer is implemented using Apache Lucene.",
+      "properties": [
+        "maxTokenLength"
+      ],
+      "extends": [
+        "LexicalTokenizer"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.ClassicTokenizer"
+    },
+    "CognitiveServicesAccount": {
+      "description": "Base type for describing any Azure AI service resource attached to a skillset.",
+      "required": [
+        "@odata.type"
+      ],
+      "properties": [
+        "@odata.type",
+        "description"
+      ]
+    },
+    "CognitiveServicesAccountKey": {
+      "description": "The multi-region account key of an Azure AI service resource that's attached to a skillset.",
+      "required": [
+        "key"
+      ],
+      "properties": [
+        "key"
+      ],
+      "extends": [
+        "CognitiveServicesAccount"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.CognitiveServicesByKey"
+    },
+    "CommonGramTokenFilter": {
+      "description": "Construct bigrams for frequently occurring terms while indexing. Single terms are still indexed too, with bigrams overlaid. This token filter is implemented using Apache Lucene.",
+      "required": [
+        "commonWords"
+      ],
+      "properties": [
+        "commonWords",
+        "ignoreCase",
+        "queryMode"
+      ],
+      "extends": [
+        "TokenFilter"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.CommonGramTokenFilter"
+    },
+    "CompletedSynchronizationState": {
+      "description": "Represents the completed state of the last synchronization.",
+      "required": [
+        "startTime",
+        "endTime",
+        "itemsUpdatesProcessed",
+        "itemsUpdatesFailed",
+        "itemsSkipped"
+      ],
+      "properties": [
+        "startTime",
+        "endTime",
+        "itemsUpdatesProcessed",
+        "itemsUpdatesFailed",
+        "itemsSkipped"
+      ]
+    },
+    "ConditionalSkill": {
+      "description": "A skill that enables scenarios that require a Boolean operation to determine the data to assign to an output.",
+      "extends": [
+        "SearchIndexerSkill"
+      ],
+      "discriminator": "#Microsoft.Skills.Util.ConditionalSkill"
+    },
+    "ContentUnderstandingSkill": {
+      "description": "A skill that leverages Azure AI Content Understanding to process and extract structured insights from documents, enabling enriched, searchable content for enhanced document indexing and retrieval.",
+      "properties": [
+        "extractionOptions",
+        "chunkingProperties"
+      ],
+      "extends": [
+        "SearchIndexerSkill"
+      ],
+      "discriminator": "#Microsoft.Skills.Util.ContentUnderstandingSkill"
+    },
+    "ContentUnderstandingSkillChunkingProperties": {
+      "description": "Controls the cardinality for chunking the content.",
+      "properties": [
+        "unit",
+        "maximumLength",
+        "overlapLength"
+      ]
+    },
+    "ContentUnderstandingSkillChunkingUnit": {
+      "description": "Controls the cardinality of the chunk unit. Default is 'characters'",
+      "enum": [
+        "characters"
+      ]
+    },
+    "ContentUnderstandingSkillExtractionOptions": {
+      "description": "Controls the cardinality of the content extracted from the document by the skill.",
+      "enum": [
+        "images",
+        "locationMetadata"
+      ]
+    },
+    "CorsOptions": {
+      "description": "Defines options to control Cross-Origin Resource Sharing (CORS) for an index.",
+      "required": [
+        "allowedOrigins"
+      ],
+      "properties": [
+        "allowedOrigins",
+        "maxAgeInSeconds"
+      ]
+    },
+    "CreatedResources": {
+      "description": "Resources created by the knowledge source. Keys represent resource types (e.g., 'datasource', 'indexer', 'skillset', 'index') and values represent resource names."
+    },
+    "CustomAnalyzer": {
+      "description": "Allows you to take control over the process of converting text into indexable/searchable tokens. It's a user-defined configuration consisting of a single predefined tokenizer and one or more filters. ",
+      "required": [
+        "tokenizer"
+      ],
+      "properties": [
+        "tokenizer",
+        "tokenFilters",
+        "charFilters"
+      ],
+      "extends": [
+        "LexicalAnalyzer"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.CustomAnalyzer"
+    },
+    "CustomEntity": {
+      "description": "An object that contains information about the matches that were found, and related metadata.",
+      "required": [
+        "name"
+      ],
+      "properties": [
+        "name",
+        "description",
+        "type",
+        "subtype",
+        "id",
+        "caseSensitive",
+        "accentSensitive",
+        "fuzzyEditDistance",
+        "defaultCaseSensitive",
+        "defaultAccentSensitive",
+        "defaultFuzzyEditDistance",
+        "aliases"
+      ]
+    },
+    "CustomEntityAlias": {
+      "description": "A complex object that can be used to specify alternative spellings or synonyms to the root entity name.",
+      "required": [
+        "text"
+      ],
+      "properties": [
+        "text",
+        "caseSensitive",
+        "accentSensitive",
+        "fuzzyEditDistance"
+      ]
+    },
+    "CustomEntityLookupSkill": {
+      "description": "A skill looks for text from a custom, user-defined list of words and phrases.",
+      "properties": [
+        "defaultLanguageCode",
+        "entitiesDefinitionUri",
+        "inlineEntitiesDefinition",
+        "globalDefaultCaseSensitive",
+        "globalDefaultAccentSensitive",
+        "globalDefaultFuzzyEditDistance"
+      ],
+      "extends": [
+        "SearchIndexerSkill"
+      ],
+      "discriminator": "#Microsoft.Skills.Text.CustomEntityLookupSkill"
+    },
+    "CustomEntityLookupSkillLanguage": {
+      "description": "The language codes supported for input text by CustomEntityLookupSkill.",
+      "enum": [
+        "da",
+        "de",
+        "en",
+        "es",
+        "fi",
+        "fr",
+        "it",
+        "ko",
+        "pt"
+      ]
+    },
+    "CustomNormalizer": {
+      "description": "Allows you to configure normalization for filterable, sortable, and facetable fields, which by default operate with strict matching. This is a user-defined configuration consisting of at least one or ",
+      "properties": [
+        "tokenFilters",
+        "charFilters"
+      ],
+      "extends": [
+        "LexicalNormalizer"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.CustomNormalizer"
+    },
+    "DataChangeDetectionPolicy": {
+      "description": "Base type for data change detection policies.",
+      "required": [
+        "@odata.type"
+      ],
+      "properties": [
+        "@odata.type"
+      ]
+    },
+    "DataDeletionDetectionPolicy": {
+      "description": "Base type for data deletion detection policies.",
+      "required": [
+        "@odata.type"
+      ],
+      "properties": [
+        "@odata.type"
+      ]
+    },
+    "DataSourceCredentials": {
+      "description": "Represents credentials that can be used to connect to a datasource.",
+      "properties": [
+        "connectionString"
+      ]
+    },
+    "DebugInfo": {
+      "description": "Contains debugging information that can be used to further explore your search results.",
+      "properties": [
+        "queryRewrites"
+      ]
+    },
+    "DefaultCognitiveServicesAccount": {
+      "description": "An empty object that represents the default Azure AI service resource for a skillset.",
+      "extends": [
+        "CognitiveServicesAccount"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.DefaultCognitiveServices"
+    },
+    "DictionaryDecompounderTokenFilter": {
+      "description": "Decomposes compound words found in many Germanic languages. This token filter is implemented using Apache Lucene.",
+      "required": [
+        "wordList"
+      ],
+      "properties": [
+        "wordList",
+        "minWordSize",
+        "minSubwordSize",
+        "maxSubwordSize",
+        "onlyLongestMatch"
+      ],
+      "extends": [
+        "TokenFilter"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.DictionaryDecompounderTokenFilter"
+    },
+    "DistanceScoringFunction": {
+      "description": "Defines a function that boosts scores based on distance from a geographic location.",
+      "required": [
+        "distance"
+      ],
+      "properties": [
+        "distance"
+      ],
+      "extends": [
+        "ScoringFunction"
+      ],
+      "discriminator": "distance"
+    },
+    "DistanceScoringParameters": {
+      "description": "Provides parameter values to a distance scoring function.",
+      "required": [
+        "referencePointParameter",
+        "boostingDistance"
+      ],
+      "properties": [
+        "referencePointParameter",
+        "boostingDistance"
+      ]
+    },
+    "DocumentDebugInfo": {
+      "description": "Contains debugging information that can be used to further explore your search results.",
+      "properties": [
+        "semantic",
+        "vectors",
+        "innerHits"
+      ]
+    },
+    "DocumentExtractionSkill": {
+      "description": "A skill that extracts content from a file within the enrichment pipeline.",
+      "properties": [
+        "parsingMode",
+        "dataToExtract",
+        "configuration"
+      ],
+      "extends": [
+        "SearchIndexerSkill"
+      ],
+      "discriminator": "#Microsoft.Skills.Util.DocumentExtractionSkill"
+    },
+    "DocumentIntelligenceLayoutSkill": {
+      "description": "A skill that extracts content and layout information, via Azure AI Services, from files within the enrichment pipeline.",
+      "properties": [
+        "outputFormat",
+        "outputMode",
+        "markdownHeaderDepth",
+        "extractionOptions",
+        "chunkingProperties"
+      ],
+      "extends": [
+        "SearchIndexerSkill"
+      ],
+      "discriminator": "#Microsoft.Skills.Util.DocumentIntelligenceLayoutSkill"
+    },
+    "DocumentIntelligenceLayoutSkillChunkingProperties": {
+      "description": "Controls the cardinality for chunking the content.",
+      "properties": [
+        "unit",
+        "maximumLength",
+        "overlapLength"
+      ]
+    },
+    "DocumentIntelligenceLayoutSkillChunkingUnit": {
+      "description": "Controls the cardinality of the chunk unit. Default is 'characters'",
+      "enum": [
+        "characters"
+      ]
+    },
+    "DocumentIntelligenceLayoutSkillExtractionOptions": {
+      "description": "Controls the cardinality of the content extracted from the document by the skill.",
+      "enum": [
+        "images",
+        "locationMetadata"
+      ]
+    },
+    "DocumentIntelligenceLayoutSkillMarkdownHeaderDepth": {
+      "description": "The depth of headers in the markdown output. Default is h6.",
+      "enum": [
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6"
+      ]
+    },
+    "DocumentIntelligenceLayoutSkillOutputFormat": {
+      "description": "Controls the cardinality of the output format. Default is 'markdown'.",
+      "enum": [
+        "text",
+        "markdown"
+      ]
+    },
+    "DocumentIntelligenceLayoutSkillOutputMode": {
+      "description": "Controls the cardinality of the output produced by the skill. Default is 'oneToMany'.",
+      "enum": [
+        "oneToMany"
+      ]
+    },
+    "DocumentKeysOrIds": {
+      "description": "The type of the keysOrIds.",
+      "properties": [
+        "documentKeys",
+        "datasourceDocumentIds"
+      ]
+    },
+    "EdgeNGramTokenFilter": {
+      "description": "Generates n-grams of the given size(s) starting from the front or the back of an input token. This token filter is implemented using Apache Lucene.",
+      "properties": [
+        "minGram",
+        "maxGram",
+        "side"
+      ],
+      "extends": [
+        "TokenFilter"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.EdgeNGramTokenFilter"
+    },
+    "EdgeNGramTokenFilterSide": {
+      "description": "Specifies which side of the input an n-gram should be generated from.",
+      "enum": [
+        "front",
+        "back"
+      ]
+    },
+    "EdgeNGramTokenFilterV2": {
+      "description": "Generates n-grams of the given size(s) starting from the front or the back of an input token. This token filter is implemented using Apache Lucene.",
+      "properties": [
+        "minGram",
+        "maxGram",
+        "side"
+      ],
+      "extends": [
+        "TokenFilter"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.EdgeNGramTokenFilterV2"
+    },
+    "EdgeNGramTokenizer": {
+      "description": "Tokenizes the input from an edge into n-grams of the given size(s). This tokenizer is implemented using Apache Lucene.",
+      "properties": [
+        "minGram",
+        "maxGram",
+        "tokenChars"
+      ],
+      "extends": [
+        "LexicalTokenizer"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.EdgeNGramTokenizer"
+    },
+    "ElisionTokenFilter": {
+      "description": "Removes elisions. For example, \"l'avion\" (the plane) will be converted to \"avion\" (plane). This token filter is implemented using Apache Lucene.",
+      "properties": [
+        "articles"
+      ],
+      "extends": [
+        "TokenFilter"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.ElisionTokenFilter"
+    },
+    "EntityCategory": {
+      "description": "A string indicating what entity categories to return.",
+      "enum": [
+        "location",
+        "organization",
+        "person",
+        "quantity",
+        "datetime",
+        "url",
+        "email"
+      ]
+    },
+    "EntityLinkingSkill": {
+      "description": "Using the Text Analytics API, extracts linked entities from text.",
+      "properties": [
+        "defaultLanguageCode",
+        "minimumPrecision",
+        "modelVersion"
+      ],
+      "extends": [
+        "SearchIndexerSkill"
+      ],
+      "discriminator": "#Microsoft.Skills.Text.V3.EntityLinkingSkill"
+    },
+    "EntityRecognitionSkillLanguage": {
+      "description": "The language codes supported for input text by EntityRecognitionSkill.",
+      "enum": [
+        "ar",
+        "cs",
+        "zh-Hans",
+        "zh-Hant",
+        "da",
+        "nl",
+        "en",
+        "fi",
+        "fr",
+        "de",
+        "el",
+        "hu",
+        "it",
+        "ja",
+        "ko",
+        "no",
+        "pl",
+        "pt-PT",
+        "pt-BR",
+        "ru",
+        "es",
+        "sv",
+        "tr"
+      ]
+    },
+    "EntityRecognitionSkillV3": {
+      "description": "Using the Text Analytics API, extracts entities of different types from text.",
+      "properties": [
+        "categories",
+        "defaultLanguageCode",
+        "minimumPrecision",
+        "modelVersion"
+      ],
+      "extends": [
+        "SearchIndexerSkill"
+      ],
+      "discriminator": "#Microsoft.Skills.Text.V3.EntityRecognitionSkill"
+    },
+    "ErrorAdditionalInfo": {
+      "description": "The resource management error additional info.",
+      "properties": [
+        "type",
+        "info"
+      ]
+    },
+    "ErrorDetail": {
+      "description": "The error detail.",
+      "properties": [
+        "code",
+        "message",
+        "target",
+        "details",
+        "additionalInfo"
+      ]
+    },
+    "ErrorResponse": {
+      "description": "Common error response for all Azure Resource Manager APIs to return error details for failed operations. (This also follows the OData error response format.).",
+      "properties": [
+        "error"
+      ]
+    },
+    "ExhaustiveKnnAlgorithmConfiguration": {
+      "description": "Contains configuration options specific to the exhaustive KNN algorithm used during querying, which will perform brute-force search across the entire vector index.",
+      "properties": [
+        "exhaustiveKnnParameters"
+      ],
+      "extends": [
+        "VectorSearchAlgorithmConfiguration"
+      ],
+      "discriminator": "exhaustiveKnn"
+    },
+    "ExhaustiveKnnParameters": {
+      "description": "Contains the parameters specific to exhaustive KNN algorithm.",
+      "properties": [
+        "metric"
+      ]
+    },
+    "FacetResult": {
+      "description": "A single bucket of a facet query result. Reports the number of documents with a field value falling within a particular range or having a particular value or interval.",
+      "properties": [
+        "count",
+        "avg",
+        "min",
+        "max",
+        "sum",
+        "cardinality",
+        "@search.facets"
+      ]
+    },
+    "FieldMapping": {
+      "description": "Defines a mapping between a field in a data source and a target field in an index.",
+      "required": [
+        "sourceFieldName"
+      ],
+      "properties": [
+        "sourceFieldName",
+        "targetFieldName",
+        "mappingFunction"
+      ]
+    },
+    "FieldMappingFunction": {
+      "description": "Represents a function that transforms a value from a data source before indexing.",
+      "required": [
+        "name"
+      ],
+      "properties": [
+        "name",
+        "parameters"
+      ]
+    },
+    "FreshnessScoringFunction": {
+      "description": "Defines a function that boosts scores based on the value of a date-time field.",
+      "required": [
+        "freshness"
+      ],
+      "properties": [
+        "freshness"
+      ],
+      "extends": [
+        "ScoringFunction"
+      ],
+      "discriminator": "freshness"
+    },
+    "FreshnessScoringParameters": {
+      "description": "Provides parameter values to a freshness scoring function.",
+      "required": [
+        "boostingDuration"
+      ],
+      "properties": [
+        "boostingDuration"
+      ]
+    },
+    "GetIndexStatisticsResult": {
+      "description": "Statistics for a given index. Statistics are collected periodically and are not guaranteed to always be up-to-date.",
+      "required": [
+        "documentCount",
+        "storageSize",
+        "vectorIndexSize"
+      ],
+      "properties": [
+        "documentCount",
+        "storageSize",
+        "vectorIndexSize"
+      ]
+    },
+    "HighWaterMarkChangeDetectionPolicy": {
+      "description": "Defines a data change detection policy that captures changes based on the value of a high water mark column.",
+      "required": [
+        "highWaterMarkColumnName"
+      ],
+      "properties": [
+        "highWaterMarkColumnName"
+      ],
+      "extends": [
+        "DataChangeDetectionPolicy"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.HighWaterMarkChangeDetectionPolicy"
+    },
+    "HnswAlgorithmConfiguration": {
+      "description": "Contains configuration options specific to the HNSW approximate nearest neighbors algorithm used during indexing and querying. The HNSW algorithm offers a tunable trade-off between search speed and ac",
+      "properties": [
+        "hnswParameters"
+      ],
+      "extends": [
+        "VectorSearchAlgorithmConfiguration"
+      ],
+      "discriminator": "hnsw"
+    },
+    "HnswParameters": {
+      "description": "Contains the parameters specific to the HNSW algorithm.",
+      "properties": [
+        "m",
+        "efConstruction",
+        "efSearch",
+        "metric"
+      ]
+    },
+    "HybridCountAndFacetMode": {
+      "description": "Determines whether the count and facets should includes all documents that matched the search query, or only the documents that are retrieved within the 'maxTextRecallSize' window. The default value i",
+      "enum": [
+        "countRetrievableResults",
+        "countAllResults"
+      ]
+    },
+    "HybridSearch": {
+      "description": "TThe query parameters to configure hybrid search behaviors.",
+      "properties": [
+        "maxTextRecallSize",
+        "countAndFacetMode"
+      ]
+    },
+    "ImageAnalysisSkill": {
+      "description": "A skill that analyzes image files. It extracts a rich set of visual features based on the image content.",
+      "properties": [
+        "defaultLanguageCode",
+        "visualFeatures",
+        "details"
+      ],
+      "extends": [
+        "SearchIndexerSkill"
+      ],
+      "discriminator": "#Microsoft.Skills.Vision.ImageAnalysisSkill"
+    },
+    "ImageAnalysisSkillLanguage": {
+      "description": "The language codes supported for input by ImageAnalysisSkill.",
+      "enum": [
+        "ar",
+        "az",
+        "bg",
+        "bs",
+        "ca",
+        "cs",
+        "cy",
+        "da",
+        "de",
+        "el",
+        "en",
+        "es",
+        "et",
+        "eu",
+        "fi",
+        "fr",
+        "ga",
+        "gl",
+        "he",
+        "hi",
+        "hr",
+        "hu",
+        "id",
+        "it",
+        "ja",
+        "kk",
+        "ko",
+        "lt",
+        "lv",
+        "mk",
+        "ms",
+        "nb",
+        "nl",
+        "pl",
+        "prs",
+        "pt-BR",
+        "pt",
+        "pt-PT",
+        "ro",
+        "ru",
+        "sk",
+        "sl",
+        "sr-Cyrl",
+        "sr-Latn",
+        "sv",
+        "th",
+        "tr",
+        "uk",
+        "vi",
+        "zh",
+        "zh-Hans",
+        "zh-Hant"
+      ]
+    },
+    "ImageDetail": {
+      "description": "A string indicating which domain-specific details to return.",
+      "enum": [
+        "celebrities",
+        "landmarks"
+      ]
+    },
+    "IndexAction": {
+      "description": "Represents an index action that operates on a document.",
+      "properties": [
+        "@search.action"
+      ]
+    },
+    "IndexActionType": {
+      "description": "The operation to perform on a document in an indexing batch.",
+      "enum": [
+        "upload",
+        "merge",
+        "mergeOrUpload",
+        "delete"
+      ]
+    },
+    "IndexBatch": {
+      "description": "Contains a batch of document write actions to send to the index.",
+      "required": [
+        "value"
+      ],
+      "properties": [
+        "value"
+      ]
+    },
+    "IndexDocumentsResult": {
+      "description": "Response containing the status of operations for all documents in the indexing request.",
+      "required": [
+        "value"
+      ],
+      "properties": [
+        "value"
+      ]
+    },
+    "IndexProjectionMode": {
+      "description": "Defines behavior of the index projections in relation to the rest of the indexer.",
+      "enum": [
+        "skipIndexingParentDocuments",
+        "includeIndexingParentDocuments"
+      ]
+    },
+    "IndexStatisticsSummary": {
+      "description": "Statistics for a given index. Statistics are collected periodically and are not guaranteed to always be up-to-date.",
+      "required": [
+        "name",
+        "documentCount",
+        "storageSize",
+        "vectorIndexSize"
+      ],
+      "properties": [
+        "name",
+        "documentCount",
+        "storageSize",
+        "vectorIndexSize"
+      ]
+    },
+    "IndexedOneLakeKnowledgeSource": {
+      "description": "Configuration for OneLake knowledge source.",
+      "required": [
+        "indexedOneLakeParameters"
+      ],
+      "properties": [
+        "indexedOneLakeParameters"
+      ],
+      "extends": [
+        "KnowledgeSource"
+      ],
+      "discriminator": "indexedOneLake"
+    },
+    "IndexedOneLakeKnowledgeSourceParameters": {
+      "description": "Parameters for OneLake knowledge source.",
+      "required": [
+        "fabricWorkspaceId",
+        "lakehouseId"
+      ],
+      "properties": [
+        "fabricWorkspaceId",
+        "lakehouseId",
+        "targetPath",
+        "ingestionParameters",
+        "createdResources"
+      ]
+    },
+    "IndexedOneLakeKnowledgeSourceParams": {
+      "description": "Specifies runtime parameters for a indexed OneLake knowledge source",
+      "extends": [
+        "KnowledgeSourceParams"
+      ],
+      "discriminator": "indexedOneLake"
+    },
+    "IndexedSharePointContainerName": {
+      "description": "Specifies which SharePoint libraries to access.",
+      "enum": [
+        "defaultSiteLibrary",
+        "allSiteLibraries",
+        "useQuery"
+      ]
+    },
+    "IndexedSharePointKnowledgeSource": {
+      "description": "Configuration for SharePoint knowledge source.",
+      "required": [
+        "indexedSharePointParameters"
+      ],
+      "properties": [
+        "indexedSharePointParameters"
+      ],
+      "extends": [
+        "KnowledgeSource"
+      ],
+      "discriminator": "indexedSharePoint"
+    },
+    "IndexedSharePointKnowledgeSourceParameters": {
+      "description": "Parameters for SharePoint knowledge source.",
+      "required": [
+        "connectionString",
+        "containerName"
+      ],
+      "properties": [
+        "connectionString",
+        "containerName",
+        "query",
+        "ingestionParameters",
+        "createdResources"
+      ]
+    },
+    "IndexedSharePointKnowledgeSourceParams": {
+      "description": "Specifies runtime parameters for a indexed SharePoint knowledge source",
+      "extends": [
+        "KnowledgeSourceParams"
+      ],
+      "discriminator": "indexedSharePoint"
+    },
+    "IndexerCurrentState": {
+      "description": "Represents all of the state that defines and dictates the indexer's current execution.",
+      "properties": [
+        "mode",
+        "allDocsInitialTrackingState",
+        "allDocsFinalTrackingState",
+        "resetDocsInitialTrackingState",
+        "resetDocsFinalTrackingState",
+        "resyncInitialTrackingState",
+        "resyncFinalTrackingState",
+        "resetDocumentKeys",
+        "resetDatasourceDocumentIds"
+      ]
+    },
+    "IndexerExecutionEnvironment": {
+      "description": "Specifies the environment in which the indexer should execute.",
+      "enum": [
+        "standard",
+        "private"
+      ]
+    },
+    "IndexerExecutionResult": {
+      "description": "Represents the result of an individual indexer execution.",
+      "required": [
+        "status",
+        "errors",
+        "warnings",
+        "itemsProcessed",
+        "itemsFailed"
+      ],
+      "properties": [
+        "status",
+        "statusDetail",
+        "mode",
+        "errorMessage",
+        "startTime",
+        "endTime",
+        "errors",
+        "warnings",
+        "itemsProcessed",
+        "itemsFailed",
+        "initialTrackingState",
+        "finalTrackingState"
+      ]
+    },
+    "IndexerExecutionStatus": {
+      "description": "Represents the status of an individual indexer execution.",
+      "enum": [
+        "transientFailure",
+        "success",
+        "inProgress",
+        "reset"
+      ]
+    },
+    "IndexerExecutionStatusDetail": {
+      "description": "Details the status of an individual indexer execution.",
+      "enum": [
+        "resetDocs",
+        "resync"
+      ]
+    },
+    "IndexerPermissionOption": {
+      "description": "Options with various types of permission data to index.",
+      "enum": [
+        "userIds",
+        "groupIds",
+        "rbacScope"
+      ]
+    },
+    "IndexerResyncBody": {
+      "description": "Request body for resync indexer operation.",
+      "properties": [
+        "options"
+      ]
+    },
+    "IndexerResyncOption": {
+      "description": "Options with various types of permission data to index.",
+      "enum": [
+        "permissions"
+      ]
+    },
+    "IndexerRuntime": {
+      "description": "Represents the indexer's cumulative runtime consumption in the service.",
+      "required": [
+        "usedSeconds",
+        "beginningTime",
+        "endingTime"
+      ],
+      "properties": [
+        "usedSeconds",
+        "remainingSeconds",
+        "beginningTime",
+        "endingTime"
+      ]
+    },
+    "IndexerStatus": {
+      "description": "Represents the overall indexer status.",
+      "enum": [
+        "unknown",
+        "error",
+        "running"
+      ]
+    },
+    "IndexingMode": {
+      "description": "Represents the mode the indexer is executing in.",
+      "enum": [
+        "indexingAllDocs",
+        "indexingResetDocs",
+        "indexingResync"
+      ]
+    },
+    "IndexingParameters": {
+      "description": "Represents parameters for indexer execution.",
+      "properties": [
+        "batchSize",
+        "maxFailedItems",
+        "maxFailedItemsPerBatch",
+        "configuration"
+      ]
+    },
+    "IndexingParametersConfiguration": {
+      "description": "A dictionary of indexer-specific configuration properties. Each name is the name of a specific property. Each value must be of a primitive type.",
+      "properties": [
+        "parsingMode",
+        "excludedFileNameExtensions",
+        "indexedFileNameExtensions",
+        "failOnUnsupportedContentType",
+        "failOnUnprocessableDocument",
+        "indexStorageMetadataOnlyForOversizedDocuments",
+        "delimitedTextHeaders",
+        "delimitedTextDelimiter",
+        "firstLineContainsHeaders",
+        "markdownParsingSubmode",
+        "markdownHeaderDepth",
+        "documentRoot",
+        "dataToExtract",
+        "imageAction",
+        "allowSkillsetToReadFileData",
+        "pdfTextRotationAlgorithm",
+        "executionEnvironment",
+        "queryTimeout"
+      ]
+    },
+    "IndexingResult": {
+      "description": "Status of an indexing operation for a single document.",
+      "required": [
+        "key",
+        "status",
+        "statusCode"
+      ],
+      "properties": [
+        "key",
+        "errorMessage",
+        "status",
+        "statusCode"
+      ]
+    },
+    "IndexingSchedule": {
+      "description": "Represents a schedule for indexer execution.",
+      "required": [
+        "interval"
+      ],
+      "properties": [
+        "interval",
+        "startTime"
+      ]
+    },
+    "InputFieldMappingEntry": {
+      "description": "Input field mapping for a skill.",
+      "required": [
+        "name"
+      ],
+      "properties": [
+        "name",
+        "source",
+        "sourceContext",
+        "inputs"
+      ]
+    },
+    "KeepTokenFilter": {
+      "description": "A token filter that only keeps tokens with text contained in a specified list of words. This token filter is implemented using Apache Lucene.",
+      "required": [
+        "keepWords"
+      ],
+      "properties": [
+        "keepWords",
+        "keepWordsCase"
+      ],
+      "extends": [
+        "TokenFilter"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.KeepTokenFilter"
+    },
+    "KeyPhraseExtractionSkill": {
+      "description": "A skill that uses text analytics for key phrase extraction.",
+      "properties": [
+        "defaultLanguageCode",
+        "maxKeyPhraseCount",
+        "modelVersion"
+      ],
+      "extends": [
+        "SearchIndexerSkill"
+      ],
+      "discriminator": "#Microsoft.Skills.Text.KeyPhraseExtractionSkill"
+    },
+    "KeyPhraseExtractionSkillLanguage": {
+      "description": "The language codes supported for input text by KeyPhraseExtractionSkill.",
+      "enum": [
+        "da",
+        "nl",
+        "en",
+        "fi",
+        "fr",
+        "de",
+        "it",
+        "ja",
+        "ko",
+        "no",
+        "pl",
+        "pt-PT",
+        "pt-BR",
+        "ru",
+        "es",
+        "sv"
+      ]
+    },
+    "KeywordMarkerTokenFilter": {
+      "description": "Marks terms as keywords. This token filter is implemented using Apache Lucene.",
+      "required": [
+        "keywords"
+      ],
+      "properties": [
+        "keywords",
+        "ignoreCase"
+      ],
+      "extends": [
+        "TokenFilter"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.KeywordMarkerTokenFilter"
+    },
+    "KeywordTokenizer": {
+      "description": "Emits the entire input as a single token. This tokenizer is implemented using Apache Lucene.",
+      "properties": [
+        "bufferSize"
+      ],
+      "extends": [
+        "LexicalTokenizer"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.KeywordTokenizer"
+    },
+    "KeywordTokenizerV2": {
+      "description": "Emits the entire input as a single token. This tokenizer is implemented using Apache Lucene.",
+      "properties": [
+        "maxTokenLength"
+      ],
+      "extends": [
+        "LexicalTokenizer"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.KeywordTokenizerV2"
+    },
+    "KnowledgeBase": {
+      "description": "Represents a knowledge base definition.",
+      "required": [
+        "name",
+        "knowledgeSources"
+      ],
+      "properties": [
+        "name",
+        "knowledgeSources",
+        "models",
+        "retrievalReasoningEffort",
+        "outputMode",
+        "@odata.etag",
+        "encryptionKey",
+        "description",
+        "retrievalInstructions",
+        "answerInstructions"
+      ]
+    },
+    "KnowledgeBaseActivityRecord": {
+      "description": "Base type for activity records. Tracks execution details, timing, and errors for knowledge base operations.",
+      "required": [
+        "id",
+        "type"
+      ],
+      "properties": [
+        "id",
+        "type",
+        "elapsedMs",
+        "error"
+      ]
+    },
+    "KnowledgeBaseActivityRecordType": {
+      "description": "The type of activity record.",
+      "enum": [
+        "searchIndex",
+        "azureBlob",
+        "indexedSharePoint",
+        "indexedOneLake",
+        "web",
+        "remoteSharePoint",
+        "modelQueryPlanning",
+        "modelAnswerSynthesis",
+        "agenticReasoning"
+      ]
+    },
+    "KnowledgeBaseAgenticReasoningActivityRecord": {
+      "description": "Represents an agentic reasoning activity record.",
+      "properties": [
+        "reasoningTokens",
+        "retrievalReasoningEffort"
+      ],
+      "extends": [
+        "KnowledgeBaseActivityRecord"
+      ],
+      "discriminator": "agenticReasoning"
+    },
+    "KnowledgeBaseAzureBlobActivityArguments": {
+      "description": "Represents the arguments the azure blob retrieval activity was run with.",
+      "properties": [
+        "search"
+      ]
+    },
+    "KnowledgeBaseAzureBlobActivityRecord": {
+      "description": "Represents a azure blob retrieval activity record.",
+      "properties": [
+        "azureBlobArguments"
+      ],
+      "extends": [
+        "KnowledgeBaseRetrievalActivityRecord"
+      ],
+      "discriminator": "azureBlob"
+    },
+    "KnowledgeBaseAzureBlobReference": {
+      "description": "Represents an Azure Blob Storage document reference.",
+      "properties": [
+        "blobUrl"
+      ],
+      "extends": [
+        "KnowledgeBaseReference"
+      ],
+      "discriminator": "azureBlob"
+    },
+    "KnowledgeBaseAzureOpenAIModel": {
+      "description": "Specifies the Azure OpenAI resource used to do query planning.",
+      "required": [
+        "azureOpenAIParameters"
+      ],
+      "properties": [
+        "azureOpenAIParameters"
+      ],
+      "extends": [
+        "KnowledgeBaseModel"
+      ],
+      "discriminator": "azureOpenAI"
+    },
+    "KnowledgeBaseErrorAdditionalInfo": {
+      "description": "The resource management error additional info.",
+      "properties": [
+        "type",
+        "info"
+      ]
+    },
+    "KnowledgeBaseErrorDetail": {
+      "description": "The error details.",
+      "properties": [
+        "code",
+        "message",
+        "target",
+        "details",
+        "additionalInfo"
+      ]
+    },
+    "KnowledgeBaseImageContent": {
+      "description": "Image content.",
+      "required": [
+        "url"
+      ],
+      "properties": [
+        "url"
+      ]
+    },
+    "KnowledgeBaseIndexedOneLakeActivityArguments": {
+      "description": "Represents the arguments the indexed OneLake retrieval activity was run with.",
+      "properties": [
+        "search"
+      ]
+    },
+    "KnowledgeBaseIndexedOneLakeActivityRecord": {
+      "description": "Represents a indexed OneLake retrieval activity record.",
+      "properties": [
+        "indexedOneLakeArguments"
+      ],
+      "extends": [
+        "KnowledgeBaseRetrievalActivityRecord"
+      ],
+      "discriminator": "indexedOneLake"
+    },
+    "KnowledgeBaseIndexedOneLakeReference": {
+      "description": "Represents an indexed OneLake document reference.",
+      "properties": [
+        "docUrl"
+      ],
+      "extends": [
+        "KnowledgeBaseReference"
+      ],
+      "discriminator": "indexedOneLake"
+    },
+    "KnowledgeBaseIndexedSharePointActivityArguments": {
+      "description": "Represents the arguments the indexed SharePoint retrieval activity was run with.",
+      "properties": [
+        "search"
+      ]
+    },
+    "KnowledgeBaseIndexedSharePointActivityRecord": {
+      "description": "Represents a indexed SharePoint retrieval activity record.",
+      "properties": [
+        "indexedSharePointArguments"
+      ],
+      "extends": [
+        "KnowledgeBaseRetrievalActivityRecord"
+      ],
+      "discriminator": "indexedSharePoint"
+    },
+    "KnowledgeBaseIndexedSharePointReference": {
+      "description": "Represents an indexed SharePoint document reference.",
+      "properties": [
+        "docUrl"
+      ],
+      "extends": [
+        "KnowledgeBaseReference"
+      ],
+      "discriminator": "indexedSharePoint"
+    },
+    "KnowledgeBaseMessage": {
+      "description": "The natural language message style object.",
+      "required": [
+        "content"
+      ],
+      "properties": [
+        "role",
+        "content"
+      ]
+    },
+    "KnowledgeBaseMessageContent": {
+      "description": "Specifies the type of the message content.",
+      "required": [
+        "type"
+      ],
+      "properties": [
+        "type"
+      ]
+    },
+    "KnowledgeBaseMessageContentType": {
+      "description": "The type of message content.",
+      "enum": [
+        "text",
+        "image"
+      ]
+    },
+    "KnowledgeBaseMessageImageContent": {
+      "description": "Image message type.",
+      "required": [
+        "image"
+      ],
+      "properties": [
+        "image"
+      ],
+      "extends": [
+        "KnowledgeBaseMessageContent"
+      ],
+      "discriminator": "image"
+    },
+    "KnowledgeBaseMessageTextContent": {
+      "description": "Text message type.",
+      "required": [
+        "text"
+      ],
+      "properties": [
+        "text"
+      ],
+      "extends": [
+        "KnowledgeBaseMessageContent"
+      ],
+      "discriminator": "text"
+    },
+    "KnowledgeBaseModel": {
+      "description": "Specifies the connection parameters for the model to use for query planning.",
+      "required": [
+        "kind"
+      ],
+      "properties": [
+        "kind"
+      ]
+    },
+    "KnowledgeBaseModelAnswerSynthesisActivityRecord": {
+      "description": "Represents an LLM answer synthesis activity record.",
+      "properties": [
+        "inputTokens",
+        "outputTokens"
+      ],
+      "extends": [
+        "KnowledgeBaseActivityRecord"
+      ],
+      "discriminator": "modelAnswerSynthesis"
+    },
+    "KnowledgeBaseModelKind": {
+      "description": "The AI model to be used for query planning.",
+      "enum": [
+        "azureOpenAI"
+      ]
+    },
+    "KnowledgeBaseModelQueryPlanningActivityRecord": {
+      "description": "Represents an LLM query planning activity record.",
+      "properties": [
+        "inputTokens",
+        "outputTokens"
+      ],
+      "extends": [
+        "KnowledgeBaseActivityRecord"
+      ],
+      "discriminator": "modelQueryPlanning"
+    },
+    "KnowledgeBaseReference": {
+      "description": "Base type for references.",
+      "required": [
+        "type",
+        "id",
+        "activitySource"
+      ],
+      "properties": [
+        "type",
+        "id",
+        "activitySource",
+        "sourceData",
+        "rerankerScore"
+      ]
+    },
+    "KnowledgeBaseReferenceType": {
+      "description": "The type of reference.",
+      "enum": [
+        "searchIndex",
+        "azureBlob",
+        "indexedSharePoint",
+        "indexedOneLake",
+        "web",
+        "remoteSharePoint"
+      ]
+    },
+    "KnowledgeBaseRemoteSharePointActivityArguments": {
+      "description": "Represents the arguments the remote SharePoint retrieval activity was run with.",
+      "properties": [
+        "search",
+        "filterExpressionAddOn"
+      ]
+    },
+    "KnowledgeBaseRemoteSharePointActivityRecord": {
+      "description": "Represents a remote SharePoint retrieval activity record.",
+      "properties": [
+        "remoteSharePointArguments"
+      ],
+      "extends": [
+        "KnowledgeBaseRetrievalActivityRecord"
+      ],
+      "discriminator": "remoteSharePoint"
+    },
+    "KnowledgeBaseRemoteSharePointReference": {
+      "description": "Represents a remote SharePoint document reference.",
+      "properties": [
+        "webUrl",
+        "searchSensitivityLabelInfo"
+      ],
+      "extends": [
+        "KnowledgeBaseReference"
+      ],
+      "discriminator": "remoteSharePoint"
+    },
+    "KnowledgeBaseRetrievalActivityRecord": {
+      "description": "Represents a retrieval activity record.",
+      "required": [
+        "type"
+      ],
+      "properties": [
+        "type",
+        "knowledgeSourceName",
+        "queryTime",
+        "count"
+      ],
+      "extends": [
+        "KnowledgeBaseActivityRecord"
+      ]
+    },
+    "KnowledgeBaseRetrievalPartialResponse": {
+      "description": "Partial retrieval response.",
+      "required": [
+        "body"
+      ],
+      "properties": [
+        "body"
+      ]
+    },
+    "KnowledgeBaseRetrievalRequest": {
+      "description": "The input contract for the retrieval request.",
+      "properties": [
+        "messages",
+        "intents",
+        "maxRuntimeInSeconds",
+        "maxOutputSize",
+        "retrievalReasoningEffort",
+        "includeActivity",
+        "outputMode",
+        "knowledgeSourceParams"
+      ]
+    },
+    "KnowledgeBaseRetrievalResponse": {
+      "description": "The output contract for the retrieval response.",
+      "properties": [
+        "response",
+        "activity",
+        "references"
+      ]
+    },
+    "KnowledgeBaseRetrievalSuccessResponse": {
+      "description": "Successful retrieval response.",
+      "required": [
+        "body"
+      ],
+      "properties": [
+        "body"
+      ]
+    },
+    "KnowledgeBaseSearchIndexActivityArguments": {
+      "description": "Represents the arguments the search index retrieval activity was run with.",
+      "properties": [
+        "search",
+        "filter",
+        "sourceDataFields",
+        "searchFields",
+        "semanticConfigurationName"
+      ]
+    },
+    "KnowledgeBaseSearchIndexActivityRecord": {
+      "description": "Represents a search index retrieval activity record.",
+      "properties": [
+        "searchIndexArguments"
+      ],
+      "extends": [
+        "KnowledgeBaseRetrievalActivityRecord"
+      ],
+      "discriminator": "searchIndex"
+    },
+    "KnowledgeBaseSearchIndexReference": {
+      "description": "Represents an Azure Search document reference.",
+      "properties": [
+        "docKey"
+      ],
+      "extends": [
+        "KnowledgeBaseReference"
+      ],
+      "discriminator": "searchIndex"
+    },
+    "KnowledgeBaseWebActivityArguments": {
+      "description": "Represents the arguments the web retrieval activity was run with.",
+      "properties": [
+        "search",
+        "language",
+        "market",
+        "count",
+        "freshness"
+      ]
+    },
+    "KnowledgeBaseWebActivityRecord": {
+      "description": "Represents a web retrieval activity record.",
+      "properties": [
+        "webArguments"
+      ],
+      "extends": [
+        "KnowledgeBaseRetrievalActivityRecord"
+      ],
+      "discriminator": "web"
+    },
+    "KnowledgeBaseWebReference": {
+      "description": "Represents a web document reference.",
+      "properties": [
+        "url",
+        "title"
+      ],
+      "extends": [
+        "KnowledgeBaseReference"
+      ],
+      "discriminator": "web"
+    },
+    "KnowledgeRetrievalIntent": {
+      "description": "An intended query to execute without model query planning.",
+      "required": [
+        "type"
+      ],
+      "properties": [
+        "type"
+      ]
+    },
+    "KnowledgeRetrievalIntentType": {
+      "description": "The kind of knowledge base configuration to use.",
+      "enum": [
+        "semantic"
+      ]
+    },
+    "KnowledgeRetrievalLowReasoningEffort": {
+      "description": "Run knowledge retrieval with low reasoning effort.",
+      "extends": [
+        "KnowledgeRetrievalReasoningEffort"
+      ],
+      "discriminator": "low"
+    },
+    "KnowledgeRetrievalMediumReasoningEffort": {
+      "description": "Run knowledge retrieval with medium reasoning effort.",
+      "extends": [
+        "KnowledgeRetrievalReasoningEffort"
+      ],
+      "discriminator": "medium"
+    },
+    "KnowledgeRetrievalMinimalReasoningEffort": {
+      "description": "Run knowledge retrieval with minimal reasoning effort.",
+      "extends": [
+        "KnowledgeRetrievalReasoningEffort"
+      ],
+      "discriminator": "minimal"
+    },
+    "KnowledgeRetrievalOutputMode": {
+      "description": "The output configuration for this retrieval.",
+      "enum": [
+        "extractiveData",
+        "answerSynthesis"
+      ]
+    },
+    "KnowledgeRetrievalReasoningEffort": {
+      "description": "Base type for reasoning effort.",
+      "required": [
+        "kind"
+      ],
+      "properties": [
+        "kind"
+      ]
+    },
+    "KnowledgeRetrievalReasoningEffortKind": {
+      "description": "The amount of effort to use during retrieval.",
+      "enum": [
+        "minimal",
+        "low",
+        "medium"
+      ]
+    },
+    "KnowledgeRetrievalSemanticIntent": {
+      "description": "A semantic query intent.",
+      "required": [
+        "search"
+      ],
+      "properties": [
+        "search"
+      ],
+      "extends": [
+        "KnowledgeRetrievalIntent"
+      ],
+      "discriminator": "semantic"
+    },
+    "KnowledgeSource": {
+      "description": "Represents a knowledge source definition.",
+      "required": [
+        "name",
+        "kind"
+      ],
+      "properties": [
+        "name",
+        "description",
+        "kind",
+        "@odata.etag",
+        "encryptionKey"
+      ]
+    },
+    "KnowledgeSourceAzureOpenAIVectorizer": {
+      "description": "Specifies the Azure OpenAI resource used to vectorize a query string.",
+      "properties": [
+        "azureOpenAIParameters"
+      ],
+      "extends": [
+        "KnowledgeSourceVectorizer"
+      ],
+      "discriminator": "azureOpenAI"
+    },
+    "KnowledgeSourceContentExtractionMode": {
+      "description": "Optional content extraction mode. Default is 'minimal'.",
+      "enum": [
+        "minimal",
+        "standard"
+      ]
+    },
+    "KnowledgeSourceIngestionParameters": {
+      "description": "Consolidates all general ingestion settings for knowledge sources.",
+      "properties": [
+        "identity",
+        "embeddingModel",
+        "chatCompletionModel",
+        "disableImageVerbalization",
+        "ingestionSchedule",
+        "ingestionPermissionOptions",
+        "contentExtractionMode",
+        "aiServices"
+      ]
+    },
+    "KnowledgeSourceIngestionPermissionOption": {
+      "description": "Permission types to ingest together with document content.",
+      "enum": [
+        "userIds",
+        "groupIds",
+        "rbacScope"
+      ]
+    },
+    "KnowledgeSourceKind": {
+      "description": "The kind of the knowledge source.",
+      "enum": [
+        "searchIndex",
+        "azureBlob",
+        "indexedSharePoint",
+        "indexedOneLake",
+        "web",
+        "remoteSharePoint"
+      ]
+    },
+    "KnowledgeSourceParams": {
+      "description": "Base type for knowledge source runtime parameters.",
+      "required": [
+        "knowledgeSourceName",
+        "kind"
+      ],
+      "properties": [
+        "knowledgeSourceName",
+        "includeReferences",
+        "includeReferenceSourceData",
+        "alwaysQuerySource",
+        "rerankerThreshold",
+        "kind"
+      ]
+    },
+    "KnowledgeSourceReference": {
+      "description": "Reference to a knowledge source.",
+      "required": [
+        "name"
+      ],
+      "properties": [
+        "name"
+      ]
+    },
+    "KnowledgeSourceStatistics": {
+      "description": "Statistical information about knowledge source synchronization history.",
+      "required": [
+        "totalSynchronization",
+        "averageSynchronizationDuration",
+        "averageItemsProcessedPerSynchronization"
+      ],
+      "properties": [
+        "totalSynchronization",
+        "averageSynchronizationDuration",
+        "averageItemsProcessedPerSynchronization"
+      ]
+    },
+    "KnowledgeSourceStatus": {
+      "description": "Represents the status and synchronization history of a knowledge source.",
+      "required": [
+        "synchronizationStatus"
+      ],
+      "properties": [
+        "synchronizationStatus",
+        "synchronizationInterval",
+        "currentSynchronizationState",
+        "lastSynchronizationState",
+        "statistics"
+      ]
+    },
+    "KnowledgeSourceSynchronizationStatus": {
+      "description": "The current synchronization status of the knowledge source.",
+      "enum": [
+        "creating",
+        "active",
+        "deleting"
+      ]
+    },
+    "KnowledgeSourceVectorizer": {
+      "description": "Specifies the vectorization method to be used for knowledge source embedding model.",
+      "required": [
+        "kind"
+      ],
+      "properties": [
+        "kind"
+      ]
+    },
+    "LanguageDetectionSkill": {
+      "description": "A skill that detects the language of input text and reports a single language code for every document submitted on the request. The language code is paired with a score indicating the confidence of th",
+      "properties": [
+        "defaultCountryHint",
+        "modelVersion"
+      ],
+      "extends": [
+        "SearchIndexerSkill"
+      ],
+      "discriminator": "#Microsoft.Skills.Text.LanguageDetectionSkill"
+    },
+    "LengthTokenFilter": {
+      "description": "Removes words that are too long or too short. This token filter is implemented using Apache Lucene.",
+      "properties": [
+        "min",
+        "max"
+      ],
+      "extends": [
+        "TokenFilter"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.LengthTokenFilter"
+    },
+    "LexicalAnalyzer": {
+      "description": "Base type for analyzers.",
+      "required": [
+        "@odata.type",
+        "name"
+      ],
+      "properties": [
+        "@odata.type",
+        "name"
+      ]
+    },
+    "LexicalAnalyzerName": {
+      "description": "Defines the names of all text analyzers supported by the search engine.",
+      "enum": [
+        "ar.microsoft",
+        "ar.lucene",
+        "hy.lucene",
+        "bn.microsoft",
+        "eu.lucene",
+        "bg.microsoft",
+        "bg.lucene",
+        "ca.microsoft",
+        "ca.lucene",
+        "zh-Hans.microsoft",
+        "zh-Hans.lucene",
+        "zh-Hant.microsoft",
+        "zh-Hant.lucene",
+        "hr.microsoft",
+        "cs.microsoft",
+        "cs.lucene",
+        "da.microsoft",
+        "da.lucene",
+        "nl.microsoft",
+        "nl.lucene",
+        "en.microsoft",
+        "en.lucene",
+        "et.microsoft",
+        "fi.microsoft",
+        "fi.lucene",
+        "fr.microsoft",
+        "fr.lucene",
+        "gl.lucene",
+        "de.microsoft",
+        "de.lucene",
+        "el.microsoft",
+        "el.lucene",
+        "gu.microsoft",
+        "he.microsoft",
+        "hi.microsoft",
+        "hi.lucene",
+        "hu.microsoft",
+        "hu.lucene",
+        "is.microsoft",
+        "id.microsoft",
+        "id.lucene",
+        "ga.lucene",
+        "it.microsoft",
+        "it.lucene",
+        "ja.microsoft",
+        "ja.lucene",
+        "kn.microsoft",
+        "ko.microsoft",
+        "ko.lucene",
+        "lv.microsoft",
+        "lv.lucene",
+        "lt.microsoft",
+        "ml.microsoft",
+        "ms.microsoft",
+        "mr.microsoft",
+        "nb.microsoft",
+        "no.lucene",
+        "fa.lucene",
+        "pl.microsoft",
+        "pl.lucene",
+        "pt-BR.microsoft",
+        "pt-BR.lucene",
+        "pt-PT.microsoft",
+        "pt-PT.lucene",
+        "pa.microsoft",
+        "ro.microsoft",
+        "ro.lucene",
+        "ru.microsoft",
+        "ru.lucene",
+        "sr-cyrillic.microsoft",
+        "sr-latin.microsoft",
+        "sk.microsoft",
+        "sl.microsoft",
+        "es.microsoft",
+        "es.lucene",
+        "sv.microsoft",
+        "sv.lucene",
+        "ta.microsoft",
+        "te.microsoft",
+        "th.microsoft",
+        "th.lucene",
+        "tr.microsoft",
+        "tr.lucene",
+        "uk.microsoft",
+        "ur.microsoft",
+        "vi.microsoft",
+        "standard.lucene",
+        "standardasciifolding.lucene",
+        "keyword",
+        "pattern",
+        "simple",
+        "stop",
+        "whitespace"
+      ]
+    },
+    "LexicalNormalizer": {
+      "description": "Base type for normalizers.",
+      "required": [
+        "@odata.type",
+        "name"
+      ],
+      "properties": [
+        "@odata.type",
+        "name"
+      ]
+    },
+    "LexicalNormalizerName": {
+      "description": "Defines the names of all text normalizers supported by the search engine.",
+      "enum": [
+        "asciifolding",
+        "elision",
+        "lowercase",
+        "standard",
+        "uppercase"
+      ]
+    },
+    "LexicalTokenizer": {
+      "description": "Base type for tokenizers.",
+      "required": [
+        "@odata.type",
+        "name"
+      ],
+      "properties": [
+        "@odata.type",
+        "name"
+      ]
+    },
+    "LexicalTokenizerName": {
+      "description": "Defines the names of all tokenizers supported by the search engine.",
+      "enum": [
+        "classic",
+        "edgeNGram",
+        "keyword_v2",
+        "letter",
+        "lowercase",
+        "microsoft_language_tokenizer",
+        "microsoft_language_stemming_tokenizer",
+        "nGram",
+        "path_hierarchy_v2",
+        "pattern",
+        "standard_v2",
+        "uax_url_email",
+        "whitespace"
+      ]
+    },
+    "LimitTokenFilter": {
+      "description": "Limits the number of tokens while indexing. This token filter is implemented using Apache Lucene.",
+      "properties": [
+        "maxTokenCount",
+        "consumeAllTokens"
+      ],
+      "extends": [
+        "TokenFilter"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.LimitTokenFilter"
+    },
+    "ListAliasesResult": {
+      "description": "Response from a List Aliases request. If successful, it includes the associated index mappings for all aliases.",
+      "required": [
+        "value"
+      ],
+      "properties": [
+        "value"
+      ]
+    },
+    "ListDataSourcesResult": {
+      "description": "Response from a List Datasources request. If successful, it includes the full definitions of all datasources.",
+      "required": [
+        "value"
+      ],
+      "properties": [
+        "value"
+      ]
+    },
+    "ListIndexStatsSummary": {
+      "description": "Response from a request to retrieve stats summary of all indexes. If successful, it includes the stats of each index in the service.",
+      "required": [
+        "value"
+      ],
+      "properties": [
+        "value"
+      ]
+    },
+    "ListIndexersResult": {
+      "description": "Response from a List Indexers request. If successful, it includes the full definitions of all indexers.",
+      "required": [
+        "value"
+      ],
+      "properties": [
+        "value"
+      ]
+    },
+    "ListIndexesResult": {
+      "description": "Response from a List Indexes request. If successful, it includes the full definitions of all indexes.",
+      "required": [
+        "value"
+      ],
+      "properties": [
+        "value"
+      ]
+    },
+    "ListIndexesSelectedResult": {
+      "description": "Response from a List Indexes request. If successful, it includes the full definitions of all indexes.",
+      "required": [
+        "value"
+      ],
+      "properties": [
+        "value"
+      ]
+    },
+    "ListKnowledgeBasesResult": {
+      "description": "Result from listing knowledge bases.",
+      "required": [
+        "value"
+      ],
+      "properties": [
+        "value"
+      ]
+    },
+    "ListKnowledgeSourcesResult": {
+      "description": "Result from listing knowledge sources.",
+      "required": [
+        "value"
+      ],
+      "properties": [
+        "value"
+      ]
+    },
+    "ListSkillsetsResult": {
+      "description": "Response from a list skillset request. If successful, it includes the full definitions of all skillsets.",
+      "required": [
+        "value"
+      ],
+      "properties": [
+        "value"
+      ]
+    },
+    "ListSynonymMapsResult": {
+      "description": "Response from a List SynonymMaps request. If successful, it includes the full definitions of all synonym maps.",
+      "required": [
+        "value"
+      ],
+      "properties": [
+        "value"
+      ]
+    },
+    "LookupDocument": {
+      "description": "A document retrieved via a document lookup operation."
+    },
+    "LuceneStandardAnalyzer": {
+      "description": "Standard Apache Lucene analyzer; Composed of the standard tokenizer, lowercase filter and stop filter.",
+      "properties": [
+        "maxTokenLength",
+        "stopwords"
+      ],
+      "extends": [
+        "LexicalAnalyzer"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.StandardAnalyzer"
+    },
+    "LuceneStandardTokenizer": {
+      "description": "Breaks text following the Unicode Text Segmentation rules. This tokenizer is implemented using Apache Lucene.",
+      "properties": [
+        "maxTokenLength"
+      ],
+      "extends": [
+        "LexicalTokenizer"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.StandardTokenizer"
+    },
+    "LuceneStandardTokenizerV2": {
+      "description": "Breaks text following the Unicode Text Segmentation rules. This tokenizer is implemented using Apache Lucene.",
+      "properties": [
+        "maxTokenLength"
+      ],
+      "extends": [
+        "LexicalTokenizer"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.StandardTokenizerV2"
+    },
+    "MagnitudeScoringFunction": {
+      "description": "Defines a function that boosts scores based on the magnitude of a numeric field.",
+      "required": [
+        "magnitude"
+      ],
+      "properties": [
+        "magnitude"
+      ],
+      "extends": [
+        "ScoringFunction"
+      ],
+      "discriminator": "magnitude"
+    },
+    "MagnitudeScoringParameters": {
+      "description": "Provides parameter values to a magnitude scoring function.",
+      "required": [
+        "boostingRangeStart",
+        "boostingRangeEnd"
+      ],
+      "properties": [
+        "boostingRangeStart",
+        "boostingRangeEnd",
+        "constantBoostBeyondRange"
+      ]
+    },
+    "MappingCharFilter": {
+      "description": "A character filter that applies mappings defined with the mappings option. Matching is greedy (longest pattern matching at a given point wins). Replacement is allowed to be the empty string. This char",
+      "required": [
+        "mappings"
+      ],
+      "properties": [
+        "mappings"
+      ],
+      "extends": [
+        "CharFilter"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.MappingCharFilter"
+    },
+    "MarkdownHeaderDepth": {
+      "description": "Specifies the max header depth that will be considered while grouping markdown content. Default is `h6`.",
+      "enum": [
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6"
+      ]
+    },
+    "MarkdownParsingSubmode": {
+      "description": "Specifies the submode that will determine whether a markdown file will be parsed into exactly one search document or multiple search documents. Default is `oneToMany`.",
+      "enum": [
+        "oneToMany",
+        "oneToOne"
+      ]
+    },
+    "MergeSkill": {
+      "description": "A skill for merging two or more strings into a single unified string, with an optional user-defined delimiter separating each component part.",
+      "properties": [
+        "insertPreTag",
+        "insertPostTag"
+      ],
+      "extends": [
+        "SearchIndexerSkill"
+      ],
+      "discriminator": "#Microsoft.Skills.Text.MergeSkill"
+    },
+    "MicrosoftLanguageStemmingTokenizer": {
+      "description": "Divides text using language-specific rules and reduces words to their base forms.",
+      "properties": [
+        "maxTokenLength",
+        "isSearchTokenizer",
+        "language"
+      ],
+      "extends": [
+        "LexicalTokenizer"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.MicrosoftLanguageStemmingTokenizer"
+    },
+    "MicrosoftLanguageTokenizer": {
+      "description": "Divides text using language-specific rules.",
+      "properties": [
+        "maxTokenLength",
+        "isSearchTokenizer",
+        "language"
+      ],
+      "extends": [
+        "LexicalTokenizer"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.MicrosoftLanguageTokenizer"
+    },
+    "MicrosoftStemmingTokenizerLanguage": {
+      "description": "Lists the languages supported by the Microsoft language stemming tokenizer.",
+      "enum": [
+        "arabic",
+        "bangla",
+        "bulgarian",
+        "catalan",
+        "croatian",
+        "czech",
+        "danish",
+        "dutch",
+        "english",
+        "estonian",
+        "finnish",
+        "french",
+        "german",
+        "greek",
+        "gujarati",
+        "hebrew",
+        "hindi",
+        "hungarian",
+        "icelandic",
+        "indonesian",
+        "italian",
+        "kannada",
+        "latvian",
+        "lithuanian",
+        "malay",
+        "malayalam",
+        "marathi",
+        "norwegianBokmaal",
+        "polish",
+        "portuguese",
+        "portugueseBrazilian",
+        "punjabi",
+        "romanian",
+        "russian",
+        "serbianCyrillic",
+        "serbianLatin",
+        "slovak",
+        "slovenian",
+        "spanish",
+        "swedish",
+        "tamil",
+        "telugu",
+        "turkish",
+        "ukrainian",
+        "urdu"
+      ]
+    },
+    "MicrosoftTokenizerLanguage": {
+      "description": "Lists the languages supported by the Microsoft language tokenizer.",
+      "enum": [
+        "bangla",
+        "bulgarian",
+        "catalan",
+        "chineseSimplified",
+        "chineseTraditional",
+        "croatian",
+        "czech",
+        "danish",
+        "dutch",
+        "english",
+        "french",
+        "german",
+        "greek",
+        "gujarati",
+        "hindi",
+        "icelandic",
+        "indonesian",
+        "italian",
+        "japanese",
+        "kannada",
+        "korean",
+        "malay",
+        "malayalam",
+        "marathi",
+        "norwegianBokmaal",
+        "polish",
+        "portuguese",
+        "portugueseBrazilian",
+        "punjabi",
+        "romanian",
+        "russian",
+        "serbianCyrillic",
+        "serbianLatin",
+        "slovenian",
+        "spanish",
+        "swedish",
+        "tamil",
+        "telugu",
+        "thai",
+        "ukrainian",
+        "urdu",
+        "vietnamese"
+      ]
+    },
+    "NGramTokenFilter": {
+      "description": "Generates n-grams of the given size(s). This token filter is implemented using Apache Lucene.",
+      "properties": [
+        "minGram",
+        "maxGram"
+      ],
+      "extends": [
+        "TokenFilter"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.NGramTokenFilter"
+    },
+    "NGramTokenFilterV2": {
+      "description": "Generates n-grams of the given size(s). This token filter is implemented using Apache Lucene.",
+      "properties": [
+        "minGram",
+        "maxGram"
+      ],
+      "extends": [
+        "TokenFilter"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.NGramTokenFilterV2"
+    },
+    "NGramTokenizer": {
+      "description": "Tokenizes the input into n-grams of the given size(s). This tokenizer is implemented using Apache Lucene.",
+      "properties": [
+        "minGram",
+        "maxGram",
+        "tokenChars"
+      ],
+      "extends": [
+        "LexicalTokenizer"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.NGramTokenizer"
+    },
+    "NativeBlobSoftDeleteDeletionDetectionPolicy": {
+      "description": "Defines a data deletion detection policy utilizing Azure Blob Storage's native soft delete feature for deletion detection.",
+      "extends": [
+        "DataDeletionDetectionPolicy"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.NativeBlobSoftDeleteDeletionDetectionPolicy"
+    },
+    "OcrLineEnding": {
+      "description": "Defines the sequence of characters to use between the lines of text recognized by the OCR skill. The default value is \"space\".",
+      "enum": [
+        "space",
+        "carriageReturn",
+        "lineFeed",
+        "carriageReturnLineFeed"
+      ]
+    },
+    "OcrSkill": {
+      "description": "A skill that extracts text from image files.",
+      "properties": [
+        "defaultLanguageCode",
+        "detectOrientation",
+        "lineEnding"
+      ],
+      "extends": [
+        "SearchIndexerSkill"
+      ],
+      "discriminator": "#Microsoft.Skills.Vision.OcrSkill"
+    },
+    "OcrSkillLanguage": {
+      "description": "The language codes supported for input by OcrSkill.",
+      "enum": [
+        "af",
+        "sq",
+        "anp",
+        "ar",
+        "ast",
+        "awa",
+        "az",
+        "bfy",
+        "eu",
+        "be",
+        "be-cyrl",
+        "be-latn",
+        "bho",
+        "bi",
+        "brx",
+        "bs",
+        "bra",
+        "br",
+        "bg",
+        "bns",
+        "bua",
+        "ca",
+        "ceb",
+        "rab",
+        "ch",
+        "hne",
+        "zh-Hans",
+        "zh-Hant",
+        "kw",
+        "co",
+        "crh",
+        "hr",
+        "cs",
+        "da",
+        "prs",
+        "dhi",
+        "doi",
+        "nl",
+        "en",
+        "myv",
+        "et",
+        "fo",
+        "fj",
+        "fil",
+        "fi",
+        "fr",
+        "fur",
+        "gag",
+        "gl",
+        "de",
+        "gil",
+        "gon",
+        "el",
+        "kl",
+        "gvr",
+        "ht",
+        "hlb",
+        "hni",
+        "bgc",
+        "haw",
+        "hi",
+        "mww",
+        "hoc",
+        "hu",
+        "is",
+        "smn",
+        "id",
+        "ia",
+        "iu",
+        "ga",
+        "it",
+        "ja",
+        "Jns",
+        "jv",
+        "kea",
+        "kac",
+        "xnr",
+        "krc",
+        "kaa-cyrl",
+        "kaa",
+        "csb",
+        "kk-cyrl",
+        "kk-latn",
+        "klr",
+        "kha",
+        "quc",
+        "ko",
+        "kfq",
+        "kpy",
+        "kos",
+        "kum",
+        "ku-arab",
+        "ku-latn",
+        "kru",
+        "ky",
+        "lkt",
+        "la",
+        "lt",
+        "dsb",
+        "smj",
+        "lb",
+        "bfz",
+        "ms",
+        "mt",
+        "kmj",
+        "gv",
+        "mi",
+        "mr",
+        "mn",
+        "cnr-cyrl",
+        "cnr-latn",
+        "nap",
+        "ne",
+        "niu",
+        "nog",
+        "sme",
+        "nb",
+        "no",
+        "oc",
+        "os",
+        "ps",
+        "fa",
+        "pl",
+        "pt",
+        "pa",
+        "ksh",
+        "ro",
+        "rm",
+        "ru",
+        "sck",
+        "sm",
+        "sa",
+        "sat",
+        "sco",
+        "gd",
+        "sr",
+        "sr-Cyrl",
+        "sr-Latn",
+        "xsr",
+        "srx",
+        "sms",
+        "sk",
+        "sl",
+        "so",
+        "sma",
+        "es",
+        "sw",
+        "sv",
+        "tg",
+        "tt",
+        "tet",
+        "thf",
+        "to",
+        "tr",
+        "tk",
+        "tyv",
+        "hsb",
+        "ur",
+        "ug",
+        "uz-arab",
+        "uz-cyrl",
+        "uz",
+        "vo",
+        "wae",
+        "cy",
+        "fy",
+        "yua",
+        "za",
+        "zu",
+        "unk"
+      ]
+    },
+    "OutputFieldMappingEntry": {
+      "description": "Output field mapping for a skill.",
+      "required": [
+        "name"
+      ],
+      "properties": [
+        "name",
+        "targetName"
+      ]
+    },
+    "PIIDetectionSkill": {
+      "description": "Using the Text Analytics API, extracts personal information from an input text and gives you the option of masking it.",
+      "properties": [
+        "defaultLanguageCode",
+        "minimumPrecision",
+        "maskingMode",
+        "maskingCharacter",
+        "modelVersion",
+        "piiCategories",
+        "domain"
+      ],
+      "extends": [
+        "SearchIndexerSkill"
+      ],
+      "discriminator": "#Microsoft.Skills.Text.PIIDetectionSkill"
+    },
+    "PIIDetectionSkillMaskingMode": {
+      "description": "A string indicating what maskingMode to use to mask the personal information detected in the input text.",
+      "enum": [
+        "none",
+        "replace"
+      ]
+    },
+    "PathHierarchyTokenizerV2": {
+      "description": "Tokenizer for path-like hierarchies. This tokenizer is implemented using Apache Lucene.",
+      "properties": [
+        "delimiter",
+        "replacement",
+        "maxTokenLength",
+        "reverse",
+        "skip"
+      ],
+      "extends": [
+        "LexicalTokenizer"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.PathHierarchyTokenizerV2"
+    },
+    "PatternAnalyzer": {
+      "description": "Flexibly separates text into terms via a regular expression pattern. This analyzer is implemented using Apache Lucene.",
+      "properties": [
+        "lowercase",
+        "pattern",
+        "flags",
+        "stopwords"
+      ],
+      "extends": [
+        "LexicalAnalyzer"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.PatternAnalyzer"
+    },
+    "PatternCaptureTokenFilter": {
+      "description": "Uses Java regexes to emit multiple tokens - one for each capture group in one or more patterns. This token filter is implemented using Apache Lucene.",
+      "required": [
+        "patterns"
+      ],
+      "properties": [
+        "patterns",
+        "preserveOriginal"
+      ],
+      "extends": [
+        "TokenFilter"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.PatternCaptureTokenFilter"
+    },
+    "PatternReplaceCharFilter": {
+      "description": "A character filter that replaces characters in the input string. It uses a regular expression to identify character sequences to preserve and a replacement pattern to identify characters to replace. F",
+      "required": [
+        "pattern",
+        "replacement"
+      ],
+      "properties": [
+        "pattern",
+        "replacement"
+      ],
+      "extends": [
+        "CharFilter"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.PatternReplaceCharFilter"
+    },
+    "PatternReplaceTokenFilter": {
+      "description": "A character filter that replaces characters in the input string. It uses a regular expression to identify character sequences to preserve and a replacement pattern to identify characters to replace. F",
+      "required": [
+        "pattern",
+        "replacement"
+      ],
+      "properties": [
+        "pattern",
+        "replacement"
+      ],
+      "extends": [
+        "TokenFilter"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.PatternReplaceTokenFilter"
+    },
+    "PatternTokenizer": {
+      "description": "Tokenizer that uses regex pattern matching to construct distinct tokens. This tokenizer is implemented using Apache Lucene.",
+      "properties": [
+        "pattern",
+        "flags",
+        "group"
+      ],
+      "extends": [
+        "LexicalTokenizer"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.PatternTokenizer"
+    },
+    "PermissionFilter": {
+      "description": "A value indicating whether the field should be used as a permission filter.",
+      "enum": [
+        "userIds",
+        "groupIds",
+        "rbacScope"
+      ]
+    },
+    "PhoneticEncoder": {
+      "description": "Identifies the type of phonetic encoder to use with a PhoneticTokenFilter.",
+      "enum": [
+        "metaphone",
+        "doubleMetaphone",
+        "soundex",
+        "refinedSoundex",
+        "caverphone1",
+        "caverphone2",
+        "cologne",
+        "nysiis",
+        "koelnerPhonetik",
+        "haasePhonetik",
+        "beiderMorse"
+      ]
+    },
+    "PhoneticTokenFilter": {
+      "description": "Create tokens for phonetic matches. This token filter is implemented using Apache Lucene.",
+      "properties": [
+        "encoder",
+        "replace"
+      ],
+      "extends": [
+        "TokenFilter"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.PhoneticTokenFilter"
+    },
+    "QueryAnswerResult": {
+      "description": "An answer is a text passage extracted from the contents of the most relevant documents that matched the query. Answers are extracted from the top search results. Answer candidates are scored and the t",
+      "properties": [
+        "score",
+        "key",
+        "text",
+        "highlights"
+      ]
+    },
+    "QueryAnswerType": {
+      "description": "This parameter is only valid if the query type is `semantic`. If set, the query returns answers extracted from key passages in the highest ranked documents. The number of answers returned can be confi",
+      "enum": [
+        "none",
+        "extractive"
+      ]
+    },
+    "QueryCaptionResult": {
+      "description": "Captions are the most representative passages from the document relatively to the search query. They are often used as document summary. Captions are only returned for queries of type `semantic`.",
+      "properties": [
+        "text",
+        "highlights"
+      ]
+    },
+    "QueryCaptionType": {
+      "description": "This parameter is only valid if the query type is `semantic`. If set, the query returns captions extracted from key passages in the highest ranked documents. When Captions is set to `extractive`, high",
+      "enum": [
+        "none",
+        "extractive"
+      ]
+    },
+    "QueryDebugMode": {
+      "description": "Enables a debugging tool that can be used to further explore your search results. You can enable multiple debug modes simultaneously by separating them with a | character, for example: semantic|queryR",
+      "enum": [
+        "disabled",
+        "semantic",
+        "vector",
+        "queryRewrites",
+        "innerHits",
+        "all"
+      ]
+    },
+    "QueryLanguage": {
+      "description": "The language of the query.",
+      "enum": [
+        "none",
+        "en-us",
+        "en-gb",
+        "en-in",
+        "en-ca",
+        "en-au",
+        "fr-fr",
+        "fr-ca",
+        "de-de",
+        "es-es",
+        "es-mx",
+        "zh-cn",
+        "zh-tw",
+        "pt-br",
+        "pt-pt",
+        "it-it",
+        "ja-jp",
+        "ko-kr",
+        "ru-ru",
+        "cs-cz",
+        "nl-be",
+        "nl-nl",
+        "hu-hu",
+        "pl-pl",
+        "sv-se",
+        "tr-tr",
+        "hi-in",
+        "ar-sa",
+        "ar-eg",
+        "ar-ma",
+        "ar-kw",
+        "ar-jo",
+        "da-dk",
+        "no-no",
+        "bg-bg",
+        "hr-hr",
+        "hr-ba",
+        "ms-my",
+        "ms-bn",
+        "sl-sl",
+        "ta-in",
+        "vi-vn",
+        "el-gr",
+        "ro-ro",
+        "is-is",
+        "id-id",
+        "th-th",
+        "lt-lt",
+        "uk-ua",
+        "lv-lv",
+        "et-ee",
+        "ca-es",
+        "fi-fi",
+        "sr-ba",
+        "sr-me",
+        "sr-rs",
+        "sk-sk",
+        "nb-no",
+        "hy-am",
+        "bn-in",
+        "eu-es",
+        "gl-es",
+        "gu-in",
+        "he-il",
+        "ga-ie",
+        "kn-in",
+        "ml-in",
+        "mr-in",
+        "fa-ae",
+        "pa-in",
+        "te-in",
+        "ur-pk"
+      ]
+    },
+    "QueryResultDocumentInnerHit": {
+      "description": "Detailed scoring information for an individual element of a complex collection.",
+      "properties": [
+        "ordinal",
+        "vectors"
+      ]
+    },
+    "QueryResultDocumentRerankerInput": {
+      "description": "The raw concatenated strings that were sent to the semantic enrichment process.",
+      "properties": [
+        "title",
+        "content",
+        "keywords"
+      ]
+    },
+    "QueryResultDocumentSemanticField": {
+      "description": "Description of fields that were sent to the semantic enrichment process, as well as how they were used",
+      "properties": [
+        "name",
+        "state"
+      ]
+    },
+    "QueryResultDocumentSubscores": {
+      "description": "The breakdown of subscores between the text and vector query components of the search query for this document. Each vector query is shown as a separate object in the same order they were received.",
+      "properties": [
+        "text",
+        "vectors",
+        "documentBoost"
+      ]
+    },
+    "QueryRewritesDebugInfo": {
+      "description": "Contains debugging information specific to query rewrites.",
+      "properties": [
+        "text",
+        "vectors"
+      ]
+    },
+    "QueryRewritesType": {
+      "description": "This parameter is only valid if the query type is `semantic`. When QueryRewrites is set to `generative`, the query terms are sent to a generate model which will produce 10 (default) rewrites to help i",
+      "enum": [
+        "none",
+        "generative"
+      ]
+    },
+    "QueryRewritesValuesDebugInfo": {
+      "description": "Contains debugging information specific to query rewrites.",
+      "properties": [
+        "inputQuery",
+        "rewrites"
+      ]
+    },
+    "QuerySpellerType": {
+      "description": "Improve search recall by spell-correcting individual search query terms.",
+      "enum": [
+        "none",
+        "lexicon"
+      ]
+    },
+    "QueryType": {
+      "description": "Specifies the syntax of the search query. The default is 'simple'. Use 'full' if your query uses the Lucene query syntax and 'semantic' if query syntax is not needed.",
+      "enum": [
+        "simple",
+        "full",
+        "semantic"
+      ]
+    },
+    "RankingOrder": {
+      "description": "Represents score to use for sort order of documents.",
+      "enum": [
+        "BoostedRerankerScore",
+        "RerankerScore"
+      ]
+    },
+    "RegexFlags": {
+      "description": "Defines a regular expression flag that can be used in the pattern analyzer and pattern tokenizer.",
+      "enum": [
+        "CANON_EQ",
+        "CASE_INSENSITIVE",
+        "COMMENTS",
+        "DOTALL",
+        "LITERAL",
+        "MULTILINE",
+        "UNICODE_CASE",
+        "UNIX_LINES"
+      ]
+    },
+    "RemoteSharePointKnowledgeSource": {
+      "description": "Configuration for remote SharePoint knowledge source.",
+      "properties": [
+        "remoteSharePointParameters"
+      ],
+      "extends": [
+        "KnowledgeSource"
+      ],
+      "discriminator": "remoteSharePoint"
+    },
+    "RemoteSharePointKnowledgeSourceParameters": {
+      "description": "Parameters for remote SharePoint knowledge source.",
+      "properties": [
+        "filterExpression",
+        "resourceMetadata",
+        "containerTypeId"
+      ]
+    },
+    "RemoteSharePointKnowledgeSourceParams": {
+      "description": "Specifies runtime parameters for a remote SharePoint knowledge source",
+      "properties": [
+        "filterExpressionAddOn"
+      ],
+      "extends": [
+        "KnowledgeSourceParams"
+      ],
+      "discriminator": "remoteSharePoint"
+    },
+    "RescoringOptions": {
+      "description": "Contains the options for rescoring.",
+      "properties": [
+        "enableRescoring",
+        "defaultOversampling",
+        "rescoreStorageMethod"
+      ]
+    },
+    "ResourceCounter": {
+      "description": "Represents a resource's usage and quota.",
+      "required": [
+        "usage"
+      ],
+      "properties": [
+        "usage",
+        "quota"
+      ]
+    },
+    "ScalarQuantizationCompression": {
+      "description": "Contains configuration options specific to the scalar quantization compression method used during indexing and querying.",
+      "properties": [
+        "scalarQuantizationParameters"
+      ],
+      "extends": [
+        "VectorSearchCompression"
+      ],
+      "discriminator": "scalarQuantization"
+    },
+    "ScalarQuantizationParameters": {
+      "description": "Contains the parameters specific to Scalar Quantization.",
+      "properties": [
+        "quantizedDataType"
+      ]
+    },
+    "ScoringFunction": {
+      "description": "Base type for functions that can modify document scores during ranking.",
+      "required": [
+        "fieldName",
+        "boost",
+        "type"
+      ],
+      "properties": [
+        "fieldName",
+        "boost",
+        "interpolation",
+        "type"
+      ]
+    },
+    "ScoringFunctionAggregation": {
+      "description": "Defines the aggregation function used to combine the results of all the scoring functions in a scoring profile.",
+      "enum": [
+        "sum",
+        "average",
+        "minimum",
+        "maximum",
+        "firstMatching",
+        "product"
+      ]
+    },
+    "ScoringFunctionInterpolation": {
+      "description": "Defines the function used to interpolate score boosting across a range of documents.",
+      "enum": [
+        "linear",
+        "constant",
+        "quadratic",
+        "logarithmic"
+      ]
+    },
+    "ScoringProfile": {
+      "description": "Defines parameters for a search index that influence scoring in search queries.",
+      "required": [
+        "name"
+      ],
+      "properties": [
+        "name",
+        "text",
+        "functions",
+        "functionAggregation"
+      ]
+    },
+    "ScoringStatistics": {
+      "description": "A value that specifies whether we want to calculate scoring statistics (such as document frequency) globally for more consistent scoring, or locally, for lower latency. The default is 'local'. Use 'gl",
+      "enum": [
+        "local",
+        "global"
+      ]
+    },
+    "SearchAlias": {
+      "description": "Represents an index alias, which describes a mapping from the alias name to an index. The alias name can be used in place of the index name for supported operations.",
+      "required": [
+        "name",
+        "indexes"
+      ],
+      "properties": [
+        "name",
+        "indexes",
+        "@odata.etag"
+      ]
+    },
+    "SearchDocumentsResult": {
+      "description": "Response containing search results from an index.",
+      "required": [
+        "value"
+      ],
+      "properties": [
+        "@odata.count",
+        "@search.coverage",
+        "@search.facets",
+        "@search.answers",
+        "@search.debug",
+        "@search.nextPageParameters",
+        "value",
+        "@odata.nextLink",
+        "@search.semanticPartialResponseReason",
+        "@search.semanticPartialResponseType",
+        "@search.semanticQueryRewritesResultType"
+      ]
+    },
+    "SearchField": {
+      "description": "Represents a field in an index definition, which describes the name, data type, and search behavior of a field.",
+      "required": [
+        "name",
+        "type"
+      ],
+      "properties": [
+        "name",
+        "type",
+        "key",
+        "retrievable",
+        "stored",
+        "searchable",
+        "filterable",
+        "sortable",
+        "facetable",
+        "permissionFilter",
+        "sensitivityLabel",
+        "analyzer",
+        "searchAnalyzer",
+        "indexAnalyzer",
+        "normalizer",
+        "dimensions",
+        "vectorSearchProfile",
+        "vectorEncoding",
+        "synonymMaps",
+        "fields"
+      ]
+    },
+    "SearchFieldDataType": {
+      "description": "Defines the data type of a field in a search index.",
+      "enum": [
+        "Edm.String",
+        "Edm.Int32",
+        "Edm.Int64",
+        "Edm.Double",
+        "Edm.Boolean",
+        "Edm.DateTimeOffset",
+        "Edm.GeographyPoint",
+        "Edm.ComplexType",
+        "Edm.Single",
+        "Edm.Half",
+        "Edm.Int16",
+        "Edm.SByte",
+        "Edm.Byte"
+      ]
+    },
+    "SearchIndex": {
+      "description": "Represents a search index definition, which describes the fields and search behavior of an index.",
+      "required": [
+        "name",
+        "fields"
+      ],
+      "properties": [
+        "name",
+        "description",
+        "fields",
+        "scoringProfiles",
+        "defaultScoringProfile",
+        "corsOptions",
+        "suggesters",
+        "analyzers",
+        "tokenizers",
+        "tokenFilters",
+        "charFilters",
+        "normalizers",
+        "encryptionKey",
+        "similarity",
+        "semantic",
+        "vectorSearch",
+        "permissionFilterOption",
+        "purviewEnabled",
+        "@odata.etag"
+      ]
+    },
+    "SearchIndexClientOptions": {
+      "description": "Client initialization options for SearchIndexClient.",
+      "required": [
+        "indexName"
+      ],
+      "properties": [
+        "indexName"
+      ]
+    },
+    "SearchIndexFieldReference": {
+      "description": "Field reference for a search index.",
+      "required": [
+        "name"
+      ],
+      "properties": [
+        "name"
+      ]
+    },
+    "SearchIndexKnowledgeSource": {
+      "description": "Knowledge Source targeting a search index.",
+      "required": [
+        "searchIndexParameters"
+      ],
+      "properties": [
+        "searchIndexParameters"
+      ],
+      "extends": [
+        "KnowledgeSource"
+      ],
+      "discriminator": "searchIndex"
+    },
+    "SearchIndexKnowledgeSourceParameters": {
+      "description": "Parameters for search index knowledge source.",
+      "required": [
+        "searchIndexName"
+      ],
+      "properties": [
+        "searchIndexName",
+        "sourceDataFields",
+        "searchFields",
+        "semanticConfigurationName"
+      ]
+    },
+    "SearchIndexKnowledgeSourceParams": {
+      "description": "Specifies runtime parameters for a search index knowledge source",
+      "properties": [
+        "filterAddOn"
+      ],
+      "extends": [
+        "KnowledgeSourceParams"
+      ],
+      "discriminator": "searchIndex"
+    },
+    "SearchIndexPermissionFilterOption": {
+      "description": "A value indicating whether permission filtering is enabled for the index.",
+      "enum": [
+        "enabled",
+        "disabled"
+      ]
+    },
+    "SearchIndexResponse": {
+      "description": "Represents a search index definition, which describes the fields and search behavior of an index.",
+      "required": [
+        "name"
+      ],
+      "properties": [
+        "name",
+        "description",
+        "fields",
+        "scoringProfiles",
+        "defaultScoringProfile",
+        "corsOptions",
+        "suggesters",
+        "analyzers",
+        "tokenizers",
+        "tokenFilters",
+        "charFilters",
+        "normalizers",
+        "encryptionKey",
+        "similarity",
+        "semantic",
+        "vectorSearch",
+        "permissionFilterOption",
+        "purviewEnabled",
+        "@odata.etag"
+      ]
+    },
+    "SearchIndexer": {
+      "description": "Represents an indexer.",
+      "required": [
+        "name",
+        "dataSourceName",
+        "targetIndexName"
+      ],
+      "properties": [
+        "name",
+        "description",
+        "dataSourceName",
+        "skillsetName",
+        "targetIndexName",
+        "schedule",
+        "parameters",
+        "fieldMappings",
+        "outputFieldMappings",
+        "disabled",
+        "@odata.etag",
+        "encryptionKey",
+        "cache"
+      ]
+    },
+    "SearchIndexerCache": {
+      "description": "The type of the cache.",
+      "properties": [
+        "id",
+        "storageConnectionString",
+        "enableReprocessing",
+        "identity"
+      ]
+    },
+    "SearchIndexerDataContainer": {
+      "description": "Represents information about the entity (such as Azure SQL table or CosmosDB collection) that will be indexed.",
+      "required": [
+        "name"
+      ],
+      "properties": [
+        "name",
+        "query"
+      ]
+    },
+    "SearchIndexerDataIdentity": {
+      "description": "Abstract base type for data identities.",
+      "required": [
+        "@odata.type"
+      ],
+      "properties": [
+        "@odata.type"
+      ]
+    },
+    "SearchIndexerDataNoneIdentity": {
+      "description": "Clears the identity property of a datasource.",
+      "extends": [
+        "SearchIndexerDataIdentity"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.DataNoneIdentity"
+    },
+    "SearchIndexerDataSource": {
+      "description": "Represents a datasource definition, which can be used to configure an indexer.",
+      "required": [
+        "name",
+        "type",
+        "credentials",
+        "container"
+      ],
+      "properties": [
+        "name",
+        "description",
+        "type",
+        "subType",
+        "credentials",
+        "container",
+        "identity",
+        "indexerPermissionOptions",
+        "dataChangeDetectionPolicy",
+        "dataDeletionDetectionPolicy",
+        "@odata.etag",
+        "encryptionKey"
+      ]
+    },
+    "SearchIndexerDataSourceType": {
+      "description": "Defines the type of a datasource.",
+      "enum": [
+        "azuresql",
+        "cosmosdb",
+        "azureblob",
+        "azuretable",
+        "mysql",
+        "adlsgen2",
+        "onelake",
+        "sharepoint"
+      ]
+    },
+    "SearchIndexerDataUserAssignedIdentity": {
+      "description": "Specifies the identity for a datasource to use.",
+      "required": [
+        "userAssignedIdentity"
+      ],
+      "properties": [
+        "userAssignedIdentity"
+      ],
+      "extends": [
+        "SearchIndexerDataIdentity"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.DataUserAssignedIdentity"
+    },
+    "SearchIndexerError": {
+      "description": "Represents an item- or document-level indexing error.",
+      "required": [
+        "errorMessage",
+        "statusCode"
+      ],
+      "properties": [
+        "key",
+        "errorMessage",
+        "statusCode",
+        "name",
+        "details",
+        "documentationLink"
+      ]
+    },
+    "SearchIndexerIndexProjection": {
+      "description": "Definition of additional projections to secondary search indexes.",
+      "required": [
+        "selectors"
+      ],
+      "properties": [
+        "selectors",
+        "parameters"
+      ]
+    },
+    "SearchIndexerIndexProjectionSelector": {
+      "description": "Description for what data to store in the designated search index.",
+      "required": [
+        "targetIndexName",
+        "parentKeyFieldName",
+        "sourceContext",
+        "mappings"
+      ],
+      "properties": [
+        "targetIndexName",
+        "parentKeyFieldName",
+        "sourceContext",
+        "mappings"
+      ]
+    },
+    "SearchIndexerIndexProjectionsParameters": {
+      "description": "A dictionary of index projection-specific configuration properties. Each name is the name of a specific property. Each value must be of a primitive type.",
+      "properties": [
+        "projectionMode"
+      ]
+    },
+    "SearchIndexerKnowledgeStore": {
+      "description": "Definition of additional projections to azure blob, table, or files, of enriched data.",
+      "required": [
+        "storageConnectionString",
+        "projections"
+      ],
+      "properties": [
+        "storageConnectionString",
+        "projections",
+        "identity",
+        "parameters"
+      ]
+    },
+    "SearchIndexerKnowledgeStoreBlobProjectionSelector": {
+      "description": "Abstract class to share properties between concrete selectors.",
+      "required": [
+        "storageContainer"
+      ],
+      "properties": [
+        "storageContainer"
+      ],
+      "extends": [
+        "SearchIndexerKnowledgeStoreProjectionSelector"
+      ]
+    },
+    "SearchIndexerKnowledgeStoreFileProjectionSelector": {
+      "description": "Projection definition for what data to store in Azure Files.",
+      "extends": [
+        "SearchIndexerKnowledgeStoreBlobProjectionSelector"
+      ]
+    },
+    "SearchIndexerKnowledgeStoreObjectProjectionSelector": {
+      "description": "Projection definition for what data to store in Azure Blob.",
+      "extends": [
+        "SearchIndexerKnowledgeStoreBlobProjectionSelector"
+      ]
+    },
+    "SearchIndexerKnowledgeStoreParameters": {
+      "description": "A dictionary of knowledge store-specific configuration properties. Each name is the name of a specific property. Each value must be of a primitive type.",
+      "properties": [
+        "synthesizeGeneratedKeyName"
+      ]
+    },
+    "SearchIndexerKnowledgeStoreProjection": {
+      "description": "Container object for various projection selectors.",
+      "properties": [
+        "tables",
+        "objects",
+        "files"
+      ]
+    },
+    "SearchIndexerKnowledgeStoreProjectionSelector": {
+      "description": "Abstract class to share properties between concrete selectors.",
+      "properties": [
+        "referenceKeyName",
+        "generatedKeyName",
+        "source",
+        "sourceContext",
+        "inputs"
+      ]
+    },
+    "SearchIndexerKnowledgeStoreTableProjectionSelector": {
+      "description": "Description for what data to store in Azure Tables.",
+      "required": [
+        "generatedKeyName",
+        "tableName"
+      ],
+      "properties": [
+        "generatedKeyName",
+        "tableName"
+      ],
+      "extends": [
+        "SearchIndexerKnowledgeStoreProjectionSelector"
+      ]
+    },
+    "SearchIndexerLimits": {
+      "description": "Represents the limits that can be applied to an indexer.",
+      "properties": [
+        "maxRunTime",
+        "maxDocumentExtractionSize",
+        "maxDocumentContentCharactersToExtract"
+      ]
+    },
+    "SearchIndexerSkill": {
+      "description": "Base type for skills.",
+      "required": [
+        "@odata.type",
+        "inputs",
+        "outputs"
+      ],
+      "properties": [
+        "@odata.type",
+        "name",
+        "description",
+        "context",
+        "inputs",
+        "outputs"
+      ]
+    },
+    "SearchIndexerSkillset": {
+      "description": "A list of skills.",
+      "required": [
+        "name",
+        "skills"
+      ],
+      "properties": [
+        "name",
+        "description",
+        "skills",
+        "cognitiveServices",
+        "knowledgeStore",
+        "indexProjections",
+        "@odata.etag",
+        "encryptionKey"
+      ]
+    },
+    "SearchIndexerStatus": {
+      "description": "Represents the current status and execution history of an indexer.",
+      "required": [
+        "name",
+        "status",
+        "runtime",
+        "executionHistory",
+        "limits"
+      ],
+      "properties": [
+        "name",
+        "status",
+        "runtime",
+        "lastResult",
+        "executionHistory",
+        "limits",
+        "currentState"
+      ]
+    },
+    "SearchIndexerWarning": {
+      "description": "Represents an item-level warning.",
+      "required": [
+        "message"
+      ],
+      "properties": [
+        "key",
+        "message",
+        "name",
+        "details",
+        "documentationLink"
+      ]
+    },
+    "SearchMode": {
+      "description": "Specifies whether any or all of the search terms must be matched in order to count the document as a match.",
+      "enum": [
+        "any",
+        "all"
+      ]
+    },
+    "SearchRequest": {
+      "description": "Parameters for filtering, sorting, faceting, paging, and other search query behaviors.",
+      "properties": [
+        "count",
+        "facets",
+        "filter",
+        "highlight",
+        "highlightPostTag",
+        "highlightPreTag",
+        "minimumCoverage",
+        "orderby",
+        "queryType",
+        "scoringStatistics",
+        "sessionId",
+        "scoringParameters",
+        "scoringProfile",
+        "debug",
+        "search",
+        "searchFields",
+        "searchMode",
+        "queryLanguage",
+        "speller",
+        "select",
+        "skip",
+        "top",
+        "semanticConfiguration",
+        "semanticErrorHandling",
+        "semanticMaxWaitInMilliseconds",
+        "semanticQuery",
+        "answers",
+        "captions",
+        "queryRewrites",
+        "semanticFields",
+        "vectorQueries",
+        "vectorFilterMode",
+        "hybridSearch"
+      ]
+    },
+    "SearchResourceEncryptionKey": {
+      "description": "A customer-managed encryption key in Azure Key Vault. Keys that you create and manage can be used to encrypt or decrypt data-at-rest, such as indexes and synonym maps.",
+      "required": [
+        "keyVaultKeyName",
+        "keyVaultUri"
+      ],
+      "properties": [
+        "keyVaultKeyName",
+        "keyVaultKeyVersion",
+        "keyVaultUri",
+        "accessCredentials",
+        "identity"
+      ]
+    },
+    "SearchResult": {
+      "description": "Contains a document found by a search query, plus associated metadata.",
+      "required": [
+        "@search.score"
+      ],
+      "properties": [
+        "@search.score",
+        "@search.rerankerScore",
+        "@search.rerankerBoostedScore",
+        "@search.highlights",
+        "@search.captions",
+        "@search.documentDebugInfo"
+      ]
+    },
+    "SearchScoreThreshold": {
+      "description": "The results of the vector query will filter based on the '",
+      "required": [
+        "value"
+      ],
+      "properties": [
+        "value"
+      ],
+      "extends": [
+        "VectorThreshold"
+      ],
+      "discriminator": "searchScore"
+    },
+    "SearchServiceCounters": {
+      "description": "Represents service-level resource counters and quotas.",
+      "required": [
+        "aliasesCount",
+        "documentCount",
+        "indexesCount",
+        "indexersCount",
+        "dataSourcesCount",
+        "storageSize",
+        "synonymMaps",
+        "skillsetCount",
+        "vectorIndexSize"
+      ],
+      "properties": [
+        "aliasesCount",
+        "documentCount",
+        "indexesCount",
+        "indexersCount",
+        "dataSourcesCount",
+        "storageSize",
+        "synonymMaps",
+        "skillsetCount",
+        "vectorIndexSize"
+      ]
+    },
+    "SearchServiceLimits": {
+      "description": "Represents various service level limits.",
+      "properties": [
+        "maxFieldsPerIndex",
+        "maxFieldNestingDepthPerIndex",
+        "maxComplexCollectionFieldsPerIndex",
+        "maxComplexObjectsInCollectionsPerDocument",
+        "maxStoragePerIndex",
+        "maxCumulativeIndexerRuntimeSeconds"
+      ]
+    },
+    "SearchServiceStatistics": {
+      "description": "Response from a get service statistics request. If successful, it includes service level counters and limits.",
+      "required": [
+        "counters",
+        "limits",
+        "indexersRuntime"
+      ],
+      "properties": [
+        "counters",
+        "limits",
+        "indexersRuntime"
+      ]
+    },
+    "SearchSuggester": {
+      "description": "Defines how the Suggest API should apply to a group of fields in the index.",
+      "required": [
+        "name",
+        "searchMode",
+        "sourceFields"
+      ],
+      "properties": [
+        "name",
+        "searchMode",
+        "sourceFields"
+      ]
+    },
+    "SemanticConfiguration": {
+      "description": "Defines a specific configuration to be used in the context of semantic capabilities.",
+      "required": [
+        "name",
+        "prioritizedFields"
+      ],
+      "properties": [
+        "name",
+        "prioritizedFields",
+        "rankingOrder",
+        "flightingOptIn"
+      ]
+    },
+    "SemanticDebugInfo": {
+      "description": "Contains debugging information specific to semantic ranking requests.",
+      "properties": [
+        "titleField",
+        "contentFields",
+        "keywordFields",
+        "rerankerInput"
+      ]
+    },
+    "SemanticErrorMode": {
+      "description": "Allows the user to choose whether a semantic call should fail completely, or to return partial results.",
+      "enum": [
+        "partial",
+        "fail"
+      ]
+    },
+    "SemanticErrorReason": {
+      "description": "Reason that a partial response was returned for a semantic ranking request.",
+      "enum": [
+        "maxWaitExceeded",
+        "capacityOverloaded",
+        "transient"
+      ]
+    },
+    "SemanticField": {
+      "description": "A field that is used as part of the semantic configuration.",
+      "required": [
+        "fieldName"
+      ],
+      "properties": [
+        "fieldName"
+      ]
+    },
+    "SemanticFieldState": {
+      "description": "The way the field was used for the semantic enrichment process.",
+      "enum": [
+        "used",
+        "unused",
+        "partial"
+      ]
+    },
+    "SemanticPrioritizedFields": {
+      "description": "Describes the title, content, and keywords fields to be used for semantic ranking, captions, highlights, and answers.",
+      "properties": [
+        "titleField",
+        "prioritizedContentFields",
+        "prioritizedKeywordsFields"
+      ]
+    },
+    "SemanticQueryRewritesResultType": {
+      "description": "Type of query rewrite that was used for this request.",
+      "enum": [
+        "originalQueryOnly"
+      ]
+    },
+    "SemanticSearch": {
+      "description": "Defines parameters for a search index that influence semantic capabilities.",
+      "properties": [
+        "defaultConfiguration",
+        "configurations"
+      ]
+    },
+    "SemanticSearchResultsType": {
+      "description": "Type of partial response that was returned for a semantic ranking request.",
+      "enum": [
+        "baseResults",
+        "rerankedResults"
+      ]
+    },
+    "SentimentSkillLanguage": {
+      "description": "The language codes supported for input text by SentimentSkill.",
+      "enum": [
+        "da",
+        "nl",
+        "en",
+        "fi",
+        "fr",
+        "de",
+        "el",
+        "it",
+        "no",
+        "pl",
+        "pt-PT",
+        "ru",
+        "es",
+        "sv",
+        "tr"
+      ]
+    },
+    "SentimentSkillV3": {
+      "description": "Using the Text Analytics API, evaluates unstructured text and for each record, provides sentiment labels (such as \"negative\", \"neutral\" and \"positive\") based on the highest confidence score found by t",
+      "properties": [
+        "defaultLanguageCode",
+        "includeOpinionMining",
+        "modelVersion"
+      ],
+      "extends": [
+        "SearchIndexerSkill"
+      ],
+      "discriminator": "#Microsoft.Skills.Text.V3.SentimentSkill"
+    },
+    "ServiceIndexersRuntime": {
+      "description": "Represents service-level indexer runtime counters.",
+      "required": [
+        "usedSeconds",
+        "beginningTime",
+        "endingTime"
+      ],
+      "properties": [
+        "usedSeconds",
+        "remainingSeconds",
+        "beginningTime",
+        "endingTime"
+      ]
+    },
+    "ShaperSkill": {
+      "description": "A skill for reshaping the outputs. It creates a complex type to support composite fields (also known as multipart fields).",
+      "extends": [
+        "SearchIndexerSkill"
+      ],
+      "discriminator": "#Microsoft.Skills.Util.ShaperSkill"
+    },
+    "SharePointSensitivityLabelInfo": {
+      "description": "Information about the sensitivity label applied to a SharePoint document.",
+      "properties": [
+        "displayName",
+        "sensitivityLabelId",
+        "tooltip",
+        "priority",
+        "color",
+        "isEncrypted"
+      ]
+    },
+    "ShingleTokenFilter": {
+      "description": "Creates combinations of tokens as a single token. This token filter is implemented using Apache Lucene.",
+      "properties": [
+        "maxShingleSize",
+        "minShingleSize",
+        "outputUnigrams",
+        "outputUnigramsIfNoShingles",
+        "tokenSeparator",
+        "filterToken"
+      ],
+      "extends": [
+        "TokenFilter"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.ShingleTokenFilter"
+    },
+    "SimilarityAlgorithm": {
+      "description": "Base type for similarity algorithms. Similarity algorithms are used to calculate scores that tie queries to documents. The higher the score, the more relevant the document is to that specific query. T",
+      "required": [
+        "@odata.type"
+      ],
+      "properties": [
+        "@odata.type"
+      ]
+    },
+    "SingleVectorFieldResult": {
+      "description": "A single vector field result. Both",
+      "properties": [
+        "searchScore",
+        "vectorSimilarity"
+      ]
+    },
+    "SkillNames": {
+      "description": "The type of the skill names.",
+      "properties": [
+        "skillNames"
+      ]
+    },
+    "SnowballTokenFilter": {
+      "description": "A filter that stems words using a Snowball-generated stemmer. This token filter is implemented using Apache Lucene.",
+      "required": [
+        "language"
+      ],
+      "properties": [
+        "language"
+      ],
+      "extends": [
+        "TokenFilter"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.SnowballTokenFilter"
+    },
+    "SnowballTokenFilterLanguage": {
+      "description": "The language to use for a Snowball token filter.",
+      "enum": [
+        "armenian",
+        "basque",
+        "catalan",
+        "danish",
+        "dutch",
+        "english",
+        "finnish",
+        "french",
+        "german",
+        "german2",
+        "hungarian",
+        "italian",
+        "kp",
+        "lovins",
+        "norwegian",
+        "porter",
+        "portuguese",
+        "romanian",
+        "russian",
+        "spanish",
+        "swedish",
+        "turkish"
+      ]
+    },
+    "SoftDeleteColumnDeletionDetectionPolicy": {
+      "description": "Defines a data deletion detection policy that implements a soft-deletion strategy. It determines whether an item should be deleted based on the value of a designated 'soft delete' column.",
+      "properties": [
+        "softDeleteColumnName",
+        "softDeleteMarkerValue"
+      ],
+      "extends": [
+        "DataDeletionDetectionPolicy"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.SoftDeleteColumnDeletionDetectionPolicy"
+    },
+    "SplitSkill": {
+      "description": "A skill to split a string into chunks of text.",
+      "properties": [
+        "defaultLanguageCode",
+        "textSplitMode",
+        "maximumPageLength",
+        "pageOverlapLength",
+        "maximumPagesToTake",
+        "unit",
+        "azureOpenAITokenizerParameters"
+      ],
+      "extends": [
+        "SearchIndexerSkill"
+      ],
+      "discriminator": "#Microsoft.Skills.Text.SplitSkill"
+    },
+    "SplitSkillEncoderModelName": {
+      "description": "A value indicating which tokenizer to use.",
+      "enum": [
+        "r50k_base",
+        "p50k_base",
+        "p50k_edit",
+        "cl100k_base"
+      ]
+    },
+    "SplitSkillLanguage": {
+      "description": "The language codes supported for input text by SplitSkill.",
+      "enum": [
+        "am",
+        "bs",
+        "cs",
+        "da",
+        "de",
+        "en",
+        "es",
+        "et",
+        "fi",
+        "fr",
+        "he",
+        "hi",
+        "hr",
+        "hu",
+        "id",
+        "is",
+        "it",
+        "ja",
+        "ko",
+        "lv",
+        "nb",
+        "nl",
+        "pl",
+        "pt",
+        "pt-br",
+        "ru",
+        "sk",
+        "sl",
+        "sr",
+        "sv",
+        "tr",
+        "ur",
+        "zh"
+      ]
+    },
+    "SplitSkillUnit": {
+      "description": "A value indicating which unit to use.",
+      "enum": [
+        "characters",
+        "azureOpenAITokens"
+      ]
+    },
+    "SqlIntegratedChangeTrackingPolicy": {
+      "description": "Defines a data change detection policy that captures changes using the Integrated Change Tracking feature of Azure SQL Database.",
+      "extends": [
+        "DataChangeDetectionPolicy"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.SqlIntegratedChangeTrackingPolicy"
+    },
+    "StemmerOverrideTokenFilter": {
+      "description": "Provides the ability to override other stemming filters with custom dictionary-based stemming. Any dictionary-stemmed terms will be marked as keywords so that they will not be stemmed with stemmers do",
+      "required": [
+        "rules"
+      ],
+      "properties": [
+        "rules"
+      ],
+      "extends": [
+        "TokenFilter"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.StemmerOverrideTokenFilter"
+    },
+    "StemmerTokenFilter": {
+      "description": "Language specific stemming filter. This token filter is implemented using Apache Lucene. See https://learn.microsoft.com/rest/api/searchservice/Custom-analyzers-in-Azure-Search#TokenFilters",
+      "required": [
+        "language"
+      ],
+      "properties": [
+        "language"
+      ],
+      "extends": [
+        "TokenFilter"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.StemmerTokenFilter"
+    },
+    "StemmerTokenFilterLanguage": {
+      "description": "The language to use for a stemmer token filter.",
+      "enum": [
+        "arabic",
+        "armenian",
+        "basque",
+        "brazilian",
+        "bulgarian",
+        "catalan",
+        "czech",
+        "danish",
+        "dutch",
+        "dutchKp",
+        "english",
+        "lightEnglish",
+        "minimalEnglish",
+        "possessiveEnglish",
+        "porter2",
+        "lovins",
+        "finnish",
+        "lightFinnish",
+        "french",
+        "lightFrench",
+        "minimalFrench",
+        "galician",
+        "minimalGalician",
+        "german",
+        "german2",
+        "lightGerman",
+        "minimalGerman",
+        "greek",
+        "hindi",
+        "hungarian",
+        "lightHungarian",
+        "indonesian",
+        "irish",
+        "italian",
+        "lightItalian",
+        "sorani",
+        "latvian",
+        "norwegian",
+        "lightNorwegian",
+        "minimalNorwegian",
+        "lightNynorsk",
+        "minimalNynorsk",
+        "portuguese",
+        "lightPortuguese",
+        "minimalPortuguese",
+        "portugueseRslp",
+        "romanian",
+        "russian",
+        "lightRussian",
+        "spanish",
+        "lightSpanish",
+        "swedish",
+        "lightSwedish",
+        "turkish"
+      ]
+    },
+    "StopAnalyzer": {
+      "description": "Divides text at non-letters; Applies the lowercase and stopword token filters. This analyzer is implemented using Apache Lucene.",
+      "properties": [
+        "stopwords"
+      ],
+      "extends": [
+        "LexicalAnalyzer"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.StopAnalyzer"
+    },
+    "StopwordsList": {
+      "description": "Identifies a predefined list of language-specific stopwords.",
+      "enum": [
+        "arabic",
+        "armenian",
+        "basque",
+        "brazilian",
+        "bulgarian",
+        "catalan",
+        "czech",
+        "danish",
+        "dutch",
+        "english",
+        "finnish",
+        "french",
+        "galician",
+        "german",
+        "greek",
+        "hindi",
+        "hungarian",
+        "indonesian",
+        "irish",
+        "italian",
+        "latvian",
+        "norwegian",
+        "persian",
+        "portuguese",
+        "romanian",
+        "russian",
+        "sorani",
+        "spanish",
+        "swedish",
+        "thai",
+        "turkish"
+      ]
+    },
+    "StopwordsTokenFilter": {
+      "description": "Removes stop words from a token stream. This token filter is implemented using Apache Lucene. See http://lucene.apache.org/core/4_10_3/analyzers-common/org/apache/lucene/analysis/core/StopFilter.html",
+      "properties": [
+        "stopwords",
+        "stopwordsList",
+        "ignoreCase",
+        "removeTrailing"
+      ],
+      "extends": [
+        "TokenFilter"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.StopwordsTokenFilter"
+    },
+    "SuggestDocumentsResult": {
+      "description": "Response containing suggestion query results from an index.",
+      "required": [
+        "value"
+      ],
+      "properties": [
+        "value",
+        "@search.coverage"
+      ]
+    },
+    "SuggestRequest": {
+      "description": "Parameters for filtering, sorting, fuzzy matching, and other suggestions query behaviors.",
+      "required": [
+        "search",
+        "suggesterName"
+      ],
+      "properties": [
+        "filter",
+        "fuzzy",
+        "highlightPostTag",
+        "highlightPreTag",
+        "minimumCoverage",
+        "orderby",
+        "search",
+        "searchFields",
+        "select",
+        "suggesterName",
+        "top"
+      ]
+    },
+    "SuggestResult": {
+      "description": "A result containing a document found by a suggestion query, plus associated metadata.",
+      "required": [
+        "@search.text"
+      ],
+      "properties": [
+        "@search.text"
+      ]
+    },
+    "SynchronizationState": {
+      "description": "Represents the current state of an ongoing synchronization that spans multiple indexer runs.",
+      "required": [
+        "startTime",
+        "itemsUpdatesProcessed",
+        "itemsUpdatesFailed",
+        "itemsSkipped"
+      ],
+      "properties": [
+        "startTime",
+        "itemsUpdatesProcessed",
+        "itemsUpdatesFailed",
+        "itemsSkipped"
+      ]
+    },
+    "SynonymMap": {
+      "description": "Represents a synonym map definition.",
+      "required": [
+        "name",
+        "format",
+        "synonyms"
+      ],
+      "properties": [
+        "name",
+        "format",
+        "synonyms",
+        "encryptionKey",
+        "@odata.etag"
+      ]
+    },
+    "SynonymTokenFilter": {
+      "description": "Matches single or multi-word synonyms in a token stream. This token filter is implemented using Apache Lucene.",
+      "required": [
+        "synonyms"
+      ],
+      "properties": [
+        "synonyms",
+        "ignoreCase",
+        "expand"
+      ],
+      "extends": [
+        "TokenFilter"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.SynonymTokenFilter"
+    },
+    "TagScoringFunction": {
+      "description": "Defines a function that boosts scores of documents with string values matching a given list of tags.",
+      "required": [
+        "tag"
+      ],
+      "properties": [
+        "tag"
+      ],
+      "extends": [
+        "ScoringFunction"
+      ],
+      "discriminator": "tag"
+    },
+    "TagScoringParameters": {
+      "description": "Provides parameter values to a tag scoring function.",
+      "required": [
+        "tagsParameter"
+      ],
+      "properties": [
+        "tagsParameter"
+      ]
+    },
+    "TextResult": {
+      "description": "The BM25 or Classic score for the text portion of the query.",
+      "properties": [
+        "searchScore"
+      ]
+    },
+    "TextSplitMode": {
+      "description": "A value indicating which split mode to perform.",
+      "enum": [
+        "pages",
+        "sentences"
+      ]
+    },
+    "TextTranslationSkill": {
+      "description": "A skill to translate text from one language to another.",
+      "required": [
+        "defaultToLanguageCode"
+      ],
+      "properties": [
+        "defaultToLanguageCode",
+        "defaultFromLanguageCode",
+        "suggestedFrom"
+      ],
+      "extends": [
+        "SearchIndexerSkill"
+      ],
+      "discriminator": "#Microsoft.Skills.Text.TranslationSkill"
+    },
+    "TextTranslationSkillLanguage": {
+      "description": "The language codes supported for input text by TextTranslationSkill.",
+      "enum": [
+        "af",
+        "ar",
+        "bn",
+        "bs",
+        "bg",
+        "yue",
+        "ca",
+        "zh-Hans",
+        "zh-Hant",
+        "hr",
+        "cs",
+        "da",
+        "nl",
+        "en",
+        "et",
+        "fj",
+        "fil",
+        "fi",
+        "fr",
+        "de",
+        "el",
+        "ht",
+        "he",
+        "hi",
+        "mww",
+        "hu",
+        "is",
+        "id",
+        "it",
+        "ja",
+        "sw",
+        "tlh",
+        "tlh-Latn",
+        "tlh-Piqd",
+        "ko",
+        "lv",
+        "lt",
+        "mg",
+        "ms",
+        "mt",
+        "nb",
+        "fa",
+        "pl",
+        "pt",
+        "pt-br",
+        "pt-PT",
+        "otq",
+        "ro",
+        "ru",
+        "sm",
+        "sr-Cyrl",
+        "sr-Latn",
+        "sk",
+        "sl",
+        "es",
+        "sv",
+        "ty",
+        "ta",
+        "te",
+        "th",
+        "to",
+        "tr",
+        "uk",
+        "ur",
+        "vi",
+        "cy",
+        "yua",
+        "ga",
+        "kn",
+        "mi",
+        "ml",
+        "pa"
+      ]
+    },
+    "TextWeights": {
+      "description": "Defines weights on index fields for which matches should boost scoring in search queries.",
+      "required": [
+        "weights"
+      ],
+      "properties": [
+        "weights"
+      ]
+    },
+    "TokenCharacterKind": {
+      "description": "Represents classes of characters on which a token filter can operate.",
+      "enum": [
+        "letter",
+        "digit",
+        "whitespace",
+        "punctuation",
+        "symbol"
+      ]
+    },
+    "TokenFilter": {
+      "description": "Base type for token filters.",
+      "required": [
+        "@odata.type",
+        "name"
+      ],
+      "properties": [
+        "@odata.type",
+        "name"
+      ]
+    },
+    "TokenFilterName": {
+      "description": "Defines the names of all token filters supported by the search engine.",
+      "enum": [
+        "arabic_normalization",
+        "apostrophe",
+        "asciifolding",
+        "cjk_bigram",
+        "cjk_width",
+        "classic",
+        "common_grams",
+        "edgeNGram_v2",
+        "elision",
+        "german_normalization",
+        "hindi_normalization",
+        "indic_normalization",
+        "keyword_repeat",
+        "kstem",
+        "length",
+        "limit",
+        "lowercase",
+        "nGram_v2",
+        "persian_normalization",
+        "phonetic",
+        "porter_stem",
+        "reverse",
+        "scandinavian_normalization",
+        "scandinavian_folding",
+        "shingle",
+        "snowball",
+        "sorani_normalization",
+        "stemmer",
+        "stopwords",
+        "trim",
+        "truncate",
+        "unique",
+        "uppercase",
+        "word_delimiter"
+      ]
+    },
+    "TruncateTokenFilter": {
+      "description": "Truncates the terms to a specific length. This token filter is implemented using Apache Lucene.",
+      "properties": [
+        "length"
+      ],
+      "extends": [
+        "TokenFilter"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.TruncateTokenFilter"
+    },
+    "UaxUrlEmailTokenizer": {
+      "description": "Tokenizes urls and emails as one token. This tokenizer is implemented using Apache Lucene.",
+      "properties": [
+        "maxTokenLength"
+      ],
+      "extends": [
+        "LexicalTokenizer"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.UaxUrlEmailTokenizer"
+    },
+    "UniqueTokenFilter": {
+      "description": "Filters out tokens with same text as the previous token. This token filter is implemented using Apache Lucene.",
+      "properties": [
+        "onlyOnSamePosition"
+      ],
+      "extends": [
+        "TokenFilter"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.UniqueTokenFilter"
+    },
+    "VectorEncodingFormat": {
+      "description": "The encoding format for interpreting vector field contents.",
+      "enum": [
+        "packedBit"
+      ]
+    },
+    "VectorFilterMode": {
+      "description": "Determines whether or not filters are applied before or after the vector search is performed.",
+      "enum": [
+        "postFilter",
+        "preFilter",
+        "strictPostFilter"
+      ]
+    },
+    "VectorQuery": {
+      "description": "The query parameters for vector and hybrid search queries.",
+      "required": [
+        "kind"
+      ],
+      "properties": [
+        "k",
+        "fields",
+        "exhaustive",
+        "oversampling",
+        "weight",
+        "threshold",
+        "filterOverride",
+        "perDocumentVectorLimit",
+        "kind"
+      ]
+    },
+    "VectorQueryKind": {
+      "description": "The kind of vector query being performed.",
+      "enum": [
+        "vector",
+        "text",
+        "imageUrl",
+        "imageBinary"
+      ]
+    },
+    "VectorSearch": {
+      "description": "Contains configuration options related to vector search.",
+      "properties": [
+        "profiles",
+        "algorithms",
+        "vectorizers",
+        "compressions"
+      ]
+    },
+    "VectorSearchAlgorithmConfiguration": {
+      "description": "Contains configuration options specific to the algorithm used during indexing or querying.",
+      "required": [
+        "name",
+        "kind"
+      ],
+      "properties": [
+        "name",
+        "kind"
+      ]
+    },
+    "VectorSearchAlgorithmKind": {
+      "description": "The algorithm used for indexing and querying.",
+      "enum": [
+        "hnsw",
+        "exhaustiveKnn"
+      ]
+    },
+    "VectorSearchAlgorithmMetric": {
+      "description": "The similarity metric to use for vector comparisons. It is recommended to choose the same similarity metric as the embedding model was trained on.",
+      "enum": [
+        "cosine",
+        "euclidean",
+        "dotProduct",
+        "hamming"
+      ]
+    },
+    "VectorSearchCompression": {
+      "description": "Contains configuration options specific to the compression method used during indexing or querying.",
+      "required": [
+        "name",
+        "kind"
+      ],
+      "properties": [
+        "name",
+        "rescoringOptions",
+        "truncationDimension",
+        "kind"
+      ]
+    },
+    "VectorSearchCompressionKind": {
+      "description": "The compression method used for indexing and querying.",
+      "enum": [
+        "scalarQuantization",
+        "binaryQuantization"
+      ]
+    },
+    "VectorSearchCompressionRescoreStorageMethod": {
+      "description": "The storage method for the original full-precision vectors used for rescoring and internal index operations.",
+      "enum": [
+        "preserveOriginals",
+        "discardOriginals"
+      ]
+    },
+    "VectorSearchCompressionTarget": {
+      "description": "The quantized data type of compressed vector values.",
+      "enum": [
+        "int8"
+      ]
+    },
+    "VectorSearchProfile": {
+      "description": "Defines a combination of configurations to use with vector search.",
+      "required": [
+        "name",
+        "algorithm"
+      ],
+      "properties": [
+        "name",
+        "algorithm",
+        "vectorizer",
+        "compression"
+      ]
+    },
+    "VectorSearchVectorizer": {
+      "description": "Specifies the vectorization method to be used during query time.",
+      "required": [
+        "name",
+        "kind"
+      ],
+      "properties": [
+        "name",
+        "kind"
+      ]
+    },
+    "VectorSearchVectorizerKind": {
+      "description": "The vectorization method to be used during query time.",
+      "enum": [
+        "azureOpenAI",
+        "customWebApi",
+        "aiServicesVision",
+        "aml"
+      ]
+    },
+    "VectorSimilarityThreshold": {
+      "description": "The results of the vector query will be filtered based on the vector similarity metric. Note this is the canonical definition of similarity metric, not the 'distance' version. The threshold direction ",
+      "required": [
+        "value"
+      ],
+      "properties": [
+        "value"
+      ],
+      "extends": [
+        "VectorThreshold"
+      ],
+      "discriminator": "vectorSimilarity"
+    },
+    "VectorThreshold": {
+      "description": "The threshold used for vector queries.",
+      "required": [
+        "kind"
+      ],
+      "properties": [
+        "kind"
+      ]
+    },
+    "VectorThresholdKind": {
+      "description": "The kind of threshold used to filter vector queries.",
+      "enum": [
+        "vectorSimilarity",
+        "searchScore"
+      ]
+    },
+    "VectorizableImageBinaryQuery": {
+      "description": "The query parameters to use for vector search when a base 64 encoded binary of an image that needs to be vectorized is provided.",
+      "properties": [
+        "base64Image"
+      ],
+      "extends": [
+        "VectorQuery"
+      ],
+      "discriminator": "imageBinary"
+    },
+    "VectorizableImageUrlQuery": {
+      "description": "The query parameters to use for vector search when an url that represents an image value that needs to be vectorized is provided.",
+      "properties": [
+        "url"
+      ],
+      "extends": [
+        "VectorQuery"
+      ],
+      "discriminator": "imageUrl"
+    },
+    "VectorizableTextQuery": {
+      "description": "The query parameters to use for vector search when a text value that needs to be vectorized is provided.",
+      "required": [
+        "text"
+      ],
+      "properties": [
+        "text",
+        "queryRewrites"
+      ],
+      "extends": [
+        "VectorQuery"
+      ],
+      "discriminator": "text"
+    },
+    "VectorizedQuery": {
+      "description": "The query parameters to use for vector search when a raw vector value is provided.",
+      "required": [
+        "vector"
+      ],
+      "properties": [
+        "vector"
+      ],
+      "extends": [
+        "VectorQuery"
+      ],
+      "discriminator": "vector"
+    },
+    "VectorsDebugInfo": {
+      "description": "\"Contains debugging information specific to vector and hybrid search.\")",
+      "properties": [
+        "subscores"
+      ]
+    },
+    "VisionVectorizeSkill": {
+      "description": "Allows you to generate a vector embedding for a given image or text input using the Azure AI Services Vision Vectorize API.",
+      "required": [
+        "modelVersion"
+      ],
+      "properties": [
+        "modelVersion"
+      ],
+      "extends": [
+        "SearchIndexerSkill"
+      ],
+      "discriminator": "#Microsoft.Skills.Vision.VectorizeSkill"
+    },
+    "VisualFeature": {
+      "description": "The strings indicating what visual feature types to return.",
+      "enum": [
+        "adult",
+        "brands",
+        "categories",
+        "description",
+        "faces",
+        "objects",
+        "tags"
+      ]
+    },
+    "WebApiHttpHeaders": {
+      "description": "A dictionary of http request headers."
+    },
+    "WebApiSkill": {
+      "description": "A skill that can call a Web API endpoint, allowing you to extend a skillset by having it call your custom code.",
+      "required": [
+        "uri"
+      ],
+      "properties": [
+        "uri",
+        "httpHeaders",
+        "httpMethod",
+        "timeout",
+        "batchSize",
+        "degreeOfParallelism",
+        "authResourceId",
+        "authIdentity"
+      ],
+      "extends": [
+        "SearchIndexerSkill"
+      ],
+      "discriminator": "#Microsoft.Skills.Custom.WebApiSkill"
+    },
+    "WebApiVectorizer": {
+      "description": "Specifies a user-defined vectorizer for generating the vector embedding of a query string. Integration of an external vectorizer is achieved using the custom Web API interface of a skillset.",
+      "properties": [
+        "customWebApiParameters"
+      ],
+      "extends": [
+        "VectorSearchVectorizer"
+      ],
+      "discriminator": "customWebApi"
+    },
+    "WebApiVectorizerParameters": {
+      "description": "Specifies the properties for connecting to a user-defined vectorizer.",
+      "properties": [
+        "uri",
+        "httpHeaders",
+        "httpMethod",
+        "timeout",
+        "authResourceId",
+        "authIdentity"
+      ]
+    },
+    "WebKnowledgeSource": {
+      "description": "Knowledge Source targeting web results.",
+      "properties": [
+        "webParameters"
+      ],
+      "extends": [
+        "KnowledgeSource"
+      ],
+      "discriminator": "web"
+    },
+    "WebKnowledgeSourceDomain": {
+      "description": "Configuration for web knowledge source domain.",
+      "required": [
+        "address"
+      ],
+      "properties": [
+        "address",
+        "includeSubpages"
+      ]
+    },
+    "WebKnowledgeSourceDomains": {
+      "description": "Domain allow/block configuration for web knowledge source.",
+      "properties": [
+        "allowedDomains",
+        "blockedDomains"
+      ]
+    },
+    "WebKnowledgeSourceParameters": {
+      "description": "Parameters for web knowledge source.",
+      "properties": [
+        "domains"
+      ]
+    },
+    "WebKnowledgeSourceParams": {
+      "description": "Specifies runtime parameters for a web knowledge source",
+      "properties": [
+        "language",
+        "market",
+        "count",
+        "freshness"
+      ],
+      "extends": [
+        "KnowledgeSourceParams"
+      ],
+      "discriminator": "web"
+    },
+    "WordDelimiterTokenFilter": {
+      "description": "Splits words into subwords and performs optional transformations on subword groups. This token filter is implemented using Apache Lucene.",
+      "properties": [
+        "generateWordParts",
+        "generateNumberParts",
+        "catenateWords",
+        "catenateNumbers",
+        "catenateAll",
+        "splitOnCaseChange",
+        "preserveOriginal",
+        "splitOnNumerics",
+        "stemEnglishPossessive",
+        "protectedWords"
+      ],
+      "extends": [
+        "TokenFilter"
+      ],
+      "discriminator": "#Microsoft.Azure.Search.WordDelimiterTokenFilter"
+    }
+  }
+}

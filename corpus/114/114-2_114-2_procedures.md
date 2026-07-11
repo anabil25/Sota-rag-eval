@@ -1,0 +1,46 @@
+---
+policy_id: "114-2"
+title: "114-2 Procedures"
+parent: "114 Case Reviews"
+source_url: "C:\Users\nabilahmed\Documents\Code\alaska policy eval\policies\114\114-2_procedures.md"
+last_ingested: "2026-03-28"
+cross_references:
+  - "{'id': '114-1', 'keywords': 'supervisor case review, quality assurance, feedback'}"
+  - "{'id': '115', 'keywords': 'referrals, agency coordination, client services'}"
+---
+
+Administrative Procedures Manual
+
+[Click here to see this page in full context](#)
+
+114-2          PROCEDURES
+
+Reviewers should be assigned to review cases
+completed by all caseworkers in an office, and for all programs, in a
+quantity to assure the integrity of individual error rates figures and
+office performance.
+
+Reviewers use the [Case
+Review Guidelines](http://dpaweb.hss.state.ak.us/manuals/casereview.pdf) and [Case Review Desk Guide](https://go.dhss.ak.local/dpa/ETResources/Shared Documents/Forms/AllItems.aspx)
+as reference tool when completing case reviews. All documentation regarding
+case reviews and errors analysis are completed in the [Case
+Review System](http://hssjnuintwebp/casereview/). The [Eligibility Case Review Program
+User's Guide](http://dpaweb.hss.state.ak.us/FIELD/PDF/CaseSystemUserguide.pdf) is available to assist workers and reviewers to navigate
+through the system.
+
+All case reviews should be responded to within
+3 business days. The worker should check the Case Review Tool daily for
+items that need to be addressed. Once the caseworker has responded, the
+case review will be checked for completeness by the Reviewer within 7
+business days.
+
+Field staff are encouraged to discuss questions
+on cases with reviewers to ensure accurate interpretation of information
+during the review period. When the caseworker does not agree with an error
+finding, the worker should contact the Reviewer and follow the rebuttal
+procedure outlined in the [Case Review Desk Guide](https://go.dhss.ak.local/dpa/ETResources/Shared Documents/Forms/AllItems.aspx).
+
+|  |  |  |
+| --- | --- | --- |
+| [Previous Section](114-1_supervisory_reviews_and_management_responsibilities.md) |  | [Next Section](../115/115_referrals.md) |
+|  |  | [2021-01 (04/21)](../transmittals/transmittal_2021-01.md) |

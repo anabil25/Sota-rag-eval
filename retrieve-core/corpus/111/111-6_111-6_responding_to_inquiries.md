@@ -1,0 +1,28 @@
+---
+policy_id: "111-6"
+title: "111-6 Responding to Inquiries"
+parent: "111 Program Losses and Claims Collection"
+source_url: "C:\Users\nabilahmed\Documents\Code\alaska policy eval\policies\111\111-6_responding_to_inquiries.md"
+last_ingested: "2026-03-31"
+cross_references:
+  - "{'id': '111-5', 'keywords': 'recoupment, repayment agreement, benefit reduction'}"
+  - "{'id': '111-7', 'keywords': 'payments received, claim remittance, GEN 38 form'}"
+---
+
+Administrative Procedures Manual
+
+[Click here to see this page in full context](#)
+
+111-6          RESPONDING
+TO INQUIRIES
+
+The caseworker responds to the individual's questions
+about the calculation of the overpayment or the individual's dispute of
+the amount or reason for the claim. For questions about the establishment
+of a claim, garnishments, or receipt of a payment, inform the individual
+to contact the Claims Specialist.
+
+|  |  |  |
+| --- | --- | --- |
+| [Previous Section](111-5_recoupments_repayments_and_allotment_reductions.md) |  | [Next Section](111-7_payments_received_in_dpa_offices.md) |
+|  |  |  |

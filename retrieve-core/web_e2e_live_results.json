@@ -1,0 +1,87 @@
+{
+  "results": [
+    {
+      "step": "1_INGEST",
+      "message": "POST /api/ingest (source=C:\\Users\\nabilahmed\\Documents\\Code\\retrieve\\corpus)",
+      "status": "INFO"
+    },
+    {
+      "step": "1_INGEST",
+      "message": "1880 docs ingested via web API",
+      "status": "PASS"
+    },
+    {
+      "step": "2_GENERATE",
+      "message": "POST /api/eval/generate (1819 docs)",
+      "status": "INFO"
+    },
+    {
+      "step": "2_GENERATE",
+      "message": "13 questions generated, eval_set_id=1",
+      "status": "PASS"
+    },
+    {
+      "step": "PROVISION",
+      "message": "_run_job_sync(kind=provision) \u2014 same function web jobs call",
+      "status": "INFO"
+    },
+    {
+      "step": "PROVISION",
+      "message": "Completed: {'status': 'provisioned'}",
+      "status": "PASS"
+    },
+    {
+      "step": "INDEX",
+      "message": "_run_job_sync(kind=index) \u2014 same function web jobs call",
+      "status": "INFO"
+    },
+    {
+      "step": "INDEX",
+      "message": "Completed: {'status': 'indexed'}",
+      "status": "PASS"
+    },
+    {
+      "step": "EVALUATE",
+      "message": "_run_job_sync(kind=evaluate) \u2014 same function web jobs call",
+      "status": "INFO"
+    },
+    {
+      "step": "EVALUATE",
+      "message": "Completed: {'status': 'completed'}",
+      "status": "PASS"
+    },
+    {
+      "step": "6_READ_APIS",
+      "message": "Checking all read endpoints...",
+      "status": "INFO"
+    },
+    {
+      "step": "6_READ_APIS",
+      "message": "All read APIs and step pages verified",
+      "status": "PASS"
+    },
+    {
+      "step": "TEARDOWN",
+      "message": "_run_job_sync(kind=teardown) \u2014 same function web jobs call",
+      "status": "INFO"
+    },
+    {
+      "step": "7_TEARDOWN",
+      "message": "CRASHED: ValueError: Unknown job kind: teardown",
+      "status": "FAIL"
+    },
+    {
+      "step": "8_CLEANUP",
+      "message": "Deleting resource group...",
+      "status": "INFO"
+    },
+    {
+      "step": "8_CLEANUP",
+      "message": "Resource group deletion initiated",
+      "status": "PASS"
+    }
+  ],
+  "tmpdir": "C:\\Users\\NABILA~1\\AppData\\Local\\Temp\\retrieve_web_e2e__0kwo998",
+  "passes": 7,
+  "fails": 1
+}

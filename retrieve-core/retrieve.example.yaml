@@ -1,0 +1,64 @@
+# Retrieve configuration
+# See: https://github.com/retrieve-ai/retrieve
+
+# ── Copilot SDK settings ──────────────────────────────────────────────
+# All LLM interactions go through the GitHub Copilot SDK.
+# Default: uses your signed-in Copilot CLI user. No config needed.
+# Override with BYOK provider for Azure OpenAI, Ollama, etc.
+
+copilot:
+  model: gpt-4.1
+  timeout: 120  # seconds per send_and_wait call
+
+  # BYOK provider — uncomment ONE of these blocks:
+
+  # Azure OpenAI:
+  # provider:
+  #   type: azure
+  #   base_url: https://YOUR-RESOURCE.openai.azure.com
+  #   api_key: ${AZURE_OPENAI_KEY}
+  #   azure:
+  #     api_version: "2024-10-21"
+
+  # Ollama (local):
+  # provider:
+  #   type: openai
+  #   base_url: http://localhost:11434/v1
+
+# ── Corpus settings ───────────────────────────────────────────────────
+corpus:
+  source: ""  # URL or local path
+  plugin: html  # html, markdown
+  output_dir: corpus
+
+# ── Azure settings ────────────────────────────────────────────────────
+azure:
+  resource_group: ""
+  location: southcentralus
+  name_prefix: retrieve
+  subscription_id: ""
+
+# ── Eval settings ─────────────────────────────────────────────────────
+eval:
+  questions_per_chunk: 3
+  categories:
+    - direct_lookup
+    - process_procedure
+    - eligibility
+    - cross_document
+    - edge_cases
+
+# ── Architectures to evaluate ─────────────────────────────────────────
+architectures:
+  - hybrid
+
+# Future schema note:
+# If you add user-selectable field flags later (searchable/filterable/facetable/sortable),
+# do not enable filterable/facetable/sortable on large text body fields without extra logic.
+# Azure AI Search whole-term indexing for those modes can hit the 32 KB (32766-byte UTF-8)
+# term limit on long policy sections. Safer options are: keep body text searchable-only,
+# split/chunk the content first, or project summary/keyword fields separately.
+
+# ── Database ──────────────────────────────────────────────────────────
+db_path: retrieve.db
+log_level: INFO

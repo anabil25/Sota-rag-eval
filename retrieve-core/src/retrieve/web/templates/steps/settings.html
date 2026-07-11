@@ -1,0 +1,18 @@
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Current Configuration</div>
+    <span class="badge badge-gray">Read-only</span>
+  </div>
+
+  <table class="gh-table">
+    <tbody>
+      <tr><th scope="row">DB Path</th><td>{{ cfg.db_path }}</td></tr>
+      <tr><th scope="row">Corpus Source</th><td>{{ cfg.corpus.source }}</td></tr>
+      <tr><th scope="row">Corpus Output</th><td>{{ cfg.corpus.output_dir }}</td></tr>
+      <tr><th scope="row">Architectures</th><td>{{ cfg.architectures | join(', ') }}</td></tr>
+      <tr><th scope="row">Azure Resource Group</th><td>{{ cfg.azure.resource_group }}</td></tr>
+      <tr><th scope="row">Azure Location</th><td>{{ cfg.azure.location }}</td></tr>
+      <tr><th scope="row">Model</th><td>{{ cfg.copilot.model }}</td></tr>
+    </tbody>
+  </table>
+</div>

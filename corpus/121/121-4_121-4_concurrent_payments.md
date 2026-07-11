@@ -1,0 +1,50 @@
+---
+policy_id: "121-4"
+title: "121-4 Concurrent Payments"
+parent: "121 Payments"
+source_url: "C:\Users\nabilahmed\Documents\Code\alaska policy eval\policies\121\121-4_concurrent_payments.md"
+last_ingested: "2026-03-28"
+cross_references:
+  - "{'id': '121-3', 'keywords': 'payee, protective payee, payment recipient'}"
+  - "{'id': '121-5', 'keywords': 'delivery methods, EBT card, direct deposit'}"
+---
+
+Administrative Procedures Manual
+
+[Click here to see this page in full context](#)
+
+121-4          CONCURRENT
+PAYMENTS
+
+Except for specific exceptions allowed by the DPADivision of Public Assistance program manuals, no person is entitled
+to receive cash assistance concurrently for more than one DPADivision of Public Assistance assistance program, or concurrently
+from more than one federal cash assistance program. (This does not affect
+SNAPSupplemental Nutrition Assistance Program.) That is, no recipient
+can be provided benefits in the same calendar month in the ATAPAlaska Temporary Assistance Program program and the SSISupplemental Security Income or APAAdult Public Assistance
+cash programs.
+
+Note:
+
+The prohibition against concurrent payments does not apply to Interim Assistance
+and the Alaska Temporary Assistance program. Temporary Assistance recipients
+may receive Interim Assistance payments. However, the Interim Assistance
+payment counts as income when determining eligibility and payment amounts
+for Temporary Assistance.
+
+However, he or she can be a protective
+payee for more than one program, when his or her needs are being
+met in only one program. For example,
+a disabled parent has his or her needs met by SSISupplemental Security Income
+and APAAdult Public Assistance payments, and
+his or her spouse and children have their needs include in and met by
+ATAPAlaska Temporary Assistance Program.
+
+The Eligibility Technician must be careful not to
+confuse the recipient (one whose needs are included in the grant) with
+the person who actually receives a monthly benefit. These may not be the
+same person.
+
+|  |  |  |
+| --- | --- | --- |
+| [Previous Section](121-3_to_whom_payments_will_be_made.md) |  | [Next Section](121-5_delivery_of_payments.md) |
+|  |  | [2009-01 (03/09)](../transmittals/transmittal_2009-01.md) |

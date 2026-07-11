@@ -1,0 +1,78 @@
+---
+policy_id: "111-7"
+title: "111-7 Payments Received in DPA Offices"
+parent: "111 Program Losses and Claims Collection"
+source_url: "C:\Users\nabilahmed\Documents\Code\alaska policy eval\Policies\Administrative Procedures Manual\111\111-7_payments_received_in_dpa_offices.md"
+last_ingested: "2026-05-09"
+cross_references:
+  - "111-6"
+  - "111-8"
+---
+
+Administrative Procedures Manual
+
+[Click here to see this page in full context](#)
+
+111-7          PAYMENTS RECEIVED IN DPADivision of Public Assistance OFFICES
+
+The overpayment/recoupment notice sent by the Claims Specialist instructs individuals to mail payments on claims by personal check or money order directly to the Benefit Issuance and Recovery Unit.
+
+If an individual contacts a DPADivision of Public Assistance office by phone or mail and inquires about making a payment, the DPADivision of Public Assistance office staff person will inform the individual to mail the payment to the Benefit Issuance and Recovery Unit. Remind the individual to pay by personal check or money order.
+
+If an individual hand delivers or mails a payment by check or money order to a DPADivision of Public Assistance office, the DPADivision of Public Assistance office submits the payment to the Benefit Issuance and Recovery Unit. Send the payment, along with a copy of the CLPMCase Profile Maintenance screen in EISEligibility Information System to the Benefit Issuance and Recovery Unit, PO BOX 110640, Juneau, Alaska 99811-0640, by departmental mail. Inform the client that the payment receipt will be sent to them by mail. If the client requests a receipt of payment, use the DPADivision of Public Assistance Claim Remittance (GEN 38Public Assistance Claim Remittance). The local office must make a CANOCase Notes entry regarding the payment received which lists the date, payment amount, program(s) involved, etc.
+
+111-7 A.      PUBLIC ASSISTANCE CLAIM REMITTANCE (GEN 38Public Assistance Claim Remittance)
+
+If a client hand delivers a payment and receipt of payment, fill out GEN 38Public Assistance Claim Remittance form and provide that to the client. The GEN 38Public Assistance Claim Remittance can be printed from e-Forms on the DPAweb.
+
+When a DPADivision of Public Assistance office receives a payment on a claim, the caseworker will also complete a GEN 38Public Assistance Claim Remittance form. The GEN 38Public Assistance Claim Remittance form must include:
+
+- DPADivision of Public Assistance office name
+- Date the caseworker prepared the GEN 38Public Assistance Claim Remittance and mailed it to the Claims, Benefit Recovery Unit
+- Amount of the payment
+- Case name and case number of the individual making the payment
+- Payment method (check, money order)
+- Program type
+- Reason for payment (overpayment claim payment, voluntary return, individual deceased, other)
+- Signatures of two DPADivision of Public Assistance employees
+
+Keep a copy of the GEN 38Public Assistance Claim Remittance form in the individual's case file and the original copy to the individual as a receipt of payment if needed.
+
+Note:
+
+Two [DPA](#)Division of Public Assistance employees located in the same office must sign the [GEN 38](#)Public Assistance Claim Remittance form, unless staffing prevents this. In such instances, the form may be signed by a second [DPA](#)Division of Public Assistance employee from a different office.
+
+111-7 B.      FORMS OF PAYMENT
+
+1. Money Orders and Personal Checks
+
+Send money orders and personal checks with the CLPMCase Profile Maintenance screen to the Benefit Issuance and Recovery Unit.
+
+2. Cash
+
+DPADivision of Public Assistance offices should avoid accepting cash payments whenever possible. When individuals come into the office wanting to pay with cash, the office staff person should tell them we prefer a cashier's check or money order, however, do not refuse cash payments.
+
+If the office receives a cash payment in the mail, a money order must be purchased. Follow local office procedures to acquire the money for the money order purchase. Send the money order with the CLPMCase Profile Maintenance to the Benefit Issuance and Recovery Unit.
+
+Note:
+
+Do not forward cash to the Benefit Recovery Unit.
+
+3. Warrants
+
+Public assistance warrants for Adult Public Assistance can be applied only as payment against an APAAdult Public Assistance claim.
+
+Do not cancel or void any Public Assistance warrants received to pay an APAAdult Public Assistance claim, issued by the Office Public of Advocacy to pay an overpayment or any other warrants not issued by Public Assistance. If the warrant is payable to an individual and not to the Division, the individual must endorse the warrant making it "payable to the Division of Public Assistance, Benefit Recovery Unit." (This procedure differs from the procedure for processing returned or undeliverable warrants.)
+
+The eligibility staff will create a case note that explains why the warrant was returned to the office.
+
+Send the endorsed warrant and the CLPMCase Profile Maintenance screen to the Benefit Issuance and Recovery Unit.
+
+Note:
+
+Staff should review the warrants before voiding or canceling to ensure they were not issued by DPADivision of Public Assistance or they are for repayment. Repayment warrants are routed to Benefit Recovery Unit.
+
+|  |  |  |
+| --- | --- | --- |
+| [Previous Section](111-6_responding_to_inquiries.md) |  | [Next Section](111-8_fair_hearing_requested_to_dispute_a_claim_action.md) |
+|  |  | [2025-03 (12/25)](../transmittals/transmittal_2025-03.md) |

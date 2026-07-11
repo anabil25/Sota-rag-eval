@@ -1,0 +1,295 @@
+<div class="card" x-data="{evalVersion: '{{ latest_eval.version_label if latest_eval else 'latest' }}'}">
+  <div class="card-header">
+    <div class="card-title">Run Evaluation</div>
+    <span class="badge badge-blue">Step 6</span>
+  </div>
+
+  {% if latest_eval %}
+    <p class="text-muted mb-2">Eval set: <strong>{{ latest_eval.version_label }}</strong> ({{ latest_eval.get('question_count', '?') }} questions)</p>
+  {% else %}
+    <div class="alert alert-info mb-2">No eval set found. Generate one first in Step 2.</div>
+  {% endif %}
+
+  <div class="flex gap-3 mt-3">
+    <button class="btn btn-primary"
+            {% if not latest_eval %}disabled{% endif %}
+            @click="startUiJob('evaluate', {eval_set_version: evalVersion}, 'eval-run-log', 'eval-run-status')">Run Evaluation</button>
+  </div>
+
+  <div id="eval-run-results">
+    <div class="log-panel mt-3">
+      <div class="log-panel-header">
+        <div class="flex items-center gap-2"><span id="eval-run-status" class="status-dot idle"></span>Evaluation Logs</div>
+        <span class="text-muted">SSE</span>
+      </div>
+      <div id="eval-run-log" class="log-panel-body"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Comparison Dashboard ──────────────────────────────── -->
+<div class="card" x-data='comparePicker({{ {"winners": winners, "archCosts": arch_costs} | tojson }})'>
+  <div class="card-title mb-2">
+    Comparison Dashboard
+    {% if selected_mode == 'sota' %}<span class="badge badge-blue ml-2">SOTA Eval Mode</span>{% endif %}
+  </div>
+  {% if runs %}
+    {% set baseline = runs[0].aggregate_metrics if runs else {} %}
+    {% set baseline_ndcg = baseline.get('ndcg_at_10', 0) if baseline else 0 %}
+    <table class="gh-table">
+      <thead>
+        <tr>
+          <th>Keep</th>
+          <th>Architecture</th>
+          <th>Config</th>
+          <th class="num">Recall@5</th>
+          <th class="num">Recall@10</th>
+          <th class="num">MRR@10</th>
+          <th class="num">nDCG@10</th>
+          {% if selected_mode == 'sota' %}<th class="num">Δ nDCG</th>{% endif %}
+          <th class="num">Avg Latency</th>
+          <th class="num">Est $/mo</th>
+          <th class="num">Misses</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in runs %}
+          {% set m = r.aggregate_metrics %}
+          {% set ndcg = m.get('ndcg_at_10', 0) %}
+          {% set delta = ndcg - baseline_ndcg %}
+          {% set arch_key = r.architecture_name %}
+          <tr :class="{ 'row-selected': isWinner('{{ arch_key }}') }">
+            <td>
+              <input type="checkbox"
+                     :checked="isWinner('{{ arch_key }}')"
+                     @change="toggleWinner('{{ arch_key }}')" />
+            </td>
+            <td>{{ r.architecture_name }}{% if loop.first and selected_mode == 'sota' %} <span class="badge badge-default">baseline</span>{% endif %}</td>
+            <td class="text-sm">
+              {% set cfg = r.architecture_config or {} %}
+              {% set toggles = {} %}
+              {% for k, v in cfg.items() %}{% if k in ['semantic_reranker','cross_encoder','chunking_strategy','embedding_model','chunk_size','rrf_weights','query_expansion'] %}{% set _ = toggles.update({k: v}) %}{% endif %}{% endfor %}
+              {% if toggles %}
+                {% for k, v in toggles.items() %}
+                  <span class="badge badge-default" title="{{ k }}">{{ k }}: {{ v }}</span>
+                {% endfor %}
+              {% else %}<span class="text-muted">defaults</span>{% endif %}
+            </td>
+            <td class="num">{{ '%.3f'|format(m.get('recall_at_5', 0)) }}</td>
+            <td class="num">{{ '%.3f'|format(m.get('recall_at_10', 0)) }}</td>
+            <td class="num">{{ '%.3f'|format(m.get('mrr_at_10', 0)) }}</td>
+            <td class="num {% if ndcg >= 0.8 %}text-success{% elif ndcg < 0.5 %}text-danger{% endif %}">{{ '%.3f'|format(ndcg) }}</td>
+            {% if selected_mode == 'sota' %}
+              <td class="num {% if delta > 0.001 %}text-success{% elif delta < -0.001 %}text-danger{% else %}text-muted{% endif %}">
+                {% if loop.first %}—{% else %}{{ '%+.3f'|format(delta) }}{% endif %}
+              </td>
+            {% endif %}
+            <td class="num">{{ '%.0f'|format(m.get('avg_latency_ms', 0)) }}ms</td>
+            <td class="num text-muted">{% if arch_costs.get(arch_key) %}${{ arch_costs[arch_key] }}{% else %}—{% endif %}</td>
+            <td class="num">{{ m.get('miss_count', '-') }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if selected_mode == 'sota' and runs|length > 1 %}
+      <p class="text-muted text-sm mt-2">Δ nDCG shows the change relative to the first run (baseline). Positive = improvement.</p>
+    {% endif %}
+    <div class="flex gap-3 mt-3 items-center">
+      <button class="btn btn-primary" @click="saveWinners()" :disabled="winners.length === 0">
+        <span x-text="winners.length === 0 ? 'Select winner(s) first' : `Keep ${winners.length} architecture(s)`"></span>
+      </button>
+      <button class="btn btn-danger" @click="tearDownLosers()" :disabled="winners.length === 0">
+        Tear Down Non-Winners
+      </button>
+      <span class="text-muted text-sm" x-text="status"></span>
+    </div>
+  {% else %}
+    <p class="text-muted">No completed runs yet.</p>
+  {% endif %}
+</div>
+
+<!-- ── Deployment Summary (for selected winners) ─────────── -->
+{% if deployments %}
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Deployment Summary</div>
+    <span class="badge badge-green">{{ deployments|length }} kept</span>
+  </div>
+  <p class="text-muted text-sm">Production endpoints. Wire these into Copilot Studio HTTP actions, an Azure Function proxy, or a custom UI.</p>
+  {% for dep in deployments %}
+  <div class="mb-3 p-3" style="border:1px solid var(--color-border-default); border-radius:6px;">
+    <div class="flex items-center gap-2 mb-2">
+      <strong>{{ dep.architecture_name }}</strong>
+      <span class="badge badge-blue">{{ dep.status }}</span>
+      {% if dep.est_monthly_usd %}<span class="badge badge-default">~${{ dep.est_monthly_usd }}/mo</span>{% endif %}
+    </div>
+    <table class="gh-table" style="margin-top:6px;">
+      <tbody>
+        <tr><th scope="row" style="width:200px;">Search endpoint</th><td class="font-mono text-sm">{{ dep.endpoint or '—' }}</td></tr>
+        <tr><th scope="row">Index name</th><td class="font-mono text-sm">{{ dep.index_name or '—' }}</td></tr>
+        <tr><th scope="row">Resource group</th><td class="font-mono text-sm">{{ dep.resource_group or '—' }}</td></tr>
+        <tr><th scope="row">Location</th><td class="font-mono text-sm">{{ dep.location or '—' }}</td></tr>
+      </tbody>
+    </table>
+    <details class="mt-2">
+      <summary class="text-sm" style="cursor:pointer;">Copilot Studio HTTP action snippet</summary>
+<pre class="font-mono text-sm" style="background:var(--color-canvas-subtle); padding:10px; border-radius:6px; overflow-x:auto;">POST {{ dep.endpoint }}/indexes/{{ dep.index_name }}/docs/search?api-version=2024-07-01
+Authorization: Bearer &lt;managed-identity-token&gt;
+Content-Type: application/json
+
+{
+  "search": "{userQuestion}",
+  "queryType": "semantic",
+  "semanticConfiguration": "default",
+  "top": 5
+}</pre>
+    </details>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<script>
+function comparePicker(initial) {
+  return {
+    winners: Array.isArray(initial.winners) ? initial.winners : [],
+    archCosts: initial.archCosts || {},
+    status: '',
+    isWinner(key) { return this.winners.includes(key); },
+    toggleWinner(key) {
+      const i = this.winners.indexOf(key);
+      if (i >= 0) this.winners.splice(i, 1);
+      else this.winners.push(key);
+    },
+    async saveWinners() {
+      this.status = 'Saving…';
+      const r = await fetch('/api/ui/session', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({winners: this.winners}),
+      });
+      this.status = r.ok ? 'Saved ✓' : 'Save failed';
+      if (r.ok) {
+        // Reload page so deployment summary updates
+        setTimeout(() => location.reload(), 500);
+      }
+    },
+    async tearDownLosers() {
+      if (!confirm(`Tear down all architectures EXCEPT: ${this.winners.join(', ')}?`)) return;
+      this.status = 'Saving winners…';
+      await fetch('/api/ui/session', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({winners: this.winners}),
+      });
+      this.status = 'Starting teardown…';
+      const r = await fetch('/api/ui/job/start', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({kind: 'teardown', args: {keep: this.winners.join(',')}}),
+      });
+      const j = await r.json();
+      this.status = `Teardown started (job ${j.job_id?.slice(0,8)}…)`;
+    },
+  };
+}
+</script>
+
+<!-- ── Per-Category Breakdown ────────────────────────────── -->
+{% if categories %}
+<div class="card" x-data="{expanded: false}">
+  <div class="card-header" style="cursor:pointer" @click="expanded = !expanded">
+    <div class="card-title">Per-Category nDCG@10</div>
+    <span class="text-muted text-sm" x-text="expanded ? '▲ collapse' : '▼ expand'"></span>
+  </div>
+  <div x-show="expanded" x-transition>
+    <table class="gh-table">
+      <thead>
+        <tr>
+          <th>Category</th>
+          {% for r in runs %}<th class="num">{{ r.architecture_name }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% set all_cats = [] %}
+        {% for run_id, cat_data in categories.items() %}
+          {% for cat in cat_data.keys() %}
+            {% if cat not in all_cats %}{% if all_cats.append(cat) %}{% endif %}{% endif %}
+          {% endfor %}
+        {% endfor %}
+        {% for cat in all_cats|sort %}
+          <tr>
+            <td>{{ cat }}</td>
+            {% for r in runs %}
+              {% set score = categories.get(r.id, {}).get(cat, {}).get('ndcg_at_10', None) %}
+              <td class="num">{% if score is not none %}{{ '%.3f'|format(score) }}{% else %}-{% endif %}</td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Miss Analysis ─────────────────────────────────────── -->
+{% if failures %}
+<div class="card" x-data="{expanded: false}">
+  <div class="card-header" style="cursor:pointer" @click="expanded = !expanded">
+    <div class="card-title">Miss Analysis</div>
+    <span class="text-muted text-sm" x-text="expanded ? '▲ collapse' : '▼ expand'"></span>
+  </div>
+  <div x-show="expanded" x-transition>
+    {% for r in runs %}
+      {% set run_fails = failures.get(r.id, []) %}
+      {% if run_fails %}
+        <h4 class="mt-3 mb-2" style="font-size:13px; color:var(--color-fg-muted);">{{ r.architecture_name }} — {{ run_fails|length }} miss{{ 'es' if run_fails|length != 1 }}</h4>
+        <table class="gh-table">
+          <thead><tr><th>Question</th><th>Type</th><th>Expected</th><th>Top retrieved</th><th>Why it missed</th></tr></thead>
+          <tbody>
+            {% for f in run_fails[:20] %}
+              {% set ftype = f.failure_type or 'miss' %}
+              {% set badge_cls = 'badge-red' %}
+              {% if ftype == 'vocabulary_mismatch' %}{% set badge_cls = 'badge-yellow' %}
+              {% elif ftype == 'semantic_gap' %}{% set badge_cls = 'badge-blue' %}
+              {% elif ftype == 'cross_ref_miss' %}{% set badge_cls = 'badge-purple' %}
+              {% elif ftype == 'chunking_boundary' %}{% set badge_cls = 'badge-red' %}{% endif %}
+              <tr>
+                <td class="text-sm" style="max-width:240px;">
+                  <div class="font-mono text-muted" style="font-size:11px;">{{ f.question_id }}</div>
+                  <div>{{ (f.question_text or '')[:120] }}{% if (f.question_text or '')|length > 120 %}…{% endif %}</div>
+                </td>
+                <td><span class="badge {{ badge_cls }}">{{ ftype }}</span></td>
+                <td class="text-sm" style="max-width:180px; word-break:break-word;">
+                  {% set ec = f.expected_chunk_id or '' %}
+                  {% if ec %}
+                    <div class="font-mono" style="font-size:11px;">{{ ec.split('::')[0] if '::' in ec else ec }}</div>
+                    {% if '::' in ec %}<div class="text-muted text-sm">chunk #{{ ec.split('::')[1] }}</div>{% endif %}
+                  {% else %}—{% endif %}
+                </td>
+                <td class="text-sm" style="max-width:180px; word-break:break-word;">
+                  {% set tr = f.top_retrieved_id or '' %}
+                  {% if tr %}
+                    <div class="font-mono" style="font-size:11px;">{{ tr.split('::')[0] if '::' in tr else (tr.split('.')[0] if '.' in tr else tr) }}</div>
+                  {% else %}—{% endif %}
+                </td>
+                <td class="text-sm text-muted" style="max-width:280px;">{{ f.failure_details or '-' }}</td>
+              </tr>
+            {% endfor %}
+            {% if run_fails|length > 20 %}
+              <tr><td colspan="5" class="text-muted text-sm">… and {{ run_fails|length - 20 }} more</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      {% endif %}
+    {% endfor %}
+    {% set has_any_fails = false %}
+    {% for r in runs %}{% if failures.get(r.id, []) %}{% set has_any_fails = true %}{% endif %}{% endfor %}
+    {% if not has_any_fails %}
+      <p class="text-muted mt-2">No misses recorded.</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<div class="step-footer">
+  <a class="btn btn-default" href="/step/provision" hx-get="/step/provision" hx-target="#content-shell" hx-swap="innerHTML transition:true" hx-push-url="true">Back</a>
+  <a class="btn btn-primary" href="/step/history" hx-get="/step/history" hx-target="#content-shell" hx-swap="innerHTML transition:true" hx-push-url="true">View History</a>
+</div>

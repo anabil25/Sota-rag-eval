@@ -1,0 +1,74 @@
+<div class="card" x-data="{source: '{{ source }}', plugin: '{{ plugin }}', output: '{{ output }}'}">
+  <div class="card-header">
+    <div class="card-title">Corpus Ingestion</div>
+    <span class="badge badge-blue">Step 1</span>
+  </div>
+
+  <div class="form-group">
+    <label for="source" x-text="plugin === 'markdown' ? 'Corpus Directory' : 'Source URL or Path'"></label>
+    <input id="source" type="text" x-model="source" :placeholder="plugin === 'markdown' ? 'C:/path/to/corpus' : 'https://... or C:/...'" />
+  </div>
+
+  <div class="form-group">
+    <label for="plugin">Plugin</label>
+    <select id="plugin" x-model="plugin">
+      <option value="html">html</option>
+      <option value="markdown">markdown</option>
+    </select>
+  </div>
+
+  <div class="form-group" x-show="plugin !== 'markdown'">
+    <label for="output">Output Directory</label>
+    <input id="output" type="text" x-model="output" />
+  </div>
+
+  <div class="flex gap-3">
+    <button class="btn btn-primary" @click="startUiJob('ingest', {source, plugin, output}, 'ingest-log', 'ingest-status')">Start Ingest</button>
+    <button class="btn btn-default" @click="saveUiSession({source, plugin, output})">Save Draft</button>
+  </div>
+</div>
+
+<div id="ingest-results">
+  {% if corpus_files %}
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Corpus Files</div>
+      <span class="badge badge-green">{{ corpus_files|length }} files</span>
+    </div>
+    {% if ingest_stats and ingest_stats.get('doc_count') %}
+    <div class="stats-row" style="margin-bottom: 12px;">
+      <div class="stat-item"><span class="stat-value">{{ ingest_stats.get('doc_count', 0) }}</span><span class="stat-label">Docs</span></div>
+      <div class="stat-item"><span class="stat-value">{{ '%.0f'|format(ingest_stats.get('avg_doc_length', 0)) }}</span><span class="stat-label">Avg Chars</span></div>
+      <div class="stat-item"><span class="stat-value">{{ '%.2f'|format(ingest_stats.get('cross_ref_density', 0)) }}</span><span class="stat-label">Cross-ref Density</span></div>
+    </div>
+    {% endif %}
+    <div style="max-height: 320px; overflow-y: auto;">
+      <table class="gh-table">
+        <thead><tr><th>#</th><th>File</th><th>Size</th></tr></thead>
+        <tbody>
+        {% for f in corpus_files %}
+        <tr>
+          <td class="num">{{ loop.index }}</td>
+          <td>{{ f.name }}</td>
+          <td class="num">{{ '%.1f'|format(f.size / 1024) }} KB</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <div class="log-panel">
+    <div class="log-panel-header">
+      <div class="flex items-center gap-2"><span id="ingest-status" class="status-dot idle"></span>Live Logs</div>
+      <span class="text-muted">SSE</span>
+    </div>
+    <div id="ingest-log" class="log-panel-body"></div>
+  </div>
+  {% endif %}
+</div>
+
+<div class="step-footer">
+  <span class="text-muted">Run ingest first, then proceed.</span>
+  <a class="btn btn-primary" href="/step/eval" hx-get="/step/eval" hx-target="#content-shell" hx-swap="innerHTML transition:true" hx-push-url="true">Next: Eval Set</a>
+</div>

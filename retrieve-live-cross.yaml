@@ -1,0 +1,12 @@
+azure:
+  location: southcentralus
+  resource_group: rg-ret-test2
+  name_prefix: retrieve
+architectures:
+  - hybrid-reranker
+  - agentic-kb
+  - graphrag
+  - lightrag
+db_path: retrieve-live-cross.db
+corpus:
+  output_dir: corpus

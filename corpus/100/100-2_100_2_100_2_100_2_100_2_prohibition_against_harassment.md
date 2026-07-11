@@ -1,0 +1,36 @@
+---
+policy_id: "100-2"
+title: "100 2 100 2 100 2 100 2 Prohibition Against Harassment"
+parent: ""
+source_url: "C:\Users\nabilahmed\Documents\Code\retrieve\corpus\100\100-2_100_2_100_2_100_2_prohibition_against_harassment.md"
+last_ingested: "2026-04-16"
+---
+
+Administrative Procedures Manual
+
+[Click here to see this page in full context](#)
+
+100-2          PROHIBITION
+AGAINST HARASSMENT
+
+During the course of determining eligibility, the
+caseworker will use prudent methods for gathering information. Only factual
+information relevant to the determination of eligibility will be sought
+and entered in the case file. Workers will identify themselves by name,
+position, and purpose at each public contact. They will not engage in
+such practices as entering a home by force, without permission, or under
+false pretenses. Caseworkers will not make home visits during sleeping
+hours, nor will hey make home visits after working hours unless the applicant
+or recipient has mutually set an appointment. An appointment for home
+visits after hours will be made only if a visit during regular office
+hours is impossible because of circumstances of the applicant or recipient.
+
+When in a client's home, caseworkers will not search
+any of the rooms, cupboards, or drawers to seek for clues of possible
+deception. When conducting an interview, caseworkers will, at all times,
+respect the privacy and dignity of the applicant or recipient.
+
+|  |  |  |
+| --- | --- | --- |
+| [Previous Section](100-1_prudent_person_concept.md) |  | [Next Section](100-3_confidentiality.md) |
+|  |  |  |

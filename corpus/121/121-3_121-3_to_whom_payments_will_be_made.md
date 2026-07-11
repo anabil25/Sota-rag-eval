@@ -1,0 +1,72 @@
+---
+policy_id: "121-3"
+title: "121-3 To Whom Payments Will Be Made"
+parent: "121 Payments"
+source_url: "C:\Users\nabilahmed\Documents\Code\alaska policy eval\policies\121\121-3_to_whom_payments_will_be_made.md"
+last_ingested: "2026-03-28"
+cross_references:
+  - "{'id': '121-2', 'keywords': 'authorized personnel, payment authorization'}"
+  - "{'id': '121-4', 'keywords': 'concurrent payments, multiple programs'}"
+---
+
+Administrative Procedures Manual
+
+[Click here to see this page in full context](#)
+
+121-3          TO WHOM PAYMENTS WILL BE MADE
+
+In most cases payments are made to the primary (PIPrimary Information Person) person, even though he or she may not have his or her needs included. However, there are certain exceptions:
+
+121-3 A.      WHEN A PROTECTIVE PAYEE IS REQUIRED
+
+If the ATAPAlaska Temporary Assistance Program caretaker relative has failed to comply with program work requirements or Child Support Enforcement Division ([CSED](#)Child Support Enforcement Division), a protective payee will be established. If the relative fails to comply with these requirements, ATAPAlaska Temporary Assistance Program benefits will be made payable to, and sent to, that protective payee. Refer to ATAPAlaska Temporary Assistance Program manual section [723-6B](http://dpaweb.hss.state.ak.us/manuals/ta/723/723-6_reserved.htm) for additional information.
+
+Payees can also be established for APAAdult Public Assistance clients in certain situations. See APAAdult Public Assistance manual section [452-7](http://dpaweb.hss.state.ak.us/manuals/apa/452/452-7_to_whom_payment_is_made.htm) for more information.
+
+121-3 B.      WHEN A PROTECTIVE PAYEE IS REQUESTED
+
+The PIPrimary Information Person can ask the Eligibility Technician to allow a second person (protective payee) to receive his or her benefits. This can be done if the request is made by the recipient, in writing.
+
+The Eligibility Technician has the right to refuse such a request if there is a justifiable reason, such as the second party named is known to be unreliable, is too young to manage or receive the payments, etc. Supervisory approval is required on all payee decisions on ATAPAlaska Temporary Assistance Program cases.
+
+121-3 C.      "CARE OF" MAILING ADDRESS
+
+If the PIPrimary Information Person or his or her authorized representative desires some other person at another address to receive, but not cash, their warrants, the Eligibility Technician may use a Care of (C/O) mailing address. This can only be done at the written request of the client. Document the client's reason for making the request in the case file.
+
+Once a Care of (C/O) address is established, the person named at that address will receive the monthly benefit, but that warrant will still be made payable to the primary person. Care of (C/O) payments cannot be mailed to a business or to a creditor of the recipient.
+
+121-3 D.      "CARE OF" A DPADivision of Public Assistance OFFICE AND MAILING BENEFITS
+
+In certain circumstances, a client may request that benefits be mailed to him or her in care of a DPADivision of Public Assistance office if:
+
+1. This is the only way to be reasonably certain that the client will receive the benefits; that is, there has been a serious problem of mail theft or delivery at the client's mailing address, and there is no other address available to serve as Care of (C/O);
+2. The client requests DPADivision of Public Assistance to serve as Care of (C/O) in a written signed request; and
+3. The eligibility manager reviews and approves the request.
+
+Any benefit(s) received by a DPADivision of Public Assistance office shall be placed under locked controls and security, and the client shall be required to sign a receipt when he or she picks up his or her benefits.
+
+Note:
+
+[DPA](#)Division of Public Assistance must ensure Medicaid cards are available to all eligible individuals regardless of whether or not they have a permanent address or residence. Medicaid recipients are allowed to choose the method of receiving their Medicaid cards without a signed request or review and approval by a supervisor.
+
+Clients may choose the method to receive their Medicaid cards:
+a) Mail to General Delivery at a post office of their choice;
+b) Pick up their card at the local [DPA](#)Division of Public Assistance office using C/O;
+c) An alternate mailing address with assurance of receipt of mail. The Medicaid card can be mailed to an address specified by the individual, for example: a friend, relative, or shelter for the homeless, etc.
+
+121-3 E.      PROHIBITION AGAINST DPADivision of Public Assistance EMPLOYEES
+
+1. Protective Payee
+
+Except for payments provided under the APAAdult Public Assistance program, no Division of Public Assistance employee may be named as, or serve as, a Care of (C/O) address or protective payee. Fee Agents are also prohibited from serving as protective payees.
+
+A relative of an APAAdult Public Assistance recipient who is also a DPADivision of Public Assistance employee may serve as a protective payee for the recipient's APAAdult Public Assistance payment.
+
+2. Authorized Representative
+
+Division employees directly involved in processing, recertifying, authorizing of cases, or issuing of benefits may not act or be named as the authorized representative on that specific case unless approved by the Director or Chief of Policy and Program Development. A [DPA](#)Division of Public Assistance employee may act or be named as the authorized representative on cases in which they are not directly involved in the certification or issuance process of the case.
+
+|  |  |  |
+| --- | --- | --- |
+| [Previous Section](121-2_who_may_authorize_payments.md) |  | [Next Section](121-4_concurrent_payments.md) |
+|  |  | [2025-01 (04/25)](../transmittals/transmittal_2025-01.md) |

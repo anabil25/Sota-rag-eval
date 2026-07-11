@@ -1,0 +1,58 @@
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Iteration History</div>
+    <span class="badge badge-gray">Audit trail</span>
+  </div>
+  <p class="text-muted text-sm mb-2">
+    Every eval run on every configuration. Use this to justify the final architecture choice.
+  </p>
+
+  {% if runs %}
+  <table class="gh-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Created</th>
+        <th>Eval set</th>
+        <th>Architecture</th>
+        <th>Mode</th>
+        <th>Config</th>
+        <th class="num">nDCG@10</th>
+        <th class="num">MRR@10</th>
+        <th class="num">Recall@10</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in runs %}
+      <tr>
+        <td class="num">{{ r.id }}</td>
+        <td class="text-sm">{{ r.created_at }}</td>
+        <td><span class="badge badge-blue">{{ r.eval_set_version or '—' }}</span></td>
+        <td>{{ r.architecture_name }}</td>
+        <td><span class="badge badge-gray">{{ r.mode }}</span></td>
+        <td class="text-sm">
+          {% set cfg = r.architecture_config or {} %}
+          {% if cfg %}
+            <details>
+              <summary class="text-muted" style="cursor:pointer;">{{ cfg|length }} setting{{ '' if cfg|length == 1 else 's' }}</summary>
+              <pre class="font-mono text-sm" style="margin:6px 0 0 0; white-space:pre-wrap;">{{ cfg|tojson(indent=2) }}</pre>
+            </details>
+          {% else %}—{% endif %}
+        </td>
+        <td class="num">{{ '%.3f'|format(r.aggregate_metrics.get('ndcg_at_10', 0)) }}</td>
+        <td class="num">{{ '%.3f'|format(r.aggregate_metrics.get('mrr_at_10', 0)) }}</td>
+        <td class="num">{{ '%.3f'|format(r.aggregate_metrics.get('recall_at_10', 0)) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <p>No runs yet.</p>
+  </div>
+  {% endif %}
+</div>
+
+<div class="step-footer">
+  <a class="btn btn-default" href="/step/compare" hx-get="/step/compare" hx-target="#content-shell" hx-swap="innerHTML transition:true" hx-push-url="true">Back to Compare</a>
+</div>

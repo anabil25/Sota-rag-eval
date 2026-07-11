@@ -1,0 +1,170 @@
+---
+policy_id: "112-4"
+title: "112-4 Referral of Suspected Fraud Cases"
+parent: "112 Fraud Control"
+source_url: "C:\Users\nabilahmed\Documents\Code\alaska policy eval\policies\112\112-4_referral_of_suspected_fraud_cases.md"
+last_ingested: "2026-03-26"
+cross_references:
+  - "{'id': '109-2', 'keywords': 'recommendations for documentation'}"
+  - "{'id': '109-9', 'keywords': 'additional guidelines'}"
+  - "{'id': '111', 'keywords': 'overpayment, program loss, claims collection, recoupment'}"
+  - "{'id': '112-3', 'keywords': 'fraud investigation types, early fraud detection'}"
+  - "{'id': '112-5', 'keywords': 'client conference, fraud evidence, waiver offer'}"
+---
+
+Administrative Procedures Manual
+
+[Click here to see this page in full context](#)
+
+112-4          REFERRAL OF SUSPECTED FRAUD CASES
+
+Note:
+
+Caseworkers should not refer cases for investigations simply because they have been unable to obtain verification needed to process the case. Follow instructions in the program's policy manual or seek the assistance of a supervisor when the client cannot or fails to provide needed verification.
+
+112-4 A.      EARLY FRAUD (EFDEarly Fraud Detection) AND POST CERTIFICATION INVESTIGATION (PCIPost Certification Investigation) REFERRALS
+
+Fraud Allegations for both Early Fraud (EFDEarly Fraud Detection) and Post Certification (PCIPost Certification Investigation) referrals are submitted via the Fraud Allegation Report form which is located under [Quicklinks](http://dpaweb.hss.state.ak.us/) on [DPAweb](http://dpaweb.hss.state.ak.us/) and is available on the [ET Resources](http://dpaweb.hss.state.ak.us/node/374) page. The Fraud Unit's lead worker screens all referrals submitted to the Fraud Unit and determines which category the referral will fall into based on the information submitted by the referring caseworker.
+
+Caseworkers finding inconsistencies or discrepancies in information obtained from the client or collateral contacts during the application process should refer the case by completing the Fraud Allegation Report online at <https://fcm.i-sight.com/external/dhsscase/new> or under Quicklinks at <http://dpaweb.hss.state.ak.us/node/15>, upload a copy of the fraud report into ILINX using screenshot through [Capture](https://hssilinx-capture.dhss.ak.local/ilinxc/) and [Content Store](https://hssilinx-content.dhss.ak.local/ilinxcs/), and submit the report online to the Fraud Control Unit.
+
+Example:
+
+A collateral contact states the applicant has two children living with her, but the applicant's landlord states that only one child is in the home, and the client applied for three children. Refer this case for an EFDEarly Fraud Detection investigation due to the discrepancy in the number of children reported in the home.
+
+If a fraud allegation is submitted, do not submit a Report of Claim Determination (GEN 95Report of Claim Determination) – see Administrative Procedures Manual Section 111. If a claim is established, the Fraud Control Unit cannot pursue an Intentional Program Violation.
+
+When To Refer a Case for Early Fraud
+
+The case should be referred directly to the Fraud Control Unit when a caseworker or QAQuality Assessment reviewer is certain or highly suspects a recipient has intentionally broken program rules.
+
+Note:
+
+Caseworkers should try to resolve questionable fraud issues before referring the case to the Fraud Control Unit.
+
+How To Make A Referral
+
+Allegations of public assistance fraud come from many sources, including DPADivision of Public Assistance employees, legislators, other departments, and the general public. The status of the client's case determines what action the Fraud Control Unit takes.
+
+If the Fraud Control Unit receives an allegation from outside DPADivision of Public Assistance on an open case or closed case, the FCUFraud Control Unit worker records the allegation in the Fraud Case Management System (i-Sight) and notifies the appropriate field office team.
+
+The caseworker discusses the case with his or her immediate supervisor prior to making a post certification investigation referral. Once a decision is made to refer the case to the Fraud Control Unit, the caseworker will complete the Fraud Allegation Report online at <https://fcm.i-sight.com/external/dhsscase/new> or under Quicklinks at <http://dpaweb.hss.state.ak.us/node/15>. The Fraud Allegation Report collects basic information on the referring caseworker and on the Primary Information Person (PIPrimary Information Person).
+
+The caseworker submits the report online and attaches any documentation that can substantiate the fraud allegation. The report is automatically sent to the Fraud Control Unit after submission.
+
+Completing A Fraud Allegation Report
+
+The Fraud Allegation Report is available at <https://fcm.i-sight.com/external/dhsscase/new>. When submitting the Fraud Allegation Report, staff will need to complete all of the required fields. The online form collects basic information on the Primary Information Person (PIPrimary Information Person) and the following information needed by the fraud unit:
+
+PRIMARY INFORMATION PERSON
+
+- Name: Client's first and last name (or authorized representative)
+- SSN: Social Security Number
+- Date of Birth: DD Month YYYY format
+- Residential address: If Mailing Address is different, mark the box
+- Contact information: Home number, mobile number and/or email address
+- Case Number: Public Assistance Case involved
+- Additional Person: If additional person or authorized representative is involved, select "Add An Additional Person."
+
+INFORMATION ABOUT THE REPORTER
+
+- Name: Reporter's first and last name, and identify relationship to the client (if the caseworker submits the referral, the caseworker is identified as the reporter and provides their name).
+- Residential address: If Mailing Address is different, mark the box (the caseworker who submits the referral does not to provide home address).
+- Contact information: Phone number, phone type, and email address (this includes the caseworker's work number).
+
+INFORMATION ABOUT ALLEGATION
+
+- Explain and identify in detail about fraudulent activity and individual by name and relationship involved, if known. Included dates and timeframe.
+
+The language should be clear and concise, and content appropriate as the allegation report is used as evidence in any action taken by the Fraud Control Unit and may be read by variety of audiences to include attorneys, administrative law judges, criminal court judges, grand jury members, and the defendant (recipient). Refer to [Administrative Procedures Manual Section 109-2](../109/109-2_recommendations_for_documentation.md) Recommendations for Documentation and [109-9B](../109/109-9_additional_guidelines.md#109-9_B._USING_ABBREVIATIONS_AND_ACRONYMS) for Using Abbreviations and Acronyms.
+
+Special Note:
+
+If the caseworker thinks the investigator should know additional information about the client, such as history of violence, substance abuse issues, or any other information that could be helpful to the investigation, please explain in the Information About Allegation section of the report.
+
+FILES
+
+- Attach any supporting document by clicking "Add File."
+- Scan and save a copy of Fraud Allegation Report using Screen Capture and Content Store to ILINX.
+
+SUBMIT
+
+- When submitting the fraud referral, the caseworker includes their name.
+- Select the Submit button once all the fields are completed.
+- Upon successful submission, a message will appear that the report was received by the Fraud Unit.
+
+Post Fraud Investigation
+
+1. When the investigator finds fraud did occur, the case is referred to the FCUFraud Control Unit's lead worker, who completes the Fraud Loss Statement form indicating specific months of loss and the exact amount of fraudulent overpayment for each program. The case is then prepared for an Administrative Disqualification Hearing or criminal prosecution.
+2. If evidence gathered during the investigation indicates fraud did not occur, the investigator completes a Fraud Complaint Disposition and Summary of Investigative Findings report, explaining the rationale for the finding.
+
+If the case is open, the Summary of Investigative Findings report is sent to the caseworker currently assigned to the case. It is this caseworker's responsibility to determine if a client-caused overpayment occurred. If so, the worker completes a Claim Determination form (GEN 95Report of Claim Determination) and sends it to the Benefit Issuance and Recovery Unit at [DPAClaims@alaska.gov](mailto:DPAClaims@alaska.gov). Refer to [Chapter 111](../111/111_program_losses_and_claims_collection.md) for information on claims.
+
+If the case is closed, the Summary of Investigative Findings report is sent to the worker who made the referral. A copy is scanned and saved in the eligibility case file via ILINX. It is the Fraud Control Unit's responsibility to determine if a client-caused overpayment occurred. If so, the Fraud Loss caseworker prepares and submits the Claim Determination form (GEN 95Report of Claim Determination) to the Benefit Issuance and Recovery Unit at [DPAClaims@alaska.gov](mailto:DPAClaims@alaska.gov).
+
+Note:
+
+Occasionally, the unit receives a Fraud Allegation Report about an issue that does not meet the definition of fraud. When this occurs, the FCUFraud Control Unit's lead worker will notify via email the referring caseworker with an explanation as to why the FCUFraud Control Unit will not be able to pursue the allegation of fraud.
+
+112-4 B.      CATEGORICALLY INELIGIBLE HOUSEHOLDS
+
+Incarcerated Persons cases
+
+Investigator Actions:
+
+1. Check EISEligibility Information System open program involvement for all programs.
+2. Identify individuals incarcerated via Department of Corrections (ACOMS, Courtview).
+   1. Verify individual is currently incarcerated with no expected release date.
+   2. Verify accuracy of client identity against EISEligibility Information System (name/demographic match).
+
+Fraud ET III Actions:
+
+1. Adjust eligibility for all programs per regulation and policy.
+   1. Code SEPA screen appropriately for incarcerated person(s) and other household members that need to be reassigned to a new case number.
+   2. Close any appropriate cases (PIPrimary Information Person incarcerated, one person household). Open a new SNAPSupplemental Nutrition Assistance Program case with one of the remaining adults in the household members as the PIPrimary Information Person, including all other household members.
+   3. Allow adequate notice of action for the SNAPSupplemental Nutrition Assistance Program and APAAdult Public Assistance programs (adverse action notice required for ATAPAlaska Temporary Assistance Program and MEMedicaid programs).
+   4. Send appropriate notices.
+   5. Enter CANOCase Notess (following the Case Note format) reflecting the action taken, notices sent, benefit adjustments.
+   6. Finalize investigative case file and issue Findings Report.
+
+Out of State EBT Transactions
+
+Investigator Actions:
+
+1. Check EISEligibility Information System Program Involvement for all programs.
+2. Using EBIN screens verify ALL transactions outside of Alaska over 31 days (only outside).
+3. Attempt to call PIPrimary Information Person using all phone numbers provided on EISEligibility Information System.
+   1. Investigator will leave a message for PIPrimary Information Person to call back within 24 hours.
+   2. If contact is made, investigator will:
+      - validate the identity of the PIPrimary Information Person by last 4 of SSNSocial Security Number, DOBDate of Birth, and any prior alias names if necessary.
+      - interview/question PIPrimary Information Person regarding residency (reviewing all out of state transaction history with client).
+4. If investigator obtains RECORDED admission of out of state residency, a findings report to close case will be issued.
+5. If no contact is made, the [FCU](#)Fraud Control Unit will email the [DPA](#)Division of Public Assistance staff for them to act on the case.
+
+Fraud ET III Actions:
+
+1. Adjust eligibility per regulation and policy.
+   1. Close any case where an admission of non-residency has been obtained.
+   2. Send appropriate notices.
+   3. Enter CANOCase Notess (following the Case Note format) reflecting the action taken, notices sent, benefit adjustments.
+
+Additional information noted or not included above:
+
+In these situations, the FCUFraud Control Unit would continue to send the Fraud Findings Report directly to the current Team assigned on the EISEligibility Information System to take action on all affected programs open (similar to the current process), as the FCUFraud Control Unit will not have a DPADivision of Public Assistance file to confirm any signature(s) on file. If the other adult household member(s) did not sign the SNAPSupplemental Nutrition Assistance Program application, then no new case could be opened as the PIPrimary Information Person.
+
+When the FCUFraud Control Unit ETEligibility Technicians have completed their EISEligibility Information System actions on a case, they will forward the following via mail/pouch to the appropriate field office(s) for clerical to place in the DPADivision of Public Assistance file(s):
+
+- CAP2, CLPMCase Profile Maintenance, showing updated CARCCase Record Control and required initial/checkmark for routing to clerical.
+- Fraud Findings Report (which includes the federal regulations and applicable program policy to support the action being taken).
+- EISEligibility Information System payment determination screens.
+
+All actions taken to close cases by the FCUFraud Control Unit will follow policy and procedures which includes considering categorical eligible households.
+
+112-4 C.      FRAUD REFERRALS FROM QUALITY ASSESSMENT
+
+The Quality Assessment Unit can refer cases directly to the Fraud Control Unit when the reviewer finds evidence in the course of the quality control review that the recipient provided false information or intentionally withheld affecting their eligibility.
+
+|  |  |  |
+| --- | --- | --- |
+| [Previous Section](112-3_types_of_investigations.md) |  | [Next Section](112-5_client_conference.md) |
+|  |  | [2022-03 (12/22)](../transmittals/transmittal_2022-03.md) |

@@ -1,0 +1,57 @@
+---
+policy_id: "128-2"
+title: "128-2 Repatriation Program"
+parent: "128 Unusual Programs"
+source_url: "C:\Users\nabilahmed\Documents\Code\alaska policy eval\policies\128\128-2_repatriation_program.md"
+last_ingested: "2026-03-31"
+cross_references:
+  - "{'id': '128-1', 'keywords': 'foreign national notification, embassy, consulate'}"
+  - "{'id': '128-3', 'keywords': 'mentally ill repatriation, mental illness'}"
+---
+
+Administrative Procedures Manual
+
+[Click here to see this page in full context](#)
+
+128-2          REPATRIATION
+PROGRAM
+
+The U.S. Repatriation Program was established in
+1935 to provide temporary assistance to U.S. citizens and their dependents
+who became destitute in a foreign country. This includes situations in
+which the citizen has been abandoned, runs out of funds, commits minor
+offenses, or just becomes an embarrassing nuisance in a foreign country.
+To assist the citizen in returning to the U.S., the Department of State
+will arrange to have this person returned at federal expense to their
+home or to another location where the person can resume their life as
+quickly as possible.
+
+When someone who is likely to need assistance upon
+arrival in the U.S. is returned, the Department of State notifies the
+statewide coordinator of the Repatriation Program. In Alaska, the coordinator
+is the Social Services Program Coordinator in the Policy and Program Development
+Team. The coordinator arranges appropriate assistance.
+
+DPADivision of Public Assistance
+will provide a repatriate with necessary cash and medical assistance,
+using General Relief or Alaska Temporary Assistance, SNAPSupplemental Nutrition Assistance Program,
+and Medicaid payment codes and issuance mechanisms. The Social Services
+Program Coordinator will notify DOSTDivision Operations Support Team
+of the repatriation case and the destination of the repatriate. The Social
+Services Program Coordinator will also furnish exact instructions on how
+eligibility and benefit amounts are determined if the repatriate needs
+to file an application. DOSTDivision Operations Support Team
+handles all the necessary actions to assist the repatriate including coordinating
+with DPADivision of Public Assistance field offices
+and other agencies such as Tribal TANFTemporary Assistance for Needy Families
+agencies, Office of Children's Services, homeless shelters, etc.
+
+Benefits are totally federally-funded and provided
+with no other limits or qualifying criteria than that the aid requested
+is reasonable, and that the repatriate signs a written agreement to repay
+all expenditures.
+
+|  |  |  |
+| --- | --- | --- |
+| [Previous Section](128-1_foreign_national_notification_program.md) |  | [Next Section](128-3_repatriation_program_-_metnally_ill_nationals.md) |
+|  |  | [2020-02 (09/20)](../transmittals/transmittal_2020-02.md) |

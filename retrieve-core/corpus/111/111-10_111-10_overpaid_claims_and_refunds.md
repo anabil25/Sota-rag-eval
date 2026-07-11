@@ -1,0 +1,31 @@
+---
+policy_id: "111-10"
+title: "111-10 Overpaid Claims and Refunds"
+parent: "111 Program Losses and Claims Collection"
+source_url: "C:\Users\nabilahmed\Documents\Code\alaska policy eval\policies\111\111-10_overpaid_claims_and_refunds.md"
+last_ingested: "2026-03-31"
+cross_references:
+  - "{'id': '111-9', 'keywords': 'claim termination, death, bankruptcy, Treasury Offset'}"
+  - "{'id': '112', 'keywords': 'fraud control, intentional program violation, fraud investigation'}"
+---
+
+Administrative Procedures Manual
+
+[Click here to see this page in full context](#)
+
+111-10          OVERPAID CLAIMS AND REFUNDS
+
+If a household overpays a [SNAP](#)Supplemental Nutrition Assistance Program claim, [DPA](#)Division of Public Assistance must issue a refund for that amount as soon as possible. A warrant or check will be issued to the household. Refunds will not be paid if the claims were expunged.
+
+111-10 A.      REFUND MORE THAN $10
+
+When a claim payment exceeds the outstanding balance of all claims by $10.00, a refund will be issued to the client and mailed to the last known address of the client.
+
+111-10 B.      REFUND LESS THAN $10
+
+When a claim payment exceeds the outstanding balance of all claims by less than $10.00, a refund will not be issued. The excess amount is credited to the original claim and the claim is closed as paid in full.
+
+|  |  |  |
+| --- | --- | --- |
+| [Previous Section](111-9_termination_of_claims.md) |  | [Next Section](../112/112_fraud_control.md) |
+|  |  | [2022-01 (04/22)](../transmittals/transmittal_2022-01.md) |

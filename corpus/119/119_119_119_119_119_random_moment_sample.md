@@ -1,0 +1,19 @@
+---
+policy_id: "119"
+title: "119 119 119 119 Random Moment Sample"
+parent: ""
+source_url: "C:\Users\nabilahmed\Documents\Code\retrieve\corpus\119\119_119_119_119_random_moment_sample.md"
+last_ingested: "2026-04-16"
+---
+
+Administrative Procedures Manual
+
+[Click here to see this page in full context](#)
+
+119            RANDOM
+MOMENT SAMPLE
+
+|  |  |  |
+| --- | --- | --- |
+| [Previous Section](../118/118_voter_registration.md) |  | [Next Section](119-1_background_and_purpose.md) |
+|  |  |  |

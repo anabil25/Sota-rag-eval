@@ -1,0 +1,118 @@
+---
+policy_id: "104-5"
+title: "104-5 Alerts"
+parent: "104 Statewide Process Management"
+source_url: "C:\Users\nabilahmed\Documents\Code\alaska policy eval\Policies\Administrative Procedures Manual\104\104-5_alerts.md"
+last_ingested: "2026-05-09"
+cross_references:
+  - "104-1"
+  - "104-4"
+  - "104-6"
+---
+
+Administrative Procedures Manual
+
+[Click here to see this page in full context](#)
+
+104-5          ALERTS
+
+104-5 A.      ETALET Alerts AND ETADET Alerts Due
+
+The ETALET Alerts and ETADET Alerts Due are important tools to use to keep track of changes that may affect case status and eligibility.
+
+There are two types of alerts that can be generated either by the system or the caseworker;
+
+- Case-based alerts that affect the entire case.
+- Client-based alerts that affect only a specific client.
+
+To use the alert system effectively as a case management tool, the caseworker must check the ETADET Alerts Due screen daily. The ETALET Alerts must be checked every time a case is processed. This will ensure that changes are acted on within the 10-day processing timeframe as required by program rules and with the first contact resolution guidelines to help prevent case and benefit errors. Refer to the program manuals for information on 10-day processing timeframe and [MS 104-1](104-1_first_contact_resolution.md) for additional information about first contact resolution.
+
+Elements of a good alert:
+
+- Concise - one line
+- Clear and understandable
+- Use of common DPADivision of Public Assistance acronyms. Refer to [Addendum 109F](../addenda/addendum_109_f_-_dpa_acronyms.md) for a list of DPADivision of Public Assistance acronyms.
+- Identify individuals or programs when necessary (i.e., CH Patty MAGI ME ends 3/31/14)
+
+104-5 B.      SETTING ALERT DUE DATES
+
+1. Requesting verification
+
+The due date must be the actual date the information is due. Set the due date on the ETALET Alerts screen as the actual date the information/action is due following the 10, 15, or 30 day pend due dates listed on the adverse action calendar.
+
+Example:
+
+An ETEligibility Technician pends an application for additional information and gives the applicant until 4/30/14 to provide the information. The alert due date must be set to 043014.
+
+1. Receiving reports of change or other documents
+
+If setting a due date for a newly received report of change or other document, the due date is the date the report of change or document was received. If unable to set the alert for the same date the document was received, use the date the worker created the alert.
+
+Examples:
+
+DPADivision of Public Assistance receives a report of change on April 8, 2014. The alert due date must be 040814.
+
+On April 10, 2014, and OA discovered a report of change which was received April 2, 2014 but an alert was not set. The OA will set an alert and use 041014 as the due date.
+
+104-5 C.      ALERT MANAGEMENT
+
+When working a case, ETEligibility Technicians must clear or update the alerts as soon as they are processed or completed. Each case action must include a CANOCase Notes and EISEligibility Information System entry. Alerts on the ETADET Alerts Due that are alike should be worked together whenever possible for efficiency. For example, processing all INCAR alerts at the same time.
+
+Any Work Services-related penalty requests from partner agencies are required to be acted upon no later than one day from the date of request. Refer to the ILINX BPR Process on [SharePoint](https://sp.dhss.alaska.gov/dpa/ETResources/SitePages/Home.aspx) for additional information about Work Services cases.
+
+Refer to [EIS Procedures Manual 1999-4](http://dpaweb.hss.state.ak.us/manuals/eis/1999-4etad.pdf) for additional information about managing alerts in EISEligibility Information System. The following is a list of the most common EISEligibility Information System generated alerts and a brief description of the appropriate action to be taken:
+
+|  |  |
+| --- | --- |
+| EIS GENERATED ALERT STATEMENT | REQUIRED ACTION ON CASE |
+| (Adult's name) will turn 65 | APAAdult Public Assistance and/or Medicaid case – Change APAAdult Public Assistance coding to OA. Send P065 notice.    SNAPSupplemental Nutrition Assistance Program case – check for potential Senior Benefits income. |
+| (AWP, [CSED](#)Child Support Enforcement Division) DISQ-EA (client's name) | Client is being disqualified for benefits; add penalty to case. |
+| (Case Number) Issued $50 PT MM/YY | Client issued PT for that month; check to see if SNAPSupplemental Nutrition Assistance Program is counting PT. |
+| (Case Number) $xxx.xx collected (date) | [CSED](#)Child Support Enforcement Division has collected a payment; check to see if child support is greater than the TATemporary Assistance payment for possible case closure. |
+| (Child's name) will turn 1 | Adult no longer be eligible for BA (Baby Medicaid category) months. |
+| (Child's name) will turn 6 | Check WORK screen; correct code if necessary. |
+| (Child's name) will turn 16 | Check WORK screen; correct code if necessary. |
+| (Child's name) will turn 18 | Check school status for TATemporary Assistance/MEMedicaid; the child's earned income may be countable.    [ATAP](#)Alaska Temporary Assistance Program case - Child loses [ATAP](#)Alaska Temporary Assistance Program eligibility if not enrolled in school full time.    [SNAP](#)Supplemental Nutrition Assistance Program case - Income is countable effective month following month student becomes 18 years of age or is no longer enrolled in school, whichever occurs first. |
+| (Child's name) will turn 19 | Check eligibility for Under 21 MEMedicaid. Child no longer eligible for [ATAP](#)Alaska Temporary Assistance Program. |
+| EI DEDUCTION CHG MONTH – 12 | Update & issue benefits; send appropriate notices. |
+| EI DEDUCTION CHG MONTH – 24 | Update & issue benefits; send appropriate notices. |
+| EI DEDUCTION CHG MONTH – 36 | Update & issue benefits; send appropriate notices. |
+| EI DEDUCTION CHG MONTH – 48 | Update & issue benefits; send appropriate notices. |
+| ED DEDUCTION CHG MONTH – 60 | Update & issue benefits; send appropriate notices. |
+| Extension Added | No action is needed; information but it is advisable to ensure the correct number of months is authorized on the case based on the extension agreement; reconcile the months to the counter on the TLIP and the CAP2 screens. |
+| Extension End Date Changed | No action needed; informational only. |
+| SNAPSupplemental Nutrition Assistance Program/TATemporary Assistance/APAAdult Public Assistance/GAGeneral Relief Assistance/MEMedicaid Recert not processed | A review was registered but recertification and benefits were not processed before the monthly run. Check if recertification was processed and eligibility determination was made. |
+| SNAPSupplemental Nutrition Assistance Program Cert Expired – PGM closed | No GEN 72Eligibility Review Form received; CARCCase Record Control to 9-99 if SNAPSupplemental Nutrition Assistance Program is the only program. |
+| ID Changed for (client name) | Identifying data on the client maintenance screen (option 4 on CLPMCase Profile Maintenance) for origin of change. |
+| INCAR-123-45-6789, CODE 1 | Verify the following for all programs:   - If incarceration is related to a drug felony and - Dates of confinement.     Determine if the case should be closed or the household member should be removed. |
+| INCAR-123-45-6789, See SVREState Verification Response | Verify the following for all programs:   - If incarceration is related to a drug felony and - Dates of confinement.     Determine if the case should be closed or the household member should be removed. |
+| NO TATemporary Assistance/SNAPSupplemental Nutrition Assistance Program EBTElectronic Benefit Transfer Spending – Good Card?   (This alert appears after 30, 60, 90 days of inactivity) | Contact client and inquire on reason for not using benefits. If client is out-of-state, verify the reason and duration of absence. |
+| SDXState Data Exchange will / has terminated | Check INME 9 or SVESState Verification Exchange System for current information. |
+| SDXState Data Exchange 123-45-6789 name error | The name attached to this SSNSocial Security Number is different in EISEligibility Information System from what Social Security has in their system. Verify accuracy of the SSNSocial Security Number information provided by the client. |
+| SSNSocial Security Number required for (person's name) | Request SSNSocial Security Number for the person noted in the alert. |
+| SVESState Verification Exchange System 123-45-6789 No Match | Latest SVESState Verification Exchange System run had occurred and there is not a match for client's DOBDate of Birth. Verify the DOBDate of Birth of the person noted in the alert. |
+| SVESState Verification Exchange System 123-45-6789 DOBDate of Birth Conflict or No Match | Latest SVESState Verification Exchange System run had occurred and there is not a match for client's DOBDate of Birth. Verify the DOBDate of Birth of the person noted in the alert. |
+| SVESState Verification Exchange System Update CIT/ID – 123-45-6789 | SVESState Verification Exchange System data match replaces an existing code in EISEligibility Information System. Check status of the case for any action needed. If case was pended and information is due, act on pended case to determine eligibility. |
+| TATemporary Assistance/MEMedicaid/APAAdult Public Assistance – Cert expired – PGM Closed | No GEN 72Eligibility Review Form received, CARCCase Record Control to 9-99 if only program. For MAGIModified Adjusted Gross Income Medicaid, check if there is enough information to determine ongoing eligibility without the review. |
+| (TATemporary Assistance, SNAPSupplemental Nutrition Assistance Program, MEMedicaid, APAAdult Public Assistance, IAInterim Assistance, GMGeneral Relief Medical, GAGeneral Relief Assistance) Payment not Authorized | Manually work current month; initialize into next month and authorize. |
+| (TATemporary Assistance, SNAPSupplemental Nutrition Assistance Program, MEMedicaid, GMGeneral Relief Medical, GAGeneral Relief Assistance) Quick pend due | Case was pended and information is due; act on pended case to determine eligibility. |
+| Time limit up, ATAPAlaska Temporary Assistance Program not rolled | The case is not in current month and an extension review is needed. |
+| UIBUnemployment Insurance Benefit 123-45-6789 Benefits Info | Check DOLDepartment of Labor for UIBUnemployment Insurance Benefit benefits. |
+
+104-5 D.      MANUALLY GENERATED ALERTS
+
+The following are recommendations for manually creating alerts and a brief description of the appropriate action to be taken:
+
+|  |  |
+| --- | --- |
+| REASON FOR THE ALERT | REQUIRED ACTION ON CASE |
+| ROCReport of Change and verifications received | Set alert and identify the document and FSOField Service Office receiving the document. Set due date as the date the document was received. If unable to set the alert for the same date the document was received, use the date the worker created the alert.   Standard alert verbiage:   "FSO rec'd doc (date received) FSO CARC"  "FSO rec'd fax (date received) FSO CARC"    Example alert verbiage:    084 rec'd doc 7/11/12 077-2-22 (\* This means the Muldoon Office received a document on 7/11/12 and sent it to the MatSu Report of Change unit.) |
+| Address change | OA will update address screen for all programs for the PIPrimary Information Person, enter CANOCase Notes, and set an alert for an ETEligibility Technician to follow-up on.   Example: ROC ADDR see CANO MMDDYY   Note: Do not change the address on the following programs: SBSenior Benefits, LTCLong Term Care, CITCCook Inlet Tribal Council, TANFTemporary Assistance for Needy Families, and OCSOffice of Children's Services Medicaid (set alert – for OCSOffice of Children's Services, email the new address information directly to assigned OCSOffice of Children's Services ETEligibility Technician). |
+| Alerts to cross-reference cases for clients | Use Case Alerts to list all the case numbers that a client is associated with. Client-based alerts do not show if that client is coded "OU" on the case number.   Example Situation: APA client with ANI for CH   Alert on SNAP case: MAGI ME Case #05050505 Alert on APA case: Senior Benefits Case #02020202 |
+| IAInterim Assistance and APAAdult Public Assistance long-term pend cases | Set an alert to monitor SSISupplemental Security Income status using the client's SSNSocial Security Number in the alert. |
+| TATemporary Assistance case closed and reopened | Set a client alert "TA reopened MMDDYY" |
+
+|  |  |  |
+| --- | --- | --- |
+| [Previous Section](104-4_adverse_action_calendar.md) |  | [Next Section](104-6_snap_interim_report.md) |
+|  |  | [2025-01 (04/25)](../transmittals/transmittal_2025-01.md) |

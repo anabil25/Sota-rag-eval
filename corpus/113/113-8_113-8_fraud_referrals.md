@@ -1,0 +1,55 @@
+---
+policy_id: "113-8"
+title: "113-8 Fraud Referrals"
+parent: "113 Quality Assessment"
+source_url: "C:\Users\nabilahmed\Documents\Code\alaska policy eval\policies\113\113-8_fraud_referrals.md"
+last_ingested: "2026-03-28"
+cross_references:
+  - "{'id': '113-7', 'keywords': 'QA reviewer contact, case file issues'}"
+  - "{'id': '113-9', 'keywords': 'Q-form, error reporting, SharePoint'}"
+---
+
+Administrative Procedures Manual
+
+[Click here to see this page in full context](#)
+
+113-8          FRAUD
+REFERRALS
+
+The QAQuality Assessment
+Reviewer may recommend referral to the Fraud Unit. During the review process,
+if the QAQuality Assessment Reviewer finds
+that the recipient of benefits or a childcare provider receiving subsidy
+willfully and intentionally provided false information or verifications
+to the caseworker, the QAQuality Assessment
+Reviewer marks the "Fraud Referral Recommended" on the Q-Form.
+
+Caseworkers will consider fraud referral
+recommendations during the discussion of the case. In some cases, caseworkers
+might recommend the fraud referral. If the CAPSCorrective Action Planning Spreadsheets
+agrees a fraud referral is warranted, the staff will complete and submit
+the Fraud Allegation Report form online at <https://fcm.i-sight.com/external/dhsscase/new>.
+The staff will need to complete all of the required fields, which include
+the client's first and last name, phone number, and allegation details.
+Any supporting document can be uploaded by using "Add File"
+on the form. Once all the fields are completed, select the Submit button.
+
+If during the QAQuality Assessment
+review process the household fails or refuses to cooperate and the reviewer
+is not able to complete the review, the reviewer may submit a Fraud Allegation
+Report online to the Fraud Unit. This could occur if the reviewer has
+discovered the client misrepresented circumstance such as undisclosed
+income, resources, household composition, or provided false information
+or verification to the QAQuality Assessment
+reviewer.
+
+Note:
+
+An overpayment claim is not sent to the Claims Unit if the caseworker or
+a QAQuality Assessment Reviewer submits
+a Fraud Referral.
+
+|  |  |  |
+| --- | --- | --- |
+| [Previous Section](113-7_quality_assessment_reviewer_contact_with_the_caseworker.md) |  | [Next Section](113-9_q-form_process.md) |
+|  |  | [2020-03 (12/20)](../transmittals/transmittal_2020-03.md) |

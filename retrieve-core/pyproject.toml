@@ -1,0 +1,64 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "retrieve"
+version = "0.1.0"
+description = "Eval-driven retrieval architecture selection. Stop guessing which search pipeline works — measure it."
+requires-python = ">=3.11"
+license = "MIT"
+
+dependencies = [
+    "typer>=0.15",
+    "rich>=13.0",
+    "pydantic>=2.0",
+    "pyyaml>=6.0",
+    "github-copilot-sdk",
+    "requests>=2.31",
+    "azure-identity>=1.16",
+    "azure-storage-blob>=12.20",
+    "azure-search-documents>=11.6",
+    "beautifulsoup4>=4.12",
+    "markdownify>=0.13",
+    "fastapi>=0.115",
+    "uvicorn>=0.34",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.9",
+    "filelock>=3.15",
+]
+
+[project.optional-dependencies]
+pdf = ["pdfplumber>=0.10"]
+graphrag = ["graphrag==3.1.0"]
+lightrag = ["lightrag-hku>=1.0"]
+domain = ["openai>=1.30", "sentence-transformers>=3.0"]
+all = [
+    "pdfplumber>=0.10",
+    "graphrag==3.1.0",
+    "lightrag-hku>=1.0",
+    "openai>=1.30",
+    "sentence-transformers>=3.0",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.5",
+]
+
+[project.scripts]
+retrieve = "retrieve.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/retrieve"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

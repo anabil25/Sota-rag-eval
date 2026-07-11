@@ -1,0 +1,1 @@
+"""Azure OpenAI proxy helpers for managed-identity-only deployments."""

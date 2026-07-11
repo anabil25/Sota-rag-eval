@@ -1,0 +1,25 @@
+---
+policy_id: "111-6"
+title: "111 6 111 6 111 6 Responding To Inquiries"
+parent: ""
+source_url: "C:\Users\nabilahmed\Documents\Code\retrieve\corpus\111\111-6_111_6_111_6_responding_to_inquiries.md"
+last_ingested: "2026-04-16"
+---
+
+Administrative Procedures Manual
+
+[Click here to see this page in full context](#)
+
+111-6          RESPONDING
+TO INQUIRIES
+
+The caseworker responds to the individual's questions
+about the calculation of the overpayment or the individual's dispute of
+the amount or reason for the claim. For questions about the establishment
+of a claim, garnishments, or receipt of a payment, inform the individual
+to contact the Claims Specialist.
+
+|  |  |  |
+| --- | --- | --- |
+| [Previous Section](111-5_recoupments_repayments_and_allotment_reductions.md) |  | [Next Section](111-7_payments_received_in_dpa_offices.md) |
+|  |  |  |

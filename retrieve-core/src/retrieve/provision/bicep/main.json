@@ -1,0 +1,1305 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.43.8.12551",
+      "templateHash": "12092622620942814310"
+    }
+  },
+  "parameters": {
+    "namePrefix": {
+      "type": "string",
+      "metadata": {
+        "description": "Naming prefix for all resources"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure region"
+      }
+    },
+    "architectures": {
+      "type": "array",
+      "defaultValue": [
+        "hybrid"
+      ],
+      "metadata": {
+        "description": "Architectures to provision (JSON array)"
+      }
+    },
+    "embeddingModel": {
+      "type": "string",
+      "defaultValue": "text-embedding-3-large",
+      "metadata": {
+        "description": "Embedding model name"
+      }
+    },
+    "embeddingCapacity": {
+      "type": "int",
+      "defaultValue": 100,
+      "metadata": {
+        "description": "Embedding model TPM capacity in thousands"
+      }
+    },
+    "llmCapacity": {
+      "type": "int",
+      "defaultValue": 10,
+      "metadata": {
+        "description": "LLM model TPM capacity in thousands"
+      }
+    },
+    "searchSku": {
+      "type": "string",
+      "defaultValue": "basic",
+      "metadata": {
+        "description": "Search SKU"
+      }
+    },
+    "searchLocation": {
+      "type": "string",
+      "defaultValue": "[parameters('location')]",
+      "metadata": {
+        "description": "Override region for Search (use when primary region is out of capacity)"
+      }
+    },
+    "deployerObjectId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Deployer user object ID (for Blob Contributor + Search Contributor roles)"
+      }
+    }
+  },
+  "variables": {
+    "storageAccountName": "[format('{0}store', parameters('namePrefix'))]",
+    "aiServicesName": "[format('{0}ai', parameters('namePrefix'))]",
+    "searchServiceName": "[format('{0}-search', parameters('namePrefix'))]",
+    "needsEmbedding": "[greater(length(filter(parameters('architectures'), lambda('arch', not(equals(lambdaVariables('arch'), 'keyword'))))), 0)]",
+    "needsLLM": "[greater(length(filter(parameters('architectures'), lambda('arch', contains(createArray('hybrid-llm-enriched', 'agentic-kb', 'graphrag', 'lightrag'), lambdaVariables('arch'))))), 0)]",
+    "needsSemantic": "[greater(length(filter(parameters('architectures'), lambda('arch', contains(createArray('hybrid-reranker', 'hybrid-llm-enriched', 'agentic-kb'), lambdaVariables('arch'))))), 0)]",
+    "needsCosmosDB": "[greater(length(filter(parameters('architectures'), lambda('arch', equals(lambdaVariables('arch'), 'graphrag')))), 0)]",
+    "needsGraphRAG": "[greater(length(filter(parameters('architectures'), lambda('arch', equals(lambdaVariables('arch'), 'graphrag')))), 0)]",
+    "needsLightRAG": "[greater(length(filter(parameters('architectures'), lambda('arch', equals(lambdaVariables('arch'), 'lightrag')))), 0)]",
+    "needsContainerApps": "[variables('needsLightRAG')]",
+    "cosmosAccountName": "[format('{0}cosmos', parameters('namePrefix'))]",
+    "containerEnvName": "[format('{0}-env', parameters('namePrefix'))]",
+    "containerAppName": "[format('{0}-lightrag', parameters('namePrefix'))]",
+    "graphWorkerAppName": "[format('{0}-graphrag-d4', parameters('namePrefix'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "storage",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "storageAccountName": {
+            "value": "[variables('storageAccountName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.43.8.12551",
+              "templateHash": "6512908904323057630"
+            }
+          },
+          "parameters": {
+            "storageAccountName": {
+              "type": "string",
+              "metadata": {
+                "description": "Globally unique storage account name"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Azure region"
+              }
+            },
+            "containerName": {
+              "type": "string",
+              "defaultValue": "corpus",
+              "metadata": {
+                "description": "Blob container name for the corpus"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2025-06-01",
+              "name": "[parameters('storageAccountName')]",
+              "location": "[parameters('location')]",
+              "kind": "StorageV2",
+              "sku": {
+                "name": "Standard_LRS"
+              },
+              "properties": {
+                "publicNetworkAccess": "Enabled",
+                "allowSharedKeyAccess": false,
+                "minimumTlsVersion": "TLS1_2",
+                "supportsHttpsTrafficOnly": true,
+                "allowBlobPublicAccess": false,
+                "networkAcls": {
+                  "bypass": "AzureServices",
+                  "defaultAction": "Allow"
+                }
+              },
+              "identity": {
+                "type": "SystemAssigned"
+              }
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices",
+              "apiVersion": "2025-06-01",
+              "name": "[format('{0}/{1}', parameters('storageAccountName'), 'default')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2025-06-01",
+              "name": "[format('{0}/{1}/{2}', parameters('storageAccountName'), 'default', parameters('containerName'))]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]"
+              ]
+            }
+          ],
+          "outputs": {
+            "storageAccountId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+            },
+            "storageAccountName": {
+              "type": "string",
+              "value": "[parameters('storageAccountName')]"
+            },
+            "blobEndpoint": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2025-06-01').primaryEndpoints.blob]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "ai-services",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "aiServicesName": {
+            "value": "[variables('aiServicesName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "deployEmbedding": {
+            "value": "[variables('needsEmbedding')]"
+          },
+          "embeddingModelName": {
+            "value": "[parameters('embeddingModel')]"
+          },
+          "embeddingCapacity": {
+            "value": "[parameters('embeddingCapacity')]"
+          },
+          "deployLLM": {
+            "value": "[variables('needsLLM')]"
+          },
+          "llmCapacity": {
+            "value": "[parameters('llmCapacity')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.43.8.12551",
+              "templateHash": "8313708801737783910"
+            }
+          },
+          "parameters": {
+            "aiServicesName": {
+              "type": "string",
+              "metadata": {
+                "description": "AI Services account name"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Azure region"
+              }
+            },
+            "deployEmbedding": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Deploy embedding model"
+              }
+            },
+            "embeddingModelName": {
+              "type": "string",
+              "defaultValue": "text-embedding-3-large",
+              "metadata": {
+                "description": "Embedding model name"
+              }
+            },
+            "embeddingCapacity": {
+              "type": "int",
+              "defaultValue": 100,
+              "metadata": {
+                "description": "Embedding model TPM capacity (thousands)"
+              }
+            },
+            "deployLLM": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Deploy LLM model"
+              }
+            },
+            "llmModelName": {
+              "type": "string",
+              "defaultValue": "gpt-4.1",
+              "metadata": {
+                "description": "LLM model name"
+              }
+            },
+            "llmCapacity": {
+              "type": "int",
+              "defaultValue": 10,
+              "metadata": {
+                "description": "LLM model TPM capacity (thousands)"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.CognitiveServices/accounts",
+              "apiVersion": "2025-06-01",
+              "name": "[parameters('aiServicesName')]",
+              "location": "[parameters('location')]",
+              "kind": "AIServices",
+              "sku": {
+                "name": "S0"
+              },
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "customSubDomainName": "[parameters('aiServicesName')]",
+                "publicNetworkAccess": "Enabled",
+                "disableLocalAuth": false
+              }
+            },
+            {
+              "condition": "[parameters('deployEmbedding')]",
+              "type": "Microsoft.CognitiveServices/accounts/deployments",
+              "apiVersion": "2025-06-01",
+              "name": "[format('{0}/{1}', parameters('aiServicesName'), parameters('embeddingModelName'))]",
+              "sku": {
+                "name": "GlobalStandard",
+                "capacity": "[parameters('embeddingCapacity')]"
+              },
+              "properties": {
+                "model": {
+                  "format": "OpenAI",
+                  "name": "[parameters('embeddingModelName')]",
+                  "version": "1"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('aiServicesName'))]"
+              ]
+            },
+            {
+              "condition": "[parameters('deployLLM')]",
+              "type": "Microsoft.CognitiveServices/accounts/deployments",
+              "apiVersion": "2025-06-01",
+              "name": "[format('{0}/{1}', parameters('aiServicesName'), parameters('llmModelName'))]",
+              "sku": {
+                "name": "GlobalStandard",
+                "capacity": "[parameters('llmCapacity')]"
+              },
+              "properties": {
+                "model": {
+                  "format": "OpenAI",
+                  "name": "[parameters('llmModelName')]",
+                  "version": "2025-04-14"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('aiServicesName'))]",
+                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('aiServicesName'), parameters('embeddingModelName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "aiServicesId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.CognitiveServices/accounts', parameters('aiServicesName'))]"
+            },
+            "aiServicesName": {
+              "type": "string",
+              "value": "[parameters('aiServicesName')]"
+            },
+            "aiServicesEndpoint": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', parameters('aiServicesName')), '2025-06-01').endpoint]"
+            },
+            "aiServicesPrincipalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', parameters('aiServicesName')), '2025-06-01', 'full').identity.principalId]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "search",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "searchServiceName": {
+            "value": "[variables('searchServiceName')]"
+          },
+          "location": {
+            "value": "[parameters('searchLocation')]"
+          },
+          "sku": {
+            "value": "[parameters('searchSku')]"
+          },
+          "semanticSearch": "[if(variables('needsSemantic'), createObject('value', 'free'), createObject('value', 'disabled'))]"
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.43.8.12551",
+              "templateHash": "10499916262920710091"
+            }
+          },
+          "parameters": {
+            "searchServiceName": {
+              "type": "string",
+              "metadata": {
+                "description": "Search service name"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Azure region"
+              }
+            },
+            "sku": {
+              "type": "string",
+              "defaultValue": "basic",
+              "allowedValues": [
+                "free",
+                "basic",
+                "standard",
+                "standard2",
+                "standard3"
+              ],
+              "metadata": {
+                "description": "Search SKU"
+              }
+            },
+            "semanticSearch": {
+              "type": "string",
+              "defaultValue": "disabled",
+              "allowedValues": [
+                "disabled",
+                "free",
+                "standard"
+              ],
+              "metadata": {
+                "description": "Enable semantic search (required for hybrid-reranker)"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Search/searchServices",
+              "apiVersion": "2025-05-01",
+              "name": "[parameters('searchServiceName')]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "[parameters('sku')]"
+              },
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "hostingMode": "Default",
+                "publicNetworkAccess": "enabled",
+                "semanticSearch": "[parameters('semanticSearch')]",
+                "authOptions": {
+                  "aadOrApiKey": {
+                    "aadAuthFailureMode": "http403"
+                  }
+                }
+              }
+            }
+          ],
+          "outputs": {
+            "searchServiceId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Search/searchServices', parameters('searchServiceName'))]"
+            },
+            "searchServiceName": {
+              "type": "string",
+              "value": "[parameters('searchServiceName')]"
+            },
+            "searchEndpoint": {
+              "type": "string",
+              "value": "[format('https://{0}.search.windows.net', parameters('searchServiceName'))]"
+            },
+            "searchPrincipalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Search/searchServices', parameters('searchServiceName')), '2025-05-01', 'full').identity.principalId]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'ai-services')]",
+        "[resourceId('Microsoft.Resources/deployments', 'cosmos')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "search-roles",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "searchPrincipalId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'search'), '2025-04-01').outputs.searchPrincipalId.value]"
+          },
+          "storageAccountId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.storageAccountId.value]"
+          },
+          "aiServicesId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'ai-services'), '2025-04-01').outputs.aiServicesId.value]"
+          },
+          "searchServiceId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'search'), '2025-04-01').outputs.searchServiceId.value]"
+          },
+          "assignBlobReader": {
+            "value": true
+          },
+          "assignOpenAIUser": {
+            "value": "[variables('needsEmbedding')]"
+          },
+          "deployerObjectId": {
+            "value": "[parameters('deployerObjectId')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.43.8.12551",
+              "templateHash": "2272039640782297842"
+            }
+          },
+          "parameters": {
+            "searchPrincipalId": {
+              "type": "string",
+              "metadata": {
+                "description": "Search service principal ID"
+              }
+            },
+            "storageAccountId": {
+              "type": "string",
+              "metadata": {
+                "description": "Storage account ID (scope for Blob role)"
+              }
+            },
+            "aiServicesId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "AI Services account ID (scope for OpenAI role)"
+              }
+            },
+            "searchServiceId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Search service ID (scope for Search contributor roles)"
+              }
+            },
+            "assignBlobReader": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Assign blob reader role"
+              }
+            },
+            "assignOpenAIUser": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Assign OpenAI user role"
+              }
+            },
+            "deployerObjectId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Deployer user object ID (empty = skip deployer roles)"
+              }
+            }
+          },
+          "variables": {
+            "blobDataReaderRoleId": "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
+            "blobDataContributorRoleId": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
+            "cognitiveServicesOpenAIUserRoleId": "5e0bd9bd-7b93-4f28-af87-19fc36ad61bd",
+            "searchServiceContributorRoleId": "7ca78c08-252a-4471-8644-bb5ff32d4ba0",
+            "searchIndexDataContributorRoleId": "8ebe5a00-799e-43f5-93ac-243d3dce84a7"
+          },
+          "resources": [
+            {
+              "condition": "[parameters('assignBlobReader')]",
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.Storage/storageAccounts', last(split(parameters('storageAccountId'), '/')))]",
+              "name": "[guid(parameters('storageAccountId'), parameters('searchPrincipalId'), variables('blobDataReaderRoleId'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('blobDataReaderRoleId'))]",
+                "principalId": "[parameters('searchPrincipalId')]",
+                "principalType": "ServicePrincipal"
+              }
+            },
+            {
+              "condition": "[and(parameters('assignOpenAIUser'), not(empty(parameters('aiServicesId'))))]",
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.CognitiveServices/accounts', last(split(parameters('aiServicesId'), '/')))]",
+              "name": "[guid(parameters('aiServicesId'), parameters('searchPrincipalId'), variables('cognitiveServicesOpenAIUserRoleId'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('cognitiveServicesOpenAIUserRoleId'))]",
+                "principalId": "[parameters('searchPrincipalId')]",
+                "principalType": "ServicePrincipal"
+              }
+            },
+            {
+              "condition": "[not(empty(parameters('deployerObjectId')))]",
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.Storage/storageAccounts', last(split(parameters('storageAccountId'), '/')))]",
+              "name": "[guid(parameters('storageAccountId'), parameters('deployerObjectId'), variables('blobDataContributorRoleId'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('blobDataContributorRoleId'))]",
+                "principalId": "[parameters('deployerObjectId')]",
+                "principalType": "User"
+              }
+            },
+            {
+              "condition": "[and(not(empty(parameters('deployerObjectId'))), not(empty(parameters('searchServiceId'))))]",
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.Search/searchServices', last(split(parameters('searchServiceId'), '/')))]",
+              "name": "[guid(parameters('searchServiceId'), parameters('deployerObjectId'), variables('searchServiceContributorRoleId'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('searchServiceContributorRoleId'))]",
+                "principalId": "[parameters('deployerObjectId')]",
+                "principalType": "User"
+              }
+            },
+            {
+              "condition": "[and(not(empty(parameters('deployerObjectId'))), not(empty(parameters('searchServiceId'))))]",
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.Search/searchServices', last(split(parameters('searchServiceId'), '/')))]",
+              "name": "[guid(parameters('searchServiceId'), parameters('deployerObjectId'), variables('searchIndexDataContributorRoleId'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('searchIndexDataContributorRoleId'))]",
+                "principalId": "[parameters('deployerObjectId')]",
+                "principalType": "User"
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'ai-services')]",
+        "[resourceId('Microsoft.Resources/deployments', 'search')]",
+        "[resourceId('Microsoft.Resources/deployments', 'storage')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "cosmos",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "cosmosAccountName": {
+            "value": "[variables('cosmosAccountName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "deployCosmosDB": {
+            "value": "[variables('needsCosmosDB')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.43.8.12551",
+              "templateHash": "4197100891421040135"
+            }
+          },
+          "parameters": {
+            "cosmosAccountName": {
+              "type": "string",
+              "metadata": {
+                "description": "Cosmos DB account name"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Azure region"
+              }
+            },
+            "deployCosmosDB": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Whether to actually create Cosmos DB resources"
+              }
+            },
+            "databaseName": {
+              "type": "string",
+              "defaultValue": "graphrag",
+              "metadata": {
+                "description": "Database name"
+              }
+            },
+            "entityContainerName": {
+              "type": "string",
+              "defaultValue": "entities",
+              "metadata": {
+                "description": "Container name for graph entities"
+              }
+            },
+            "communityContainerName": {
+              "type": "string",
+              "defaultValue": "communities",
+              "metadata": {
+                "description": "Container name for graph communities"
+              }
+            }
+          },
+          "resources": [
+            {
+              "condition": "[parameters('deployCosmosDB')]",
+              "type": "Microsoft.DocumentDB/databaseAccounts",
+              "apiVersion": "2024-11-15",
+              "name": "[parameters('cosmosAccountName')]",
+              "location": "[parameters('location')]",
+              "kind": "GlobalDocumentDB",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "databaseAccountOfferType": "Standard",
+                "locations": [
+                  {
+                    "locationName": "[parameters('location')]",
+                    "failoverPriority": 0,
+                    "isZoneRedundant": false
+                  }
+                ],
+                "capabilities": [
+                  {
+                    "name": "EnableServerless"
+                  }
+                ],
+                "consistencyPolicy": {
+                  "defaultConsistencyLevel": "Session"
+                },
+                "publicNetworkAccess": "Enabled"
+              }
+            },
+            {
+              "condition": "[parameters('deployCosmosDB')]",
+              "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases",
+              "apiVersion": "2024-11-15",
+              "name": "[format('{0}/{1}', parameters('cosmosAccountName'), parameters('databaseName'))]",
+              "properties": {
+                "resource": {
+                  "id": "[parameters('databaseName')]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosAccountName'))]"
+              ]
+            },
+            {
+              "condition": "[parameters('deployCosmosDB')]",
+              "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers",
+              "apiVersion": "2024-11-15",
+              "name": "[format('{0}/{1}/{2}', parameters('cosmosAccountName'), parameters('databaseName'), parameters('entityContainerName'))]",
+              "properties": {
+                "resource": {
+                  "id": "[parameters('entityContainerName')]",
+                  "partitionKey": {
+                    "paths": [
+                      "/id"
+                    ],
+                    "kind": "Hash",
+                    "version": 2
+                  },
+                  "indexingPolicy": {
+                    "indexingMode": "consistent",
+                    "includedPaths": [
+                      {
+                        "path": "/*"
+                      }
+                    ],
+                    "excludedPaths": [
+                      {
+                        "path": "/\"_etag\"/?"
+                      }
+                    ]
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases', parameters('cosmosAccountName'), parameters('databaseName'))]"
+              ]
+            },
+            {
+              "condition": "[parameters('deployCosmosDB')]",
+              "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers",
+              "apiVersion": "2024-11-15",
+              "name": "[format('{0}/{1}/{2}', parameters('cosmosAccountName'), parameters('databaseName'), parameters('communityContainerName'))]",
+              "properties": {
+                "resource": {
+                  "id": "[parameters('communityContainerName')]",
+                  "partitionKey": {
+                    "paths": [
+                      "/community_id"
+                    ],
+                    "kind": "Hash",
+                    "version": 2
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases', parameters('cosmosAccountName'), parameters('databaseName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "cosmosAccountId": {
+              "type": "string",
+              "value": "[if(parameters('deployCosmosDB'), resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosAccountName')), '')]"
+            },
+            "cosmosAccountName": {
+              "type": "string",
+              "value": "[if(parameters('deployCosmosDB'), parameters('cosmosAccountName'), '')]"
+            },
+            "cosmosEndpoint": {
+              "type": "string",
+              "value": "[if(parameters('deployCosmosDB'), reference(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosAccountName')), '2024-11-15').documentEndpoint, '')]"
+            },
+            "cosmosPrincipalId": {
+              "type": "string",
+              "value": "[if(parameters('deployCosmosDB'), reference(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosAccountName')), '2024-11-15', 'full').identity.principalId, '')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "container-apps",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "environmentName": {
+            "value": "[variables('containerEnvName')]"
+          },
+          "containerAppName": {
+            "value": "[variables('containerAppName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "deployContainerApps": {
+            "value": "[variables('needsContainerApps')]"
+          },
+          "deployLightRAG": {
+            "value": "[variables('needsLightRAG')]"
+          },
+          "aiServicesEndpoint": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'ai-services'), '2025-04-01').outputs.aiServicesEndpoint.value]"
+          },
+          "aiServicesId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'ai-services'), '2025-04-01').outputs.aiServicesId.value]"
+          },
+          "searchEndpoint": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'search'), '2025-04-01').outputs.searchEndpoint.value]"
+          },
+          "searchServiceId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'search'), '2025-04-01').outputs.searchServiceId.value]"
+          },
+          "llmDeploymentName": {
+            "value": "gpt-4.1"
+          },
+          "embeddingDeploymentName": {
+            "value": "[parameters('embeddingModel')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.43.8.12551",
+              "templateHash": "15457568181707895181"
+            }
+          },
+          "parameters": {
+            "environmentName": {
+              "type": "string",
+              "metadata": {
+                "description": "Container Apps environment name"
+              }
+            },
+            "containerAppName": {
+              "type": "string",
+              "metadata": {
+                "description": "LightRAG Container App name"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Azure region"
+              }
+            },
+            "deployContainerApps": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Whether to create the shared Container Apps environment"
+              }
+            },
+            "deployLightRAG": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Whether to create the LightRAG server app"
+              }
+            },
+            "containerImage": {
+              "type": "string",
+              "defaultValue": "ghcr.io/hkuds/lightrag:latest",
+              "metadata": {
+                "description": "Container image (LightRAG server)"
+              }
+            },
+            "aiServicesEndpoint": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "AI Services endpoint"
+              }
+            },
+            "aiServicesId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "AI Services resource ID (for scoped RBAC)"
+              }
+            },
+            "searchEndpoint": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Search endpoint"
+              }
+            },
+            "searchServiceId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Search service resource ID (for scoped RBAC)"
+              }
+            },
+            "llmDeploymentName": {
+              "type": "string",
+              "defaultValue": "gpt-4.1",
+              "metadata": {
+                "description": "LLM deployment/model name for LightRAG"
+              }
+            },
+            "embeddingDeploymentName": {
+              "type": "string",
+              "defaultValue": "text-embedding-3-large",
+              "metadata": {
+                "description": "Embedding deployment/model name for LightRAG"
+              }
+            },
+            "targetPort": {
+              "type": "int",
+              "defaultValue": 9621,
+              "metadata": {
+                "description": "Target port for the LightRAG container"
+              }
+            }
+          },
+          "variables": {
+            "searchIndexDataReaderRoleId": "1407120a-92aa-4202-b7e9-c0e197c71c8f",
+            "openAIUserRoleId": "5e0bd9bd-7b93-4f28-af87-19fc36ad61bd"
+          },
+          "resources": [
+            {
+              "condition": "[parameters('deployContainerApps')]",
+              "type": "Microsoft.OperationalInsights/workspaces",
+              "apiVersion": "2023-09-01",
+              "name": "[format('{0}-logs', parameters('environmentName'))]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "sku": {
+                  "name": "PerGB2018"
+                },
+                "retentionInDays": 30
+              }
+            },
+            {
+              "condition": "[parameters('deployContainerApps')]",
+              "type": "Microsoft.App/managedEnvironments",
+              "apiVersion": "2025-07-01",
+              "name": "[parameters('environmentName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "appLogsConfiguration": {
+                  "destination": "log-analytics",
+                  "logAnalyticsConfiguration": {
+                    "customerId": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-logs', parameters('environmentName'))), '2023-09-01').customerId]",
+                    "sharedKey": "[listKeys(resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-logs', parameters('environmentName'))), '2023-09-01').primarySharedKey]"
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-logs', parameters('environmentName')))]"
+              ]
+            },
+            {
+              "condition": "[and(parameters('deployContainerApps'), parameters('deployLightRAG'))]",
+              "type": "Microsoft.App/containerApps",
+              "apiVersion": "2025-07-01",
+              "name": "[parameters('containerAppName')]",
+              "location": "[parameters('location')]",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', parameters('environmentName'))]",
+                "configuration": {
+                  "ingress": {
+                    "external": true,
+                    "targetPort": "[parameters('targetPort')]",
+                    "transport": "http",
+                    "allowInsecure": false
+                  },
+                  "secrets": []
+                },
+                "template": {
+                  "containers": [
+                    {
+                      "name": "lightrag",
+                      "image": "[parameters('containerImage')]",
+                      "resources": {
+                        "cpu": "[json('1.0')]",
+                        "memory": "2Gi"
+                      },
+                      "env": [
+                        {
+                          "name": "AI_SERVICES_ENDPOINT",
+                          "value": "[parameters('aiServicesEndpoint')]"
+                        },
+                        {
+                          "name": "SEARCH_ENDPOINT",
+                          "value": "[parameters('searchEndpoint')]"
+                        },
+                        {
+                          "name": "PORT",
+                          "value": "[string(parameters('targetPort'))]"
+                        },
+                        {
+                          "name": "LLM_BINDING",
+                          "value": "azure_openai"
+                        },
+                        {
+                          "name": "LLM_MODEL",
+                          "value": "[parameters('llmDeploymentName')]"
+                        },
+                        {
+                          "name": "LLM_BINDING_HOST",
+                          "value": "[parameters('aiServicesEndpoint')]"
+                        },
+                        {
+                          "name": "EMBEDDING_BINDING",
+                          "value": "azure_openai"
+                        },
+                        {
+                          "name": "EMBEDDING_MODEL",
+                          "value": "[parameters('embeddingDeploymentName')]"
+                        },
+                        {
+                          "name": "EMBEDDING_DIM",
+                          "value": "3072"
+                        },
+                        {
+                          "name": "AZURE_OPENAI_ENDPOINT",
+                          "value": "[parameters('aiServicesEndpoint')]"
+                        },
+                        {
+                          "name": "AZURE_OPENAI_DEPLOYMENT",
+                          "value": "[parameters('llmDeploymentName')]"
+                        },
+                        {
+                          "name": "AZURE_OPENAI_EMBEDDING_DEPLOYMENT",
+                          "value": "[parameters('embeddingDeploymentName')]"
+                        },
+                        {
+                          "name": "AZURE_OPENAI_API_VERSION",
+                          "value": "2025-04-01-preview"
+                        },
+                        {
+                          "name": "MAX_PARALLEL_INSERT",
+                          "value": "1"
+                        },
+                        {
+                          "name": "MAX_ASYNC",
+                          "value": "1"
+                        },
+                        {
+                          "name": "EMBEDDING_FUNC_MAX_ASYNC",
+                          "value": "1"
+                        },
+                        {
+                          "name": "EMBEDDING_BATCH_NUM",
+                          "value": "1"
+                        },
+                        {
+                          "name": "EMBEDDING_TIMEOUT",
+                          "value": "120"
+                        },
+                        {
+                          "name": "LLM_TIMEOUT",
+                          "value": "300"
+                        }
+                      ]
+                    }
+                  ],
+                  "scale": {
+                    "minReplicas": 1,
+                    "maxReplicas": 1,
+                    "rules": [
+                      {
+                        "name": "http-scaling",
+                        "http": {
+                          "metadata": {
+                            "concurrentRequests": "10"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.App/managedEnvironments', parameters('environmentName'))]"
+              ]
+            },
+            {
+              "condition": "[and(and(parameters('deployContainerApps'), parameters('deployLightRAG')), not(empty(parameters('searchServiceId'))))]",
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.Search/searchServices', last(split(parameters('searchServiceId'), '/')))]",
+              "name": "[guid(parameters('searchServiceId'), parameters('containerAppName'), variables('searchIndexDataReaderRoleId'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('searchIndexDataReaderRoleId'))]",
+                "principalId": "[reference(resourceId('Microsoft.App/containerApps', parameters('containerAppName')), '2025-07-01', 'full').identity.principalId]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.App/containerApps', parameters('containerAppName'))]"
+              ]
+            },
+            {
+              "condition": "[and(and(parameters('deployContainerApps'), parameters('deployLightRAG')), not(empty(parameters('aiServicesId'))))]",
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.CognitiveServices/accounts', last(split(parameters('aiServicesId'), '/')))]",
+              "name": "[guid(parameters('aiServicesId'), parameters('containerAppName'), variables('openAIUserRoleId'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('openAIUserRoleId'))]",
+                "principalId": "[reference(resourceId('Microsoft.App/containerApps', parameters('containerAppName')), '2025-07-01', 'full').identity.principalId]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.App/containerApps', parameters('containerAppName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "environmentId": {
+              "type": "string",
+              "value": "[if(parameters('deployContainerApps'), resourceId('Microsoft.App/managedEnvironments', parameters('environmentName')), '')]"
+            },
+            "environmentName": {
+              "type": "string",
+              "value": "[if(parameters('deployContainerApps'), parameters('environmentName'), '')]"
+            },
+            "containerAppId": {
+              "type": "string",
+              "value": "[if(and(parameters('deployContainerApps'), parameters('deployLightRAG')), resourceId('Microsoft.App/containerApps', parameters('containerAppName')), '')]"
+            },
+            "containerAppName": {
+              "type": "string",
+              "value": "[if(and(parameters('deployContainerApps'), parameters('deployLightRAG')), parameters('containerAppName'), '')]"
+            },
+            "containerAppEndpoint": {
+              "type": "string",
+              "value": "[if(and(parameters('deployContainerApps'), parameters('deployLightRAG')), format('https://{0}', reference(resourceId('Microsoft.App/containerApps', parameters('containerAppName')), '2025-07-01').configuration.ingress.fqdn), '')]"
+            },
+            "containerAppPrincipalId": {
+              "type": "string",
+              "value": "[if(and(parameters('deployContainerApps'), parameters('deployLightRAG')), reference(resourceId('Microsoft.App/containerApps', parameters('containerAppName')), '2025-07-01', 'full').identity.principalId, '')]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'ai-services')]",
+        "[resourceId('Microsoft.Resources/deployments', 'search')]"
+      ]
+    }
+  ],
+  "outputs": {
+    "storageAccountName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.storageAccountName.value]"
+    },
+    "storageAccountId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.storageAccountId.value]"
+    },
+    "blobEndpoint": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.blobEndpoint.value]"
+    },
+    "searchEndpoint": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'search'), '2025-04-01').outputs.searchEndpoint.value]"
+    },
+    "searchServiceName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'search'), '2025-04-01').outputs.searchServiceName.value]"
+    },
+    "searchServiceId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'search'), '2025-04-01').outputs.searchServiceId.value]"
+    },
+    "aiServicesEndpoint": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'ai-services'), '2025-04-01').outputs.aiServicesEndpoint.value]"
+    },
+    "aiServicesName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'ai-services'), '2025-04-01').outputs.aiServicesName.value]"
+    },
+    "aiServicesId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'ai-services'), '2025-04-01').outputs.aiServicesId.value]"
+    },
+    "cosmosEndpoint": {
+      "type": "string",
+      "value": "[if(variables('needsCosmosDB'), reference(resourceId('Microsoft.Resources/deployments', 'cosmos'), '2025-04-01').outputs.cosmosEndpoint.value, '')]"
+    },
+    "cosmosAccountName": {
+      "type": "string",
+      "value": "[if(variables('needsCosmosDB'), reference(resourceId('Microsoft.Resources/deployments', 'cosmos'), '2025-04-01').outputs.cosmosAccountName.value, '')]"
+    },
+    "containerEnvironmentName": {
+      "type": "string",
+      "value": "[if(variables('needsContainerApps'), reference(resourceId('Microsoft.Resources/deployments', 'container-apps'), '2025-04-01').outputs.environmentName.value, '')]"
+    },
+    "containerAppEndpoint": {
+      "type": "string",
+      "value": "[if(variables('needsLightRAG'), reference(resourceId('Microsoft.Resources/deployments', 'container-apps'), '2025-04-01').outputs.containerAppEndpoint.value, '')]"
+    },
+    "containerAppName": {
+      "type": "string",
+      "value": "[if(variables('needsLightRAG'), reference(resourceId('Microsoft.Resources/deployments', 'container-apps'), '2025-04-01').outputs.containerAppName.value, '')]"
+    },
+    "graphWorkerAppName": {
+      "type": "string",
+      "value": "[if(variables('needsGraphRAG'), variables('graphWorkerAppName'), '')]"
+    }
+  }
+}

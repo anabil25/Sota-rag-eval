@@ -1,0 +1,8 @@
+<div class="main-header">
+  <h1 id="page-title">{{ page_title }}</h1>
+  <p id="page-subtitle" class="subtitle{% if not page_subtitle %} hidden{% endif %}">{{ page_subtitle }}</p>
+</div>
+
+<div id="main">
+  {% include step_template %}
+</div>

@@ -1,0 +1,34 @@
+---
+policy_id: "102-1"
+title: "102-1 Purposes of Interview"
+parent: "102 Interviews"
+source_url: "C:\Users\nabilahmed\Documents\Code\alaska policy eval\policies\102\102-1_purposes_of_interview.md"
+last_ingested: "2026-03-31"
+cross_references:
+  - "{'id': '102', 'keywords': 'interview requirements, interview types, interview waiver'}"
+  - "{'id': '102-2', 'keywords': 'application screening, expedited service, verification checklist'}"
+---
+
+Administrative Procedures Manual
+
+[Click here to see this page in full context](#)
+
+102-1          PURPOSES OF INTERVIEW
+
+The interview is conducted to:
+
+1. Explain the applicant's rights and responsibilities;
+2. Complete the application and all related forms;
+3. Assist the applicant in understanding the eligibility requirements;
+4. Assist the applicant in identifying and obtaining verification required by the programs;
+5. Answer the applicant's questions about the Division and its programs;
+6. Explore the facts of the household's situation to:
+
+- Identify and resolve any questionable information;
+- Identify all DPADivision of Public Assistance programs for which the household might qualify; and
+- Refer the applicant to other public and private agencies that can assist him or her in meeting needs not met by DPADivision of Public Assistance programs.
+
+|  |  |  |
+| --- | --- | --- |
+| [Previous Section](102_interviews.md) |  | [Next Section](102-2_screening.md) |
+|  |  |  |

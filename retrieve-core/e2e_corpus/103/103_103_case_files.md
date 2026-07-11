@@ -1,0 +1,38 @@
+---
+policy_id: "103"
+title: "103 Case Files"
+parent: "Administrative Procedures Manual"
+source_url: "C:\Users\nabilahmed\Documents\Code\alaska policy eval\policies\103\103_case_files.md"
+last_ingested: "2026-03-26"
+cross_references:
+  - "{'id': '102-6', 'keywords': 'interviews in remote areas'}"
+  - "{'id': '103-1', 'keywords': 'electronic documents, document scanning, ILINX'}"
+---
+
+Administrative Procedures Manual
+
+[Click here to see this page in full context](#)
+
+103            CASE
+FILES
+
+Once an application has been received in a district
+or regional office, a case file must be constructed to contain that application
+and all other related documents.
+
+The case file is the permanent record which contains
+the application, all materials supporting the application and the eligibility
+decision, all documentation and verification supporting each eligibility
+factor and change in case status, and the documentation supporting the
+actions taken while case managing a family to become self-supporting.
+
+The case file and each item entered into it must
+be clear and complete enough so that any person who views the file along
+with the case on EISEligibility Information System
+will be able to easily reconstruct what action occurred, why it occurred,
+who took the action, and when it was taken.
+
+|  |  |  |
+| --- | --- | --- |
+| [Previous Section](../102/102-6_interviews_in_remote_areas.md) |  | [Next Section](103-1_electronic_document_management.md) |
+|  |  |  |

@@ -1,0 +1,36 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"environmentName": {
+			"value": "${AZURE_ENV_NAME}"
+		},
+		"location": {
+			"value": "${AZURE_LOCATION}"
+		},
+		"resourceGroupName": {
+			"value": "rg-${AZURE_ENV_NAME}"
+		},
+		"principalId": {
+			"value": "${AZURE_PRINCIPAL_ID}"
+		},
+		"chatModelName": {
+			"value": "${AZURE_OPENAI_CHAT_DEPLOYMENT=gpt-4.1}"
+		},
+		"chatModelCapacity": {
+			"value": "${AZURE_OPENAI_CHAT_CAPACITY=10}"
+		},
+		"embeddingModelName": {
+			"value": "${AZURE_OPENAI_EMBEDDING_DEPLOYMENT=text-embedding-3-large}"
+		},
+		"embeddingModelCapacity": {
+			"value": "${AZURE_OPENAI_EMBEDDING_CAPACITY=100}"
+		},
+		"searchSku": {
+			"value": "${AZURE_SEARCH_SKU=basic}"
+		},
+		"storagePublicNetworkAccess": {
+			"value": "${AZURE_STORAGE_PUBLIC_NETWORK_ACCESS=Enabled}"
+		}
+	}
+}

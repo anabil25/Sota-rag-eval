@@ -1,0 +1,21 @@
+---
+policy_id: "103-5"
+title: "103-5 Reserved"
+parent: "103 Case Files"
+source_url: "C:\Users\nabilahmed\Documents\Code\alaska policy eval\Policies\Administrative Procedures Manual\103\103-5_reserved.md"
+last_ingested: "2026-05-09"
+cross_references:
+  - "103-4"
+  - "103-6"
+---
+
+Administrative Procedures Manual
+
+[Click here to see this page in full context](#)
+
+103-5          RESERVED
+
+|  |  |  |
+| --- | --- | --- |
+| [Previous Section](103-4_processing_returned_mail.md) |  | [Next Section](103-6_retention_of_case_records.md) |
+|  |  | [2008-01 (06/08)](../transmittals/transmittal_2008-01.md) |

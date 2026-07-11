@@ -1,0 +1,63 @@
+<div class="card" x-data="{resource_group: '{{ resource_group }}', location: '{{ location }}'}">
+  <div class="card-header">
+    <div class="card-title">Provision & Index Control</div>
+    <span class="badge badge-blue">Step 4</span>
+  </div>
+
+  <div class="form-group">
+    <label for="resource_group">Resource Group</label>
+    <input id="resource_group" type="text" x-model="resource_group" placeholder="e.g. rg-retrieve-dev" />
+  </div>
+
+  <div class="form-group">
+    <label for="location">Location</label>
+    <input id="location" type="text" x-model="location" placeholder="eastus2" />
+  </div>
+
+  <div class="flex gap-3 mt-3">
+    <button class="btn btn-primary"
+            :disabled="!resource_group"
+            @click="startUiJob('provision_index', {resource_group, location}, 'prov-log', 'prov-status')">Start Provision & Indexing</button>
+    <button class="btn btn-default"
+            :disabled="!resource_group"
+            @click="startUiJob('index', {resource_group, location}, 'prov-log', 'prov-status')">Re-run Indexing</button>
+    <button class="btn btn-danger"
+            :disabled="!resource_group"
+            @click="if (confirm('Tear down all provisioned architectures?')) startUiJob('teardown', {keep: ''}, 'prov-log', 'prov-status')">Teardown All</button>
+  </div>
+
+  <div class="log-panel">
+    <div class="log-panel-header">
+      <div class="flex items-center gap-2"><span id="prov-status" class="status-dot idle"></span>Provision & Index Logs</div>
+      <span class="text-muted">SSE</span>
+    </div>
+    <div id="prov-log" class="log-panel-body"></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title mb-2">Architecture Status</div>
+  <table class="gh-table">
+    <thead><tr><th>Name</th><th>Status</th><th>Index</th></tr></thead>
+    <tbody>
+      {% for a in architectures %}
+      <tr>
+        <td>{{ a.name }}</td>
+        <td>
+          {% if a.status == 'active' or a.status == 'provisioned' %}
+            <span class="badge badge-green">{{ a.status }}</span>
+          {% else %}
+            <span class="badge badge-yellow">{{ a.status }}</span>
+          {% endif %}
+        </td>
+        <td>{{ a.config.get('index_name', '-') if a.config else '-' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="step-footer">
+  <a class="btn btn-default" href="/step/configure" hx-get="/step/configure" hx-target="#content-shell" hx-swap="innerHTML transition:true" hx-push-url="true">Back</a>
+  <a class="btn btn-primary" href="/step/compare" hx-get="/step/compare" hx-target="#content-shell" hx-swap="innerHTML transition:true" hx-push-url="true">Next: Compare</a>
+</div>

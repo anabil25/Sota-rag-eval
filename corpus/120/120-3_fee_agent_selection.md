@@ -1,0 +1,70 @@
+---
+policy_id: "120-3"
+title: "120-3 Fee Agent Selection"
+parent: "120 Fee Agents"
+source_url: "C:\Users\nabilahmed\Documents\Code\alaska policy eval\Policies\Administrative Procedures Manual\120\120-3_fee_agent_selection.md"
+last_ingested: "2026-05-09"
+cross_references:
+  - "120-2"
+  - "120-4"
+---
+
+Administrative Procedures Manual
+
+[Click here to see this page in full context](#)
+
+120-3          FEE AGENT SELECTION
+
+When individuals call to express interest in working with DPADivision of Public Assistance as a fee agent, certain guidelines must be followed to ensure the necessary paperwork and training are completed. The list below outlines the steps to follow when selecting fee agents.
+
+120-3 A.      APPLICATION PROCESS
+
+1. Have the applicant complete the Fee Agent Application (FA 50Fee Agent Application) form. The application is available on the DPAweb under [eForms](http://dpaweb.hss.state.ak.us/node/37).
+
+1. Review and screen the application.
+
+- Refer to prior fee agent listing or records to determine if the fee agent has a previous working history with DPADivision of Public Assistance.
+
+1. Conduct an interview with the fee agent.
+
+[DOST](#)Division Operations Support Team will contact either the references provided by the fee agent on the application form or other references available in the community. [DOST](#)Division Operations Support Team staff will also conduct additional check using interfaces available to DPADivision of Public Assistance such as EISEligibility Information System to disqualify individuals from becoming a fee agent if they have been convicted of fraud in a court hearing, judged to have committed fraud in an administrative disqualification hearing, or signed a waiver of the right to a disqualification hearing.
+
+1. Conduct a reference check.
+
+[DOST](#)Division Operations Support Team staff may develop their own interview questions to determine if the potential applicant will be successful as a fee agent. Some questions to ask in making a decision include asking about the following:
+
+- Previous experience as a fee agent and whether they were successful in the role or not
+- Experience in interviewing people or assisting others in completing applications
+- Ability to read and understand instructions and follow directions
+- Reasons why they would make a good fee agent
+- Availability to work
+- Reason for applying or wanting to be a fee agent
+
+120-3 B.      NEW SELECTION (HIRE) PROCESS
+
+An individual or agency that is interested in being or having Fee Agent representation must first express interest to DPADivision of Public Assistance. Once interest is expressed, [DOST](#)Division Operations Support Team sends a Fee Agent Application (FA 50Fee Agent Application) to the individual or individual acting on behalf of the organization. [DOST](#)Division Operations Support Team conducts an interview with the interested individual and completes the reference checks.
+
+After a candidate is selected, DOSTDivision Operations Support Team sends a Fee Agent Provider Agreement (FA 33Fee Agent Provider Agreement), Fee Agent and HIPAAHealth Insurance Portability and Accountability Act information, and other forms and materials to the individual. The FA 33Fee Agent Provider Agreement outlines the fee agent's services to be performed, their role and expectation as a fee agent, confidentiality and conflict of interest rules, payment level for work conducted, length of the contract, and termination rules.
+
+If the individual has been selected as a fee agent for DPADivision of Public Assistance:
+
+1. DOSTDivision Operations Support Team sends the fee agent the following forms and materials:
+
+- Fee Agent letter explaining that they must complete the Fee Agent Provider Agreement (FA 33Fee Agent Provider Agreement) and training (Fee Agent and HIPAAHealth Insurance Portability and Accountability Act Training);
+- Fee Agent Provider Agreement (FA 33Fee Agent Provider Agreement) form to complete and sign; and
+- Substitute Form W-9 and Electronic Payment Agreement Form.
+
+Note:
+
+The Substitute Form W-9 is required for all individuals or organizations that will receive compensation as a fee agent from DPADivision of Public Assistance. If the individual is working for an agency in a fee agent capacity, the organization will be paid and the Substitute Form W-9 must be completed for the agency by the agency's representative.
+
+1. The individual completes the Fee Agent Training and HIPAAHealth Insurance Portability and Accountability Act Training and returns a signed Fee Agent Provider Agreement (FA 33Fee Agent Provider Agreement) to DOST.Division Operations Support Team
+
+1. DOST signs the agreement upon the individual's complete of the trainings, keeps the original agreement, and sends a copy of the agreement to the new fee agent.
+
+1. DOST updates the active Fee Agent Master List on SharePoint to include the new fee agent.
+
+|  |  |  |
+| --- | --- | --- |
+| [Previous Selection](120-2_statewide_fee_agent_coordination.md) |  | [Next Season](120-4_fee_agent_training.md) |
+|  |  | [2022-01 (04/22)](../transmittals/transmittal_2022-01.md) |

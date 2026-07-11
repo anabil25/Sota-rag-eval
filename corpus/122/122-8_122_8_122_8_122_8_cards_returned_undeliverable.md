@@ -1,0 +1,30 @@
+---
+policy_id: "122-8"
+title: "122 8 122 8 122 8 Cards Returned Undeliverable"
+parent: ""
+source_url: "C:\Users\nabilahmed\Documents\Code\retrieve\corpus\122\122-8_122_8_122_8_cards_returned_undeliverable.md"
+last_ingested: "2026-04-16"
+---
+
+Administrative Procedures Manual
+
+[Click here to see this page in full context](#)
+
+122-8          CARDS
+RETURNED UNDELIVERABLE
+
+Undeliverable Quest cards are returned to Systems
+Operations. When this occurs, the status of the card is changed and deactivated.
+Systems Operations staff will notify the Eligibility Technicians by email
+so that they can follow up with the client and reissue a new card to the
+correct address.
+
+Quest cards turned into local offices should be
+mailed to Systems Operations by the following business day. At the end
+of each month, Systems Operations staff provides the EBTElectronic Benefit Transfer
+Helpdesk with a report that lists all cards returned undeliverable.
+
+|  |  |  |
+| --- | --- | --- |
+| [Previous Section](122-7_out-of-state_addresses.md) |  | [Next Section](122-9_providing_quest_card_numbers.md) |
+|  |  | [2014-02 (10/14)](../transmittals/transmittal_2014-02.md) |

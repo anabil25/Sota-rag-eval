@@ -1,0 +1,36 @@
+---
+policy_id: "121-7"
+title: "121-7 Endorsements"
+parent: "121 Payments"
+source_url: "C:\Users\nabilahmed\Documents\Code\alaska policy eval\policies\121\121-7_endorsements.md"
+last_ingested: "2026-03-28"
+cross_references:
+  - "{'id': '121-6', 'keywords': 'unrestricted payments, conditional restrictions'}"
+  - "{'id': '121-8', 'keywords': 'advance payment, payment timing'}"
+---
+
+Administrative Procedures Manual
+
+[Click here to see this page in full context](#)
+
+121-7          ENDORSEMENTS
+
+Warrants must be endorsed by the person in whose
+favor the warrant is drawn or by the person whom he or she (or DPADivision of Public Assistance) has named as payee. When the endorsement
+is made by mark rather than by signature, the warrant should be prepared,
+and the mark made by, the person whose name appears on the face of the
+warrant, in the following manner:
+
+His
+
+JOHN   X   DOE
+
+Mark
+
+The endorsement must be witnessed by two persons
+who sign their full names and provide their addresses.
+
+|  |  |  |
+| --- | --- | --- |
+| [Previous Section](121-6_unrestricted_or_unconditional_payments.md) |  | [Next Section](121-8_advance_payment.md) |
+|  |  | [2009-01 (03/09)](../transmittals/transmittal_2009-01.md) |

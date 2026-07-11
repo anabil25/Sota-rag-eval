@@ -1,0 +1,82 @@
+---
+policy_id: "113-2"
+title: "113 2 113 2 113 2 Method Of Quality Assessment Review"
+parent: ""
+source_url: "C:\Users\nabilahmed\Documents\Code\retrieve\corpus\113\113-2_113_2_113_2_method_of_quality_assessment_review.md"
+last_ingested: "2026-04-16"
+---
+
+Administrative Procedures Manual
+
+[Click here to see this page in full context](#)
+
+113-2          METHOD
+OF QUALITY ASSESSMENT REVIEW
+
+DPADivision of Public Assistance's
+Eligibility Information System (EISEligibility Information System)
+is the information technologies platform supporting the delivery of Supplemental
+Nutrition Assistance Program (SNAPSupplemental Nutrition Assistance Program),
+Alaska Temporary Assistance, Adult Public Assistance (APAAdult Public Assistance),
+and Medicaid benefits. Every month EISEligibility Information System
+randomly selects open, closed, denied, and suspended SNAPSupplemental Nutrition Assistance Program
+for QAQuality Assessment review. All cases
+(correct or error) are assigned to the office the case is CARCCase Record Control'd to when the sample is pulled.
+All cases will remain with the original office for reporting purposes.
+
+For Child Care Assistance, sample cases from several
+programs are combined to create an all-encompassing "universe"
+for analysis. PASS I program cases are provided through EISEligibility Information System. PASS II & III are quarried
+from ICCISIntegrated Child Care Information System, while Office
+of Children's Services cases are recorded in the ORCAOnline Resources of the Children of Alaska
+system. Monthly, all cases from these three systems are combined and sampled
+through SPSSStatistical Package for the Social Sciences syntax by
+federally-approved methods.
+
+The QAQuality Assessment
+Supervisor assigns reviews to each reviewer. When the QAQuality Assessment
+Reviewer request a case file, the field, region, or local office must
+send the case file to QAQuality Assessment
+within three working days. QAQuality Assessment
+may need to keep the file for up to seven working days before returning
+it.
+
+The case record (EISEligibility Information System
+and case file) is the QAQuality Assessment
+Reviewer's primary source of information regarding the eligibility determination
+and case management activities. The QAQuality Assessment
+reviewer obtains information from recipient case files, EISEligibility Information System, ICCISIntegrated Child Care Information System,
+ORCAOnline Resources of the Children of Alaska, and other interagency
+databases. QAQuality Assessment Reviewers
+also make independent collateral contacts to determine if the information
+used in the eligibility process is accurate.
+
+Reviewers use the Alaska Temporary Assistance, Supplemental
+Nutrition Assistance Program (SNAPSupplemental Nutrition Assistance Program),
+Child Care, and Medicaid program policies to determine if the caseworker
+appropriately applied the policies to factors of eligibility, work activities,
+and benefit amounts or authorized payments of childcare. The reviewer
+will also use State statutes and Federal regulations to ensure the policy
+manuals accurately reflect current regulatory guidelines.
+
+The Federal Quality Control FNSFood and Nutrition Service
+Handbook 310 provides guidance on how to conduct the review, verify and
+document information, and determine errors for the Supplemental Nutrition
+Assistance Program (SNAPSupplemental Nutrition Assistance Program).
+Generally, the same standards apply to the Alaska Temporary Assistance,
+Adult Public Assistance, and Medicaid review processes.
+
+Alaska's Child Care Assistance Program (CCAPChild Care Assistance Program) is monitored by the Federal Child
+Care Bureau, which requires each state to submit yearly the Child Care
+Development Fund (CCDFChild Care Development Fund)
+report on the state's program. In addition to numerous policy, program,
+and market rate survey requirements, Alaska fulfills the quality assessment
+component through the QAQuality Assessment
+review process. Furthermore, CCAPChild Care Assistance Program
+is responsible for compliance with Alaska Administrative Code Title 7,
+AAC Chapter 41, and Alaska statute AS4725.001 through AS4725.095.
+
+|  |  |  |
+| --- | --- | --- |
+| [Previous Section](113-1_purpose_of_quality_assessment.md) |  | [Next Section](113-3_quality_assessment_feedback.md) |
+|  |  | [2017-02 (06/17)](../transmittals/transmittal_2017-02.md) |

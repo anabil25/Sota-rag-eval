@@ -1,0 +1,33 @@
+---
+policy_id: "122-7"
+title: "122-7 Out-of-State Addresses"
+parent: "122 Electronic Benefit Transfer (EBT)"
+source_url: "C:\Users\nabilahmed\Documents\Code\alaska policy eval\policies\122\122-7_out-of-state_addresses.md"
+last_ingested: "2026-03-28"
+cross_references:
+  - "{'id': '122-6', 'keywords': 'alternate payee, authorized user'}"
+  - "{'id': '122-8', 'keywords': 'undeliverable cards, returned mail'}"
+---
+
+Administrative Procedures Manual
+
+[Click here to see this page in full context](#)
+
+122-7          OUT-OF-STATE
+ADDRESSES
+
+There may be circumstances where a client will be
+out of state for a period of time as allowed by specific program policies.
+Quest cards will be mailed to the address in EISEligibility Information System.
+
+However, Eligibility Technicians need to remember
+that benefits cannot be issued to a case with an out-of-state address.
+Therefore, it is imperative that the address is changed back to an Alaska
+address once the card has been mailed by the next business day. Eligibility
+Technicians are required to make a CANOCase Notes
+entry when this situation occurs.
+
+|  |  |  |
+| --- | --- | --- |
+| [Previous Section](122-6_alternate_payee.md) |  | [Next Section](122-8_cards_returned_undeliverable.md) |
+|  |  | [2014-02 (10/14)](../transmittals/transmittal_2014-02.md) |

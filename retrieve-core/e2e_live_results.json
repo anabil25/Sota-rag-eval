@@ -1,0 +1,12 @@
+{
+  "steps": [
+    {
+      "step": "load_corpus",
+      "chunks": 0,
+      "status": "pass"
+    }
+  ],
+  "errors": [
+    "No chunks found"
+  ]
+}

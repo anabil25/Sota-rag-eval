@@ -1,0 +1,49 @@
+---
+policy_id: "112-3"
+title: "112 3 112 3 112 3 112 3 Types Of Investigations"
+parent: ""
+source_url: "C:\Users\nabilahmed\Documents\Code\retrieve\corpus\112\112-3_112_3_112_3_112_3_types_of_investigations.md"
+last_ingested: "2026-04-16"
+---
+
+Administrative Procedures Manual
+
+[Click here to see this page in full context](#)
+
+112-3          TYPES OF INVESTIGATIONS
+
+The Fraud Control Unit conducts three types of fraud investigations:
+
+- Early Fraud Detection (EFDEarly Fraud Detection) or applicant fraud, and
+- Post Certification Investigation (PCIPost Certification Investigation) or recipient fraud.
+- Categorically Ineligible Households
+
+Intentional misrepresentation of income or household composition by an applicant or recipient can result in a disqualification penalty. For applicants, this can occur prior to issuance of the benefit. Early Fraud Detection investigations clarify an applicant household's suspicious circumstances prior to issuing the benefit. Post Certification Investigation examines suspicious information or events that occur after the caseworker authorizes benefits to the recipient. Utilizing data mining techniques, Categorically Ineligible Household investigations identify recipients found to be ineligible for future benefits for which they were previously authorized to receive.
+
+112-3 A.      EARLY FRAUD DETECTION (EFDEarly Fraud Detection)
+
+Early Fraud Detection investigations focus on the information provided on an application or to the caseworker during the intake, certification, review, renewal, or add-on process that is:
+
+- Suspicious information obtained from the client or from collaterals that indicate the applicant or recipient provided false information;
+- Suspicious case elements that can result in ineligibility, such as possible unreported resources or income, or unreported household members; and
+- Considered high risk factors for fraud, such as a client with a conviction for providing false earned income information.
+
+112-3 B.      POST CERTIFICATION INVESTIGATIONS
+
+Post Certification Investigations occur after issuance of benefits and focus on allegations of SNAPSupplemental Nutrition Assistance Program, Alaska Temporary Assistance, Adult Public Assistance, and Medicaid recipient fraud. The investigations includes:
+
+1. Obtaining evidence to establish that fraud has or has not occurred;
+2. Determining the amount of fraudulently received overpayments and obtaining related repayment agreements from the client or the court.
+
+112-3 C.      CATEGORICALLY INELIGIBLE HOUSEHOLDS
+
+Categorically Ineligible Investigations identify through various data mining techniques, "categorical ineligible" individuals with ongoing program involvement specifically:
+
+1. Individuals who are incarcerated.
+2. Individuals classified as fleeing to avoid prosecution or confinement for a felony-level crime, or
+3. Individuals who are residing outside Alaska without an approved absence, such as obtaining medical treatment, are ineligible to receive public assistance benefits from the SNAPSupplemental Nutrition Assistance Program, Alaska Temporary Assistance, Medicaid, and Adult Public Assistance programs.
+
+|  |  |  |
+| --- | --- | --- |
+| [Previous Section](112-2_purpose_and_scope_of_the_fraud_control_unit.md) |  | [Next Section](112-4_referral_of_suspected_fraud_cases.md) |
+|  |  | [2014-02 (10/14)](../transmittals/transmittal_2014-02.md) |

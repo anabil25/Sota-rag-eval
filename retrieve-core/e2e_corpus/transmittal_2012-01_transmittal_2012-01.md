@@ -1,0 +1,132 @@
+---
+policy_id: "transmittal_2012-01"
+title: "Transmittal 2012-01"
+parent: "transmittal_2012"
+source_url: "C:\Users\nabilahmed\Documents\Code\alaska policy eval\policies\transmittals\transmittal_2012-01.md"
+last_ingested: "2026-03-26"
+cross_references:
+  - "{'id': '100-3', 'keywords': 'confidentiality, client records, disclosure rules'}"
+  - "{'id': '100-8', 'keywords': 'HIPAA, protected health information'}"
+  - "{'id': '101-1', 'keywords': 'key definitions, applicant types'}"
+  - "{'id': '101-8', 'keywords': 'registering household, family members'}"
+  - "{'id': '102-3', 'keywords': 'telephone interview, phone interview'}"
+  - "{'id': '103-1', 'keywords': 'electronic documents, document scanning'}"
+  - "{'id': '103-2', 'keywords': 'application registration, identifiable applications'}"
+  - "{'id': '103-4', 'keywords': 'returned mail, address update'}"
+  - "{'id': '103-7', 'keywords': 'case file transfer'}"
+  - "{'id': '104-5', 'keywords': 'alerts, alert management'}"
+  - "{'id': '108', 'keywords': 'send notice, due process'}"
+  - "{'id': '109', 'keywords': 'case file documentation, case notes'}"
+  - "{'id': '111-1', 'keywords': 'overpayment calculation, benefit determination'}"
+  - "{'id': '118', 'keywords': 'voter registration, forms distribution'}"
+---
+
+Administrative Procedures Manual
+
+[Click here to see this page in full context](#)
+
+STATE OF ALASKA
+
+Department of Health and Social Services
+
+Division of Public Assistance
+
+TRANSMITTAL NUMBER: 2012-01
+
+MANUAL: Administrative Procedures Manual
+
+DATE: May 1, 2012
+
+Several sections of the Administrative Procedures Manual have been revised in response to requests from staff. Highlights of the revisions are describes below.
+
+If you have any questions, please contact Field Services at [dpafield@alaska.gov](mailto:dpafield@alaska.gov) or Policy and Program Development Team at [dpapolicy@alaska.gov](mailto:dpapolicy@alaska.gov).
+
+OVERVIEW OF CHANGES
+
+[MS 100-3H](../100/100-3_confidentiality.md#100-3_H._REQUESTS_FOR_INFORMATION_FROM_OTHER_AGENCIES)      REQUEST FOR INFORMATION FROM OTHER AGENCIES
+
+- Includes the Social Security Administration, SouthCentral Foundation and Kenaitze Indian Tribe as agencies where written consent from the client is not required to release Public Assistance information.
+
+[MS 100-8](../100/100-8_health_insurance_portability_and_accountability_act_(hipaa).md)      HEALTH INSURANCE PORTABILITY AND ACCOUNTABILITY ACT
+
+- Includes instructions for assisting an individual in filing a HIPAA complaint.
+- Provides information on what actions to take of there has been a breach of confidentiality.
+- Adds the names of the HIPAA Privacy Officers for DPA and DHSS.
+
+[MS 101-1](../101/101-1_definitions.md)      THE APPLICATION PROCESS - DEFINITIONS
+
+- Clarifies that the benefit start date for requests for Public Assistance (also referred to as request for service) is the date DPA receives a completed application or signed request for service form.
+
+MS 101-5D      THE APPLICATION PROCESS - WHERE TO SUBMIT AN APPLICATION
+
+- Includes applicants represented by Office of Public Advocacy as one of the exceptions to the rule which states, "applications must be made to the DPA office serving the area in which the applicant resides."
+
+[MS 101-8](../101/101-8_registering_household_members_listed_on_the_application.md)      REGISTERING HOUSEHOLD MEMBERS
+
+- Provides instruction to include all individuals listed on the application as household members when registering a case.
+
+[MS 102-3](../102/102-3_telephone_interviews.md)      TELEPHONE INTERVIEWS
+
+- Adds instruction to verify the identity of the person over the phone when conducting telephone interviews.
+
+[MS 103-1](../103/103-1_electronic_document_management.md)      THE CASE FILE FOLDER
+
+- Clarifies the action caseworkers must take when a document is illegal to copy.
+- Changes the title "Voluming Case Files" to "Creating Case File Volumes" in MS 103-1F. This change is also reflected in the procedure.
+
+[MS 103-2A](../103/103-2_identifiable_applications.md#103-2_A._REGISTERING_AND_FILING_REQUEST_FOR_SERVICE_APPLICATIONS)      REQUEST FOR SERVICE
+
+- Adds an example to clarify when a GEN 72 must be used as a request for service. Adds "RP - Adult Public Assistance" to the list of codes for request for service applications.
+
+[MS 103-4](../103/103-4_processing_returned_mail.md)      PROCESSING RETURNED MAIL
+
+- Aligns the instruction with Food Stamp MS 604-4C in processing returned mail for households in status reporting or semi-annual reporting.
+- Changes title of subsection 1 from FS-Only Case to FS (Semi-Annual Reporting).
+- Removes FS program from instructions for returned mail for TA, APA, and ME cases to clarify the process.
+- Creates a new section to include instructions on handling returned mail for FS status reporting households.
+- Adds a note on how to handle the FS case on an attached TA, APA, or ME case.
+
+[MS 103-7](../103/103-7_case_file_transfer.md)      CASE TRANSFER
+
+- Adds a note to find more information in the Statewide Process Management Guide along with a link for additional information about transferring active files.
+- Add a link to the list of control clerks for each office.
+
+[MS 104-5](../104/104-5_alerts.md)      ALERTS
+
+- Adds two new alerts generated by the CCPO office
+- Adds instructions to not delete or leave C-alerts (case management alerts) in the ET Alert screen.
+
+MS 105-9      HOME VISITS
+
+- Deletes procedure for home visits. Home visits are no longer performed by field offices or eligibility staff as a method of verification.
+
+[MS 108](../108/108_notices.md)      NOTICES
+
+- Includes information needed in the notice to meet due process requirement.
+- Adds information in MS 108-2B explaining information that must be included in the contents of a notice to satisfy due process requirements.
+
+[MS 109](../109/109_case_note_documentation.md)      DOCUMENTATION
+
+- Includes new instructions and changes in the documentation process.
+- Adds the revised CANO Desk Guide, now referred to as CANO Format, to provide staff clearer and better instructions on information that needs to be documented in various subject areas within CANO such as resources, income, shelter deductions, collateral contacts and action.
+- Updates the link to CANO Format with Prompts.
+- Provides additional listing of acceptable CANO for special circumstances and CANO titles.
+
+[MS 111-1](../111/111-1_determining_the_amount_of_a_program_loss.md)      DETERMINING THE AMOUNT OF PROGRAM LOSS
+
+- Adds a note to clarify the time limit for processing TA and APA claims.
+
+[MS 118](../118/118_voter_registration.md)      VOTER REGISTRATION
+
+- Includes additional instruction for handling voter registration in district offices.
+
+ADDENDA
+
+- Several addenda to MS 109 were renumbered and given new titles.
+  - Addendum A: CANO Format
+  - Addendum B: Report of Change CANO Template, Examples and Report of Change Guide
+  - Addendum C: Citizenship, Identity and Kinship/Relationship CANO
+  - Addendum D: Fair Hearing Request CANO
+  - Addendum E: Prehearing Conference CANO
+  - Addendum F: Fraud Referral and Findings CANO
+  - Addendum G: DPA Acronyms

@@ -1,0 +1,172 @@
+---
+policy_id: "106-4"
+title: "106-4 SSA State Online Query (SOLQ)"
+parent: "106 Interface Matches"
+source_url: "C:\Users\nabilahmed\Documents\Code\alaska policy eval\policies\106\106-4_ssa_state_online_query_(solq).md"
+last_ingested: "2026-03-28"
+cross_references:
+  - "{'id': '100-3', 'keywords': 'confidentiality, client records, disclosure rules'}"
+  - "{'id': '103', 'keywords': 'case files, documentation'}"
+  - "{'id': '103-1', 'keywords': 'electronic documents, document scanning, ILINX'}"
+  - "{'id': '106-3', 'keywords': 'BEERS, Social Security earnings, pension'}"
+  - "{'id': '106-5', 'keywords': 'IEVS, eligibility verification, application'}"
+  - "{'id': '109', 'keywords': 'case file documentation, ILINX, case notes'}"
+---
+
+Administrative Procedures Manual
+
+[Click here to see this page in full context](#)
+
+106-4          SSASocial Security Administration STATE ONLINE QUERY (SOLQState Online Query)
+
+106-4 A.      GENERAL INFORMATION
+
+The State Online Query (SOLQState Online Query) interface allows authorized EISEligibility Information System users to inquire on client information maintained by the Social Security Administration (SSASocial Security Administration). The SOLQState Online Query interface provides direct online access to individual Social Security records, which the interface processes immediately and sends back an online response to the requestor.
+
+The Department of Health ([DOH](#)Department of Health) under the terms and conditions of a security agreement with the Social Security Administration can use and benefit from the SOLQState Online Query as follows.
+
+1. Approved Programs
+
+Access to social security records through SOLQState Online Query is only allowed for determining eligibility and benefits for the following public assistance programs.
+
+- Temporary Assistance
+- Supplemental Nutrition Assistance Program
+- Adult Public Assistance
+- Medicaid
+
+Note:
+
+For all other public assistance programs, staff must continue to use the State Verification and Exchange System (SVESState Verification Exchange System) to request information from the Social Security Administration. Information available through SVESState Verification Exchange System is similar to that provided through SOLQState Online Query, but the response time is two to four working days. For more information on SVESState Verification Exchange System, refer to EISEligibility Information System Procedures [1999-7 Prisoner Match Information](http://dpaweb.hss.state.ak.us/manuals/eis/sves1999-7.pdf), [1997-7 New SVES Screen (Quarters of Work)](http://dpaweb.hss.state.ak.us/manuals/eis/sves1997-7.pdf), and [1996-1 SVES Information](http://dpaweb.hss.state.ak.us/manuals/eis/sves1996-1.pdf).
+
+2. General Social Security Information
+
+The SOLQState Online Query interface will provide the following information from Social Security records.
+
+- Social Security Number
+- Date of birth
+- Sex
+- Name
+- Address
+- Payment status and effective date of change
+- Date of death
+- Current payment amount and date of change
+- Disability on-set date
+- Direct deposit indicator
+
+3. RSDI Information (Title II of the Social Security Act)
+
+The SOLQState Online Query also includes information for Social Security Retirement, Survivors, and Disability Insurance (RSDI) cases.
+
+- Social Security claim number
+- Termination date
+- Entitlement date
+- Dual entitlement number
+- Black lung and railroad retirement status
+- Medicare status including premium amount and buy-in start and stop dates
+
+4. SSISupplemental Security Income Information (Title XVI of the Social Security Act)
+
+The SOLQState Online Query contains additional information on Supplemental Security Income (SSISupplemental Security Income) cases.
+
+- Marital status
+- Race
+- Phone number
+- Recipient type (aged or disabled)
+- Amount of overpayment or underpayment
+- Medicaid eligibility status
+- SSISupplemental Security Income appeal date
+- Appeal decision code
+- Denial reason
+- Denial date
+- Appeal status - level of appeal and latest action
+- SSISupplemental Security Income payment history
+- Income information including
+
+1. Current wages
+2. Self-employment
+3. Deemed Income
+4. Unearned Income
+
+- Payee name and address
+- Living arrangement
+- Citizenship information (including entry date and country of origin)
+
+Note:
+
+The SOLQState Online Query does not include quarters of work or prisoner match information. This information must be requested through the SVESState Verification Exchange System interface.
+
+5. Benefits of the SOLQState Online Query Access
+
+The SOLQState Online Query interface provides direct online access to Social Security records with many benefits.
+
+- Provides rapid response to obtain information needed to determine eligibility.
+- Reduces the need for using the SVESState Verification Exchange System inquiry system.
+- Reduces the need to refer applicants to the Social Security field offices to obtain benefit verification.
+- Allows online inquiry through the entry of a SSNSocial Security Number.
+- Prevents duplication of work.
+- Resolves SSNSocial Security Number discrepancies.
+
+106-4 B.      SYSTEM ACCESS CONTROL
+
+Access to the SOLQState Online Query is controlled by a state employee's [EIS User Profile](#106-4_H._1._EIS_User_Profile). Authorized access to the SOLQState Online Query requires an employee to have the appropriate EISEligibility Information System User Profile and have completed the required web-based "SOLQ Security" training course.
+
+To determine if an employee's EISEligibility Information System User Profile includes the SOLQState Online Query interface go to the EISEligibility Information System Inquiry Menu (INME). If the INME displays "14 State Online Query" the SOLQState Online Query interface is available on the employee's EISEligibility Information System User Profile.
+
+The Division of Public Assistance Security Manual and the [EIS Procedure 2008-1 State Online Query (SOLQ) User Guide](http://dpaweb.hss.state.ak.us/manuals/eis/solq2008-1.pdf) provides information on the use of the SOLQState Online Query and the safeguarding of client information.
+
+The terms and conditions of the SOLQState Online Query security agreement limit access and inquiries to information related to the administration of an approved program. Administration includes eligibility, supervisory and case reviews, quality assessment, and policy analysis, and for purposes of system maintenance testing.
+
+The agreement includes [DOH](#)Department of Health employees in the Division of Public Assistance and employees in the Office of Children's Services responsible for determining Medicaid eligibility for children in custody.
+
+106-4 C.      CONFIDENTIALITY AND DISCLOSURE OF INFORMATION
+
+Refer to Administrative Procedures Manual [section 100-3 Confidentiality](../100/100-3_confidentiality.md) for further guidance on confidentiality and protection of client records.
+
+106-4 D.      PENALTY WARNING
+
+All SOLQState Online Query inquiries made by users are monitored. Employees are prohibited from accessing the SOLQState Online Query and browsing Social Security records for information not related to a legitimate client case. Additional use restrictions apply when the client's Social Security information pertains to public assistance cases that include a relative or another employee. These cases must be referred to a supervisor.
+
+An intentional SOLQState Online Query inquiry that is not required to perform activities directly related to the determination of eligibility for public assistance programs identified in Administrative Procedures Manual [section 106-4 A 1](#106-4_A._1._Approved_Programs). Approved Programs is a violation of both state and federal law and may result in felony prosecution.
+
+106-4 E.      EMPLOYEE RESPONSIBILITIES
+
+Before accessing the SOLQState Online Query interface, employees MUST complete the web-based "SOLQ Security" training course and pass the final exam to become an [Authorized SOLQ User](#106-4_H._2._Authorized_SOLQ_User).
+
+A new employee with the SOLQState Online Query interface access will be referred to the Web Based SOLQState Online Query Security Training course by email. The employee must complete and pass the web-based "SOLQ Security" training course within 30 days of receiving the email or prior to accessing SOLQState Online Query, whichever comes first.
+
+Under no circumstances is an employee to access the SOLQState Online Query prior to having completed the training and passed the final exam. Once the training is completed, the employee must provide his/her supervisor with a copy of the completed training certificate.
+
+Documentation in EISEligibility Information System Case Note (CANOCase Notes) screen is necessary to substantiate information obtained from the SOLQState Online Query. Results of the inquiry must be documented, including the date it was accessed.
+
+Refer to the Administrative Procedures Manual [sections 103 Casefiles](../103/103_case_files.md), [103-1 The Case File Folder](../103/103-1_electronic_document_management.md), and [109 CANO Documentation](../109/109_case_note_documentation.md) for more information on documentation.
+
+106-4 F.      SUPERVISOR RESPONSIBILITIES
+
+Supervisors must ensure that employees with SOLQState Online Query access complete the web-based "SOLQ Security" training course within the following guidelines. Supervisors must file complete training certifications in the employee's file.
+
+1. Current Employees
+
+SOLQState Online Query will be implemented in January 2008. All employees with an EISEligibility Information System User Profile with SOLQState Online Query access are required to complete and pass the web-based "SOLQ Security" training course within 90 days of the implementation date or prior to accessing SOLQState Online Query, whichever comes first.
+
+2. New Employees
+
+A new employee with the SOLQState Online Query interface access will be referred to the Web Based SOLQState Online Query Security Training course by email. The employee must complete and pass the web-based "SOLQ" training course within 30 days of receiving the email or prior to accessing SOLQState Online Query, whichever comes first.
+
+106-4 G.      EISEligibility Information System PROCEDURE FOR PERFORMING SOLQState Online Query INQUIRY
+
+Refer to [EIS Procedures 2008-1 State Online Query (SOLQ) User Guide](http://dpaweb.hss.state.ak.us/manuals/eis/solq2008-1.pdf) for detailed information on how to perform an SOLQState Online Query inquiry.
+
+106-4 H.      DEFINITIONS
+
+1. EISEligibility Information System User Profile
+
+The Eligibility Information System (EISEligibility Information System) security is profile driven. When an individual is given an EISEligibility Information System User ID and Password, a profile is assigned. The profile defines the menus, screens, and update capability the EISEligibility Information System user is authorized to access. Not all EISEligibility Information System User Profiles have SOLQState Online Query access. Based on the individual's job functions, the Systems Operations Security Team and the employee's supervisor will determine whether a profile with SOLQState Online Query access is appropriate.
+
+2. Authorized SOLQState Online Query User
+
+An Authorized SOLQState Online Query User is an employee with an EISEligibility Information System User Profile that includes access to SOLQState Online Query and has completed and passed the web-based "SOLQ Security" training course and provided his/her supervisor with the course completion certification.
+
+|  |  |  |
+| --- | --- | --- |
+| [Previous Section](106-3_ssa_beneficiary_earnings_exchange_record_system_(beers).md) |  | [Next Section](106-5_instant_eligibility_verification_system_(ievs).md) |
+|  |  | [2022-03 (12/22)](../transmittals/transmittal_2022-03.md) |

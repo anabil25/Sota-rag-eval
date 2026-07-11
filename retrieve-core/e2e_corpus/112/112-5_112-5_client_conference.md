@@ -1,0 +1,45 @@
+---
+policy_id: "112-5"
+title: "112-5 Client Conference"
+parent: "112 Fraud Control"
+source_url: "C:\Users\nabilahmed\Documents\Code\alaska policy eval\policies\112\112-5_client_conference.md"
+last_ingested: "2026-03-26"
+cross_references:
+  - "{'id': '112-4', 'keywords': 'fraud referral, allegation report, investigation request'}"
+  - "{'id': '112-6', 'keywords': 'disqualification waiver, fraud penalty, hearing rights'}"
+---
+
+Administrative Procedures Manual
+
+[Click here to see this page in full context](#)
+
+112-5          CLIENT
+CONFERENCE
+
+The fraud investigator may conduct a conference
+with the client upon completion of the post certification investigation
+that results in a finding of fraud. Face-to-face conferences are held
+with clients when possible. If it is impractical to hold the conference
+in person, the investigator will teleconference with the client. Prior
+to a teleconference, the investigator sends to the client by certified
+mail and regular mail a Waiver of Administrative Disqualification Hearing
+notice explaining the evidence obtained during the investigation.
+
+The purpose of a conference is to discuss the intentional
+program violation with the client and present the state's evidence obtained
+in the investigation. The client is offered the opportunity to sign the
+Waiver of Administrative Disqualification Hearing, accept a period of
+disqualification, and establish a method for repaying any overpayment
+resulting from the program violation.
+
+If a client elects not to sign the Waiver of Administrative
+Disqualification, a staff member in the Fraud Control Unit schedules a
+hearing. If the client requests a hearing during a conference or in writing,
+a staff member in the Fraud Control Unit schedules a date and sends the
+client the Advance Notice of Your Administrative Disqualification Hearing
+(TA 36, FSP 36).
+
+|  |  |  |
+| --- | --- | --- |
+| [Previous Section](112-4_referral_of_suspected_fraud_cases.md) |  | [Next Section](112-6_waiver_of_administrative_disqualification_hearing.md) |
+|  |  |  |

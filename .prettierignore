@@ -1,0 +1,34 @@
+# Package Managers
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+bun.lock
+bun.lockb
+
+# Miscellaneous
+/static/
+
+# Migrated backend, data, and reference material
+/retrieve-core/
+/corpus/
+/skills/
+/docs/vision/
+/evals/
+/solution-accelerator/
+/node_modules/
+/build/
+/.svelte-kit/
+/test-results/
+/coverage/
+/logs/
+/out/
+/.playwright-mcp/
+/.azure/
+/.graphrag/
+/.vscode/
+/docs/audits/
+/docs/plans/
+# Temporary Plan 2 exception: split and format this legacy monolithic component.
+/src/routes/flow/**/+page.svelte
+*.csv
+*.db

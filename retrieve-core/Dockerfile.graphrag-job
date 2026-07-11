@@ -1,0 +1,16 @@
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+RUN groupadd --system retrieve && useradd --system --gid retrieve --create-home retrieve
+
+WORKDIR /app
+
+COPY --chown=retrieve:retrieve pyproject.toml ./
+COPY --chown=retrieve:retrieve src ./src
+
+RUN pip install --no-cache-dir ".[graphrag]"
+
+USER retrieve
+CMD ["python", "-m", "retrieve.graphrag_worker.run_job"]
