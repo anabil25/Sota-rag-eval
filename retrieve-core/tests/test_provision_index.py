@@ -150,8 +150,8 @@ class TestGraphRAGWorkerSettings:
         assert schemas["community_full_content"].vector_size == 3_072
         assert schemas["text_unit_text"].index_name.endswith("-text-unit")
 
-        from types import SimpleNamespace
-
+    @patch("retrieve.graphrag_worker.app._set_status")
+    def test_workflow_callbacks_persist_progress(self, mock_set_status):
         from retrieve.graphrag_worker.app import RetrieveWorkflowCallbacks
 
         status = {
