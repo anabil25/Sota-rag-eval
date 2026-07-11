@@ -2,7 +2,7 @@
 
 > Which parts of Retrieve spin up which Azure services, and in what order.
 >
-> Design context: [Retrieve.md](Retrieve.md) | Skills reference: [skills/](skills/)
+> Design context: [Retrieve.md](Retrieve.md) | Skills reference: [../reference/skills/](../reference/skills/)
 
 ---
 
@@ -79,7 +79,7 @@ Cosmos DB for NoSQL now also has built-in capabilities that overlap with AI Sear
 
 **Implication:** Cosmos DB could serve as a **unified store** (replacing Blob + AI Search) for simpler architectures, but AI Search still offers more retrieval intelligence (reranking, agentic reasoning, skillsets, Knowledge Bases). For the Retrieve accelerator, Cosmos DB is primarily used as the **GraphRAG artifact store** and as a potential **alternative backend** for LightRAG (via MongoDB vCore).
 
-> **RETIRED: Cosmos DB for PostgreSQL** — if LightRAG needs PostgreSQL (pgvector + Apache AGE for graph), use **Azure Database for PostgreSQL Flexible Server** — a separate Azure service. See `skills/azure-cosmos-db.md`.
+> **RETIRED: Cosmos DB for PostgreSQL** — if LightRAG needs PostgreSQL (pgvector + Apache AGE for graph), use **Azure Database for PostgreSQL Flexible Server** — a separate Azure service. See `docs/reference/skills/azure-cosmos-db.md`.
 
 ---
 
@@ -99,11 +99,11 @@ Cosmos DB for NoSQL now also has built-in capabilities that overlap with AI Sear
 | **GraphRAG** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ Basic | ✓ Serverless | ✓ | — |
 | **LightRAG** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ Basic | — | — | ✓ Container Apps |
 
-> **Removed: "Agentic retrieval" (Function-based).** The Knowledge Bases API handles multi-hop agentic retrieval natively. Functions are only needed for GraphRAG query endpoints. See `skills/azure-functions.md`.
+> **Removed: "Agentic retrieval" (Function-based).** The Knowledge Bases API handles multi-hop agentic retrieval natively. Retrieve queries persisted GraphRAG artifacts from localhost; no Function endpoint is required. See `docs/reference/skills/azure-functions.md`.
 >
 > **Added: "Hybrid + LLM enrichment".** Uses ChatCompletionSkill at index time to extract cross-references, generate summaries, and classify topics. Adds an LLM deployment but no Functions. This is a mid-tier option between pure hybrid and full agentic/GraphRAG.
 >
-> **LightRAG uses Container Apps, not Functions.** LightRAG ships its own FastAPI server + React UI. Deploy the Docker image to Azure Container Apps instead of wrapping in a Function. See `skills/graphrag-lightrag.md`.
+> **LightRAG is local-first in the current topology.** Retrieve runs the pinned LightRAG SDK locally against Azure AI models and persists experiment state locally. A hosted LightRAG service is a future, separately approved topology. See `docs/reference/skills/graphrag-lightrag.md`.
 
 ### AI Foundry Model Deployments Per Architecture
 
@@ -233,13 +233,13 @@ Costs are rough estimates for a 300-document corpus and ~150 eval queries. Actua
 
 | Skill File | Covers |
 |---|---|
-| [azure-ai-search.md](skills/azure-ai-search.md) | Index creation, vector/hybrid config, query API, Python SDK |
-| [azure-ai-search-agentic.md](skills/azure-ai-search-agentic.md) | Knowledge Bases API, agentic retrieval, query planning |
-| [azure-ai-foundry.md](skills/azure-ai-foundry.md) | AI Services account, model deployments, Bicep, Python SDK |
-| [azure-indexer-pipeline.md](skills/azure-indexer-pipeline.md) | Indexers, skillsets, chunking, integrated vectorization |
-| [azure-blob-storage.md](skills/azure-blob-storage.md) | Storage account, blob upload, managed identity, data source |
-| [azure-cosmos-db.md](skills/azure-cosmos-db.md) | Cosmos DB for GraphRAG, containers, role assignments |
-| [azure-functions.md](skills/azure-functions.md) | Function App patterns, Flex Consumption, query endpoints |
-| [azure-bicep-iac.md](skills/azure-bicep-iac.md) | Deployment order, Bicep modules, role assignment patterns |
-| [embedding-models.md](skills/embedding-models.md) | Model comparison, deployment, vectorizer config |
-| [graphrag-lightrag.md](skills/graphrag-lightrag.md) | GraphRAG/LightRAG indexing, querying, Azure integration |
+| [azure-ai-search.md](../reference/skills/azure-ai-search.md) | Index creation, vector/hybrid config, query API, Python SDK |
+| [azure-ai-search-agentic.md](../reference/skills/azure-ai-search-agentic.md) | Knowledge Bases API, agentic retrieval, query planning |
+| [azure-ai-foundry.md](../reference/skills/azure-ai-foundry.md) | AI Services account, model deployments, Bicep, Python SDK |
+| [azure-indexer-pipeline.md](../reference/skills/azure-indexer-pipeline.md) | Indexers, skillsets, chunking, integrated vectorization |
+| [azure-blob-storage.md](../reference/skills/azure-blob-storage.md) | Storage account, blob upload, managed identity, data source |
+| [azure-cosmos-db.md](../reference/skills/azure-cosmos-db.md) | Historical Cosmos patterns and retirement context |
+| [azure-functions.md](../reference/skills/azure-functions.md) | Function patterns retained as reference, not current topology |
+| [azure-bicep-iac.md](../reference/skills/azure-bicep-iac.md) | Deployment order, Bicep modules, role assignment patterns |
+| [embedding-models.md](../reference/skills/embedding-models.md) | Model comparison, deployment, vectorizer config |
+| [graphrag-lightrag.md](../reference/skills/graphrag-lightrag.md) | GraphRAG/LightRAG indexing, querying, Azure integration |

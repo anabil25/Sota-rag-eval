@@ -2,17 +2,14 @@
 
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
-import pytest
+
 from retrieve.config import CopilotConfig, ProviderConfig
 from retrieve.copilot import (
-    get_client,
-    stop_client,
     _session_config,
+    get_client,
+    run_sync,
     send_and_wait,
     send_and_wait_session,
-    run_sync,
-    _client,
-    _started,
 )
 
 
@@ -68,6 +65,7 @@ class TestRunSync:
     def test_run_sync_basic(self):
         async def coro():
             return 42
+
         result = run_sync(coro())
         assert result == 42
 
@@ -75,6 +73,7 @@ class TestRunSync:
         async def coro():
             await asyncio.sleep(0)
             return "done"
+
         result = run_sync(coro())
         assert result == "done"
 
@@ -83,6 +82,7 @@ class TestGetClient:
     @patch("retrieve.copilot.CopilotClient")
     async def test_get_client_creates_singleton(self, MockClient):
         import retrieve.copilot as mod
+
         mod._client = None
         mod._started = False
 

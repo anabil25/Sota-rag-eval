@@ -97,6 +97,36 @@ def _fingerprint(entries: list[dict[str, Any]]) -> str:
     return _sha256_bytes(payload.encode("utf-8"))
 
 
+def build_document_id_aliases(manifest: dict[str, Any]) -> dict[str, str]:
+    """Map stable source/file aliases onto each canonical document ID."""
+    aliases: dict[str, str] = {}
+    ambiguous: set[str] = set()
+    for entry in manifest.get("documents", []):
+        canonical = str(entry.get("document_id") or "").strip()
+        relative_path = str(entry.get("relative_path") or "").replace("\\", "/")
+        source_id = str(entry.get("source_id") or "").strip()
+        if not canonical or not relative_path:
+            continue
+        relative = Path(relative_path)
+        candidates = {
+            canonical,
+            source_id,
+            relative_path,
+            str(relative.with_suffix("")).replace("\\", "/"),
+            relative.name,
+            relative.stem,
+        }
+        for candidate in {value for value in candidates if value}:
+            existing = aliases.get(candidate)
+            if existing is not None and existing != canonical:
+                ambiguous.add(candidate)
+            else:
+                aliases[candidate] = canonical
+    for candidate in ambiguous:
+        aliases.pop(candidate, None)
+    return aliases
+
+
 def _validate_entry_uniqueness(entries: list[dict[str, Any]]) -> None:
     for key in ("document_id", "source_id", "relative_path"):
         values = [str(entry.get(key, "")) for entry in entries]
@@ -123,9 +153,7 @@ def validate_corpus_manifest_data(
 ) -> list[dict[str, Any]]:
     """Validate manifest structure and return its document entries."""
     if manifest.get("schema_version") != MANIFEST_SCHEMA_VERSION:
-        raise ValueError(
-            f"Unsupported corpus manifest schema: {manifest.get('schema_version')!r}"
-        )
+        raise ValueError(f"Unsupported corpus manifest schema: {manifest.get('schema_version')!r}")
     documents = manifest.get("documents")
     if not isinstance(documents, list):
         raise ValueError("Corpus manifest documents must be a list")
@@ -137,9 +165,7 @@ def validate_corpus_manifest_data(
             if len(value) != 64 or any(char not in "0123456789abcdef" for char in value):
                 raise ValueError(f"Corpus manifest contains an invalid {hash_name}")
         graphrag_id = str(entry.get("graphrag_document_id", ""))
-        if len(graphrag_id) != 128 or any(
-            char not in "0123456789abcdef" for char in graphrag_id
-        ):
+        if len(graphrag_id) != 128 or any(char not in "0123456789abcdef" for char in graphrag_id):
             raise ValueError("Corpus manifest contains an invalid graphrag_document_id")
     if int(manifest.get("document_count", -1)) != len(documents):
         raise ValueError("Corpus manifest document_count does not match documents")
@@ -164,9 +190,7 @@ def write_corpus_manifest(
 
     managed_paths = {str(entry["relative_path"]) for entry in sorted_entries}
     local_paths = {
-        path.relative_to(root).as_posix()
-        for path in root.rglob("*.md")
-        if path.is_file()
+        path.relative_to(root).as_posix() for path in root.rglob("*.md") if path.is_file()
     }
     stale = sorted(local_paths - managed_paths)
     missing = sorted(managed_paths - local_paths)
@@ -236,15 +260,11 @@ def load_corpus_manifest(
             if _sha256_bytes(file_bytes) != entry.get("file_sha256"):
                 raise ValueError(f"Corpus manifest file hash mismatch: {relative_path}")
             if _graphrag_document_id(file_bytes) != entry.get("graphrag_document_id"):
-                raise ValueError(
-                    f"Corpus GraphRAG document ID mismatch: {relative_path}"
-                )
+                raise ValueError(f"Corpus GraphRAG document ID mismatch: {relative_path}")
             managed_paths.add(relative_path.replace("\\", "/"))
 
         local_paths = {
-            path.relative_to(root).as_posix()
-            for path in root.rglob("*.md")
-            if path.is_file()
+            path.relative_to(root).as_posix() for path in root.rglob("*.md") if path.is_file()
         }
         if local_paths != managed_paths:
             raise ValueError("Local Markdown files do not exactly match the corpus manifest")

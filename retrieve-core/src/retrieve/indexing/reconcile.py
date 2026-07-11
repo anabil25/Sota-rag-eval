@@ -31,8 +31,7 @@ def _persist_architecture(
     config: dict[str, Any],
 ) -> None:
     db.conn.execute(
-        "UPDATE architectures SET status = ?, config = ?, resources_provisioned = ? "
-        "WHERE id = ?",
+        "UPDATE architectures SET status = ?, config = ?, resources_provisioned = ? WHERE id = ?",
         (status, json.dumps(config), json.dumps(config), architecture_id),
     )
     db.conn.commit()
@@ -64,9 +63,7 @@ def _load_job_blob_status(config: dict[str, Any]) -> dict[str, Any] | None:
     )
     try:
         payload = (
-            blob_service.get_container_client(container_name)
-            .download_blob(status_blob)
-            .readall()
+            blob_service.get_container_client(container_name).download_blob(status_blob).readall()
         )
     except ResourceNotFoundError:
         return None
@@ -82,7 +79,8 @@ def _load_container_job_status(config: dict[str, Any]) -> dict[str, Any]:
     execution_name = str(config.get("graph_job_execution_name") or "").strip()
     if not resource_group or not job_name or not execution_name:
         raise ValueError(
-            "GraphRAG Container Apps Job reconciliation requires resource group, job, and execution names"
+            "GraphRAG Container Apps Job reconciliation requires resource group, "
+            "job, and execution names"
         )
     command = [
         "az",
@@ -112,11 +110,11 @@ def _load_container_job_status(config: dict[str, Any]) -> dict[str, Any]:
     execution = json.loads(result.stdout)
     if not isinstance(execution, dict):
         raise ValueError("Container Apps Job execution response must be a JSON object")
-    execution_state = str(
-        (execution.get("properties") or {}).get("status")
-        or execution.get("status")
-        or ""
-    ).strip().lower()
+    execution_state = (
+        str((execution.get("properties") or {}).get("status") or execution.get("status") or "")
+        .strip()
+        .lower()
+    )
     if not execution_state:
         raise ValueError("Container Apps Job execution did not report a status")
 
@@ -137,9 +135,7 @@ def _load_container_job_status(config: dict[str, Any]) -> dict[str, Any]:
         return status
     if execution_state in _AZURE_SUCCESS_STATES:
         if durable_status is None:
-            raise ValueError(
-                "Container Apps Job succeeded without a durable GraphRAG status Blob"
-            )
+            raise ValueError("Container Apps Job succeeded without a durable GraphRAG status Blob")
         if str(durable_status.get("state") or "").lower() != "succeeded":
             raise ValueError(
                 "Container Apps Job completed but durable GraphRAG status is not succeeded"
@@ -205,18 +201,14 @@ def reconcile_graphrag_architecture(
                 "cloud_index_error": str(worker_status.get("error") or "")[:2_000],
                 "cloud_index_updated_at": str(worker_status.get("updated_at") or ""),
                 "cloud_index_heartbeat_at": str(worker_status.get("heartbeat_at") or ""),
-                "graph_worker_current_workflow": str(
-                    worker_status.get("current_workflow") or ""
-                ),
+                "graph_worker_current_workflow": str(worker_status.get("current_workflow") or ""),
                 "graph_worker_completed_workflows": list(
                     worker_status.get("completed_workflows") or []
                 ),
                 "graph_worker_progress_description": str(
                     worker_status.get("progress_description") or ""
                 ),
-                "graph_worker_progress_completed": worker_status.get(
-                    "progress_completed"
-                ),
+                "graph_worker_progress_completed": worker_status.get("progress_completed"),
                 "graph_worker_progress_total": worker_status.get("progress_total"),
                 "graph_worker_run_scope": str(worker_status.get("run_scope") or ""),
                 "graph_worker_max_documents": worker_status.get("max_documents"),
@@ -229,11 +221,7 @@ def reconcile_graphrag_architecture(
             if expected_scope and worker_status.get("run_scope") != expected_scope:
                 raise ValueError("GraphRAG worker run scope does not match the architecture")
             workflow_results = worker_status.get("workflow_results") or []
-            if any(
-                result.get("error")
-                for result in workflow_results
-                if isinstance(result, dict)
-            ):
+            if any(result.get("error") for result in workflow_results if isinstance(result, dict)):
                 raise ValueError("GraphRAG worker reported failed workflow results")
             config["graph_worker_artifact_prefix"] = artifact_prefix
             architecture_status = "active"

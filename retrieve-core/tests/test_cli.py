@@ -1,11 +1,9 @@
 """Tests for cli.py — CLI command wiring and argument parsing."""
 
-import tempfile
-import os
-from pathlib import Path
-from unittest.mock import patch, MagicMock
-import pytest
+from unittest.mock import MagicMock, patch
+
 from typer.testing import CliRunner
+
 from retrieve.cli import app
 
 runner = CliRunner()
@@ -38,10 +36,11 @@ class TestIngestCommand:
     @patch("retrieve.ingest.run_ingest")
     def test_ingest_calls_run_ingest(self, mock_run):
         from retrieve.ingest.plugin import CorpusStats
+
         mock_run.return_value = CorpusStats(doc_count=10)
-        result = runner.invoke(app, [
-            "ingest", "--source", "/tmp/test", "--plugin", "markdown", "--output", "/tmp/out"
-        ])
+        result = runner.invoke(
+            app, ["ingest", "--source", "/tmp/test", "--plugin", "markdown", "--output", "/tmp/out"]
+        )
         assert result.exit_code == 0
 
 
@@ -49,9 +48,9 @@ class TestEvalGenerateCommand:
     @patch("retrieve.eval.generate.generate_eval_set")
     def test_eval_generate_calls_function(self, mock_gen):
         mock_gen.return_value = 1
-        result = runner.invoke(app, [
-            "eval", "generate", "--corpus", "/tmp/corpus", "--output", "test-v1"
-        ])
+        result = runner.invoke(
+            app, ["eval", "generate", "--corpus", "/tmp/corpus", "--output", "test-v1"]
+        )
         assert result.exit_code == 0
         mock_gen.assert_called_once()
 
@@ -65,9 +64,9 @@ class TestEvalRunCommand:
 
     @patch("retrieve.eval.runner.run_evaluation")
     def test_eval_run_specific_archs(self, mock_run):
-        result = runner.invoke(app, [
-            "eval", "run", "--eval-set", "v1", "--architectures", "keyword,hybrid"
-        ])
+        result = runner.invoke(
+            app, ["eval", "run", "--eval-set", "v1", "--architectures", "keyword,hybrid"]
+        )
         assert result.exit_code == 0
         call_kwargs = mock_run.call_args
         assert call_kwargs.kwargs["architectures"] == ["keyword", "hybrid"]

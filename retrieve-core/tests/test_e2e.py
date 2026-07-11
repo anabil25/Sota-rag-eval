@@ -5,18 +5,19 @@ mocked Copilot SDK + Azure Search for the LLM/cloud parts.
 """
 
 import json
-import tempfile
 import os
+import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import AsyncMock, patch
+
 import pytest
 
 from retrieve.config import RetrieveConfig
 from retrieve.db import RetrieveDB
-from retrieve.ingest.run import run_ingest
+from retrieve.eval.compare import compare_runs
 from retrieve.eval.generate import generate_eval_set
 from retrieve.eval.runner import run_evaluation
-from retrieve.eval.compare import compare_runs
+from retrieve.ingest.run import run_ingest
 
 
 @pytest.fixture
@@ -27,11 +28,36 @@ def e2e_corpus():
     corpus.mkdir()
 
     docs = [
-        ("100", "General Information", "APM", "Overview of the program.\n\n# Eligibility\n\nMust be a resident."),
-        ("100-1", "Prudent Person", "100 General", "Workers must exercise judgment in all decisions."),
-        ("100-3", "Confidentiality", "100 General", "All case information is confidential.\n\nViolations may result in termination."),
-        ("101", "Application Process", "APM", "# How to Apply\n\nSubmit form DPA-1.\n\n# Deadlines\n\nWithin 30 days."),
-        ("101-1", "Definitions", "101 Applications", "Applicant means a person who has filed an application.\n\nHousehold means all persons living together."),
+        (
+            "100",
+            "General Information",
+            "APM",
+            "Overview of the program.\n\n# Eligibility\n\nMust be a resident.",
+        ),
+        (
+            "100-1",
+            "Prudent Person",
+            "100 General",
+            "Workers must exercise judgment in all decisions.",
+        ),
+        (
+            "100-3",
+            "Confidentiality",
+            "100 General",
+            "All case information is confidential.\n\nViolations may result in termination.",
+        ),
+        (
+            "101",
+            "Application Process",
+            "APM",
+            "# How to Apply\n\nSubmit form DPA-1.\n\n# Deadlines\n\nWithin 30 days.",
+        ),
+        (
+            "101-1",
+            "Definitions",
+            "101 Applications",
+            "Applicant means a person who has filed an application.\n\nHousehold means all persons living together.",
+        ),
     ]
 
     for policy_id, title, parent, content in docs:
@@ -71,16 +97,41 @@ class TestEndToEnd:
 
         # ── Step 2: Generate eval set (mocked Copilot SDK) ───────────
         mock_questions = [
-            {"question": "What form do I submit to apply?", "category": "direct_lookup",
-             "ground_truth_chunk_ids": ["101::1"], "source_doc_id": "101", "reasoning": "Form DPA-1"},
-            {"question": "What is the prudent person concept?", "category": "direct_lookup",
-             "ground_truth_chunk_ids": ["100-1::0"], "source_doc_id": "100-1", "reasoning": "Defined in the chunk"},
-            {"question": "Is case information confidential?", "category": "process_procedure",
-             "ground_truth_chunk_ids": ["100-3::0"], "source_doc_id": "100-3", "reasoning": "Confidentiality policy"},
-            {"question": "What is the deadline to apply?", "category": "process_procedure",
-             "ground_truth_chunk_ids": ["101::2"], "source_doc_id": "101", "reasoning": "30 days"},
-            {"question": "Who qualifies as a household member?", "category": "eligibility",
-             "ground_truth_chunk_ids": ["101-1::0"], "source_doc_id": "101-1", "reasoning": "Definition"},
+            {
+                "question": "What form do I submit to apply?",
+                "category": "direct_lookup",
+                "ground_truth_chunk_ids": ["101::1"],
+                "source_doc_id": "101",
+                "reasoning": "Form DPA-1",
+            },
+            {
+                "question": "What is the prudent person concept?",
+                "category": "direct_lookup",
+                "ground_truth_chunk_ids": ["100-1::0"],
+                "source_doc_id": "100-1",
+                "reasoning": "Defined in the chunk",
+            },
+            {
+                "question": "Is case information confidential?",
+                "category": "process_procedure",
+                "ground_truth_chunk_ids": ["100-3::0"],
+                "source_doc_id": "100-3",
+                "reasoning": "Confidentiality policy",
+            },
+            {
+                "question": "What is the deadline to apply?",
+                "category": "process_procedure",
+                "ground_truth_chunk_ids": ["101::2"],
+                "source_doc_id": "101",
+                "reasoning": "30 days",
+            },
+            {
+                "question": "Who qualifies as a household member?",
+                "category": "eligibility",
+                "ground_truth_chunk_ids": ["101-1::0"],
+                "source_doc_id": "101-1",
+                "reasoning": "Definition",
+            },
         ]
 
         with patch("retrieve.eval.generate._generate_for_batch", return_value=mock_questions):
@@ -112,8 +163,10 @@ class TestEndToEnd:
             else:  # hybrid
                 return (["101::1", "100-1::0", "100-3::0", "101::2", "101-1::0"], 45.0)
 
-        with patch("retrieve.eval.runner.query_ai_search", side_effect=mock_search), \
-             patch("retrieve.eval.runner._classify_misses", new_callable=AsyncMock, return_value=[]):
+        with (
+            patch("retrieve.eval.runner.query_ai_search", side_effect=mock_search),
+            patch("retrieve.eval.runner._classify_misses", new_callable=AsyncMock, return_value=[]),
+        ):
             run_evaluation(eval_set_version="e2e-v1", cfg=cfg)
 
         # ── Step 4: Compare ───────────────────────────────────────────
@@ -136,7 +189,10 @@ class TestEndToEnd:
         assert "direct_lookup" in hy_cats
 
         # Keyword should have missed queries (low recall)
-        assert kw_run["aggregate_metrics"]["miss_count"] > 0 or kw_run["aggregate_metrics"]["recall_at_10"] < 1.0
+        assert (
+            kw_run["aggregate_metrics"]["miss_count"] > 0
+            or kw_run["aggregate_metrics"]["recall_at_10"] < 1.0
+        )
 
         db.close()
 

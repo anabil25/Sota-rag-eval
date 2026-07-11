@@ -12,9 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
-import subprocess
 import sys
-import time
 from pathlib import Path
 from typing import Any
 
@@ -56,7 +54,7 @@ def analyze_domain_specificity(corpus_dir: str) -> dict[str, Any]:
         if content.startswith("---"):
             end = content.find("---", 3)
             if end > 0:
-                content = content[end + 3:]
+                content = content[end + 3 :]
 
         doc_lengths.append(len(content))
 
@@ -68,11 +66,14 @@ def analyze_domain_specificity(corpus_dir: str) -> dict[str, Any]:
 
         # Count acronyms (ALL CAPS words of 2-6 chars)
         import re
-        acronyms = re.findall(r'\b[A-Z]{2,6}\b', content)
+
+        acronyms = re.findall(r"\b[A-Z]{2,6}\b", content)
         acronym_count += len(acronyms)
 
         # Count section-number references (e.g., "Section 100-3", "Policy 205")
-        section_refs = re.findall(r'\b(?:section|policy|addendum|chapter)\s+\d+[\-\w]*', content, re.IGNORECASE)
+        section_refs = re.findall(
+            r"\b(?:section|policy|addendum|chapter)\s+\d+[\-\w]*", content, re.IGNORECASE
+        )
         jargon_indicators += len(section_refs)
 
     avg_doc_length = sum(doc_lengths) / len(doc_lengths) if doc_lengths else 0
@@ -134,12 +135,16 @@ def analyze_domain_specificity(corpus_dir: str) -> dict[str, Any]:
         },
     }
 
-    console.print(f"\n[bold]Domain Analysis[/bold]")
+    console.print("\n[bold]Domain Analysis[/bold]")
     console.print(f"  Documents: {total_docs}")
     console.print(f"  Avg length: {avg_doc_length:.0f} chars")
     console.print(f"  Acronym density: {acronym_density:.1f}/doc")
     console.print(f"  Reference density: {jargon_density:.1f}/doc")
-    console.print(f"  Recommendation: [{'green' if recommendation == 'recommended' else 'yellow' if recommendation == 'consider' else 'dim'}]{recommendation}[/]")
+    recommendation_style = {
+        "recommended": "green",
+        "consider": "yellow",
+    }.get(recommendation, "dim")
+    console.print(f"  Recommendation: [{recommendation_style}]{recommendation}[/]")
     for r in reasons:
         console.print(f"    • {r}")
 
@@ -183,7 +188,7 @@ def generate_training_pairs(
     output_path = Path(output_file)
     pairs_written = 0
 
-    console.print(f"\n[bold]Generating training pairs[/bold]")
+    console.print("\n[bold]Generating training pairs[/bold]")
     console.print(f"  Corpus: {len(md_files)} documents")
     console.print(f"  Target: {max_pairs} pairs")
 
@@ -197,7 +202,7 @@ def generate_training_pairs(
             if content.startswith("---"):
                 end = content.find("---", 3)
                 if end > 0:
-                    content = content[end + 3:].strip()
+                    content = content[end + 3 :].strip()
 
             if len(content) < 100:
                 continue
@@ -209,12 +214,16 @@ def generate_training_pairs(
                 response = client.chat.completions.create(
                     model=llm_model,
                     messages=[
-                        {"role": "system", "content": (
-                            "Generate 3 diverse search queries that a user would type to find this document. "
-                            "Include: 1) a natural language question, 2) a keyword-style query, "
-                            "3) a paraphrased question using different terminology. "
-                            "Return JSON array of strings, nothing else."
-                        )},
+                        {
+                            "role": "system",
+                            "content": (
+                                "Generate 3 diverse search queries that a user would type "
+                                "to find this document. Include: 1) a natural language question, "
+                                "2) a keyword-style query, 3) a paraphrased question using "
+                                "different terminology. "
+                                "Return JSON array of strings, nothing else."
+                            ),
+                        },
                         {"role": "user", "content": doc_excerpt},
                     ],
                     temperature=0.7,
@@ -242,7 +251,9 @@ def generate_training_pairs(
                 console.print(f"  Generated {pairs_written}/{max_pairs} pairs...")
                 emit_progress(
                     f"Training pairs: {pairs_written}/{max_pairs}",
-                    stage="domain.generate_pairs", completed=pairs_written, total=max_pairs,
+                    stage="domain.generate_pairs",
+                    completed=pairs_written,
+                    total=max_pairs,
                 )
 
     console.print(f"  [green]Generated {pairs_written} training pairs → {output_path}[/green]")
@@ -302,7 +313,9 @@ def submit_finetune_job(
 
     emit_progress(
         f"Fine-tuning job submitted: {job.id}",
-        stage="domain.finetune", job_id=job.id, status=job.status,
+        stage="domain.finetune",
+        job_id=job.id,
+        status=job.status,
     )
 
     return {
@@ -361,6 +374,7 @@ def compare_before_after(
     Loads two eval runs from the database and computes the delta.
     """
     from retrieve.eval.store import EvalStore
+
     store = EvalStore(cfg.project_root)
 
     base_results = store.get_run_results(base_run_id)
@@ -387,10 +401,18 @@ def compare_before_after(
     recall_color = "green" if delta_recall > 0 else "red"
     mrr_color = "green" if delta_mrr > 0 else "red"
 
-    table.add_row("Recall@10", f"{base_recall:.4f}", f"{tuned_recall:.4f}",
-                   f"[{recall_color}]{delta_recall:+.4f}[/{recall_color}]")
-    table.add_row("MRR@10", f"{base_mrr:.4f}", f"{tuned_mrr:.4f}",
-                   f"[{mrr_color}]{delta_mrr:+.4f}[/{mrr_color}]")
+    table.add_row(
+        "Recall@10",
+        f"{base_recall:.4f}",
+        f"{tuned_recall:.4f}",
+        f"[{recall_color}]{delta_recall:+.4f}[/{recall_color}]",
+    )
+    table.add_row(
+        "MRR@10",
+        f"{base_mrr:.4f}",
+        f"{tuned_mrr:.4f}",
+        f"[{mrr_color}]{delta_mrr:+.4f}[/{mrr_color}]",
+    )
 
     console.print(table)
 
@@ -407,7 +429,9 @@ def compare_before_after(
     }
 
     if delta_recall > 0.01:
-        console.print(f"\n[green]✓ Domain adaptation improved recall by {delta_recall:+.4f}[/green]")
+        console.print(
+            f"\n[green]✓ Domain adaptation improved recall by {delta_recall:+.4f}[/green]"
+        )
     elif delta_recall < -0.01:
         console.print(f"\n[red]✗ Domain adaptation decreased recall by {delta_recall:+.4f}[/red]")
     else:

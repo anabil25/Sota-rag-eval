@@ -63,21 +63,33 @@ class AzureConfig(BaseModel):
     name_prefix: str = "retrieve"
     subscription_id: str = ""
     deployer_object_id: str = ""
+    resource_token: str = ""
+    storage_account: str = ""
+    corpus_container: str = "corpus"
+    graph_output_container: str = "graphrag"
+    ai_services_endpoint: str = ""
+    search_endpoint: str = ""
+    chat_deployment: str = "gpt-4.1"
+    embedding_deployment: str = "text-embedding-3-large"
+    graph_job_name: str = ""
+    container_apps_environment: str = ""
 
 
 class EvalConfig(BaseModel):
     mode: str = "sample"  # "sample" (testing, ~30 questions) or "full" (~0.5 per doc)
-    categories: list[str] = Field(default_factory=lambda: [
-        "factual_lookup",
-        "procedural",
-        "cross_document",
-        "cross_policy",
-        "edge_case",
-        "negation",
-        "colloquial_mapping",
-        "calculation",
-        "unanswerable",
-    ])
+    categories: list[str] = Field(
+        default_factory=lambda: [
+            "factual_lookup",
+            "procedural",
+            "cross_document",
+            "cross_policy",
+            "edge_case",
+            "negation",
+            "colloquial_mapping",
+            "calculation",
+            "unanswerable",
+        ]
+    )
 
 
 class RetrieveConfig(BaseModel):

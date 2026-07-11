@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import sys
 import tempfile
 import time
@@ -28,7 +27,6 @@ import yaml
 from fastapi.testclient import TestClient
 
 from retrieve.config import RetrieveConfig
-from retrieve.db import RetrieveDB
 from retrieve.observability import configure_observability
 from retrieve.web.app import create_app
 
@@ -69,11 +67,14 @@ def build_config(tmpdir: str) -> tuple[RetrieveConfig, str]:
 def step_1_ingest(client: TestClient, cfg: RetrieveConfig):
     """Ingest corpus via POST /api/ingest."""
     log("1_INGEST", f"POST /api/ingest (source={CORPUS_DIR})")
-    r = client.post("/api/ingest", json={
-        "source": CORPUS_DIR,
-        "plugin": "markdown",
-        "output": cfg.corpus.output_dir,
-    })
+    r = client.post(
+        "/api/ingest",
+        json={
+            "source": CORPUS_DIR,
+            "plugin": "markdown",
+            "output": cfg.corpus.output_dir,
+        },
+    )
     assert r.status_code == 200, f"Ingest failed: {r.text}"
     data = r.json()
     assert data["stats"]["doc_count"] > 0
@@ -86,12 +87,15 @@ def step_2_generate(client: TestClient, cfg: RetrieveConfig, tmpdir: str):
     corpus_dir = cfg.corpus.output_dir
     doc_count = len(list(Path(corpus_dir).rglob("*.md")))
     log("2_GENERATE", f"POST /api/eval/generate ({doc_count} docs)")
-    r = client.post("/api/eval/generate", json={
-        "corpus": corpus_dir,
-        "version": "web-e2e-v1",
-        "mode": "sample",
-        "fresh": True,
-    })
+    r = client.post(
+        "/api/eval/generate",
+        json={
+            "corpus": corpus_dir,
+            "version": "web-e2e-v1",
+            "mode": "sample",
+            "fresh": True,
+        },
+    )
     assert r.status_code == 200, f"Generate failed: {r.text}"
     data = r.json()
     assert data["eval_set_id"] > 0
@@ -100,7 +104,11 @@ def step_2_generate(client: TestClient, cfg: RetrieveConfig, tmpdir: str):
     r2 = client.get(f"/api/eval-sets/{data['eval_set_id']}/questions")
     assert r2.status_code == 200
     questions = r2.json()
-    log("2_GENERATE", f"{len(questions)} questions generated, eval_set_id={data['eval_set_id']}", "PASS")
+    log(
+        "2_GENERATE",
+        f"{len(questions)} questions generated, eval_set_id={data['eval_set_id']}",
+        "PASS",
+    )
     return data["eval_set_id"]
 
 
@@ -148,10 +156,13 @@ def step_4_index(client: TestClient):
 def step_5_eval_run(client: TestClient):
     """Run eval via the job system."""
     log("5_EVAL_RUN", "POST /api/ui/job/start (kind=evaluate)")
-    r = client.post("/api/ui/job/start", json={
-        "kind": "evaluate",
-        "args": {"eval_set_version": "web-e2e-v1"},
-    })
+    r = client.post(
+        "/api/ui/job/start",
+        json={
+            "kind": "evaluate",
+            "args": {"eval_set_version": "web-e2e-v1"},
+        },
+    )
     assert r.status_code == 200
     job_id = r.json()["job_id"]
 
@@ -170,10 +181,13 @@ def step_5_eval_run(client: TestClient):
 
     for run in runs:
         m = run["aggregate_metrics"]
-        log("5_EVAL_RUN",
+        log(
+            "5_EVAL_RUN",
             f"{run['architecture_name']}: nDCG@10={m.get('ndcg_at_10', 0):.3f} "
             f"Recall@10={m.get('recall_at_10', 0):.3f} "
-            f"Latency={m.get('avg_latency_ms', 0):.0f}ms", "PASS")
+            f"Latency={m.get('avg_latency_ms', 0):.0f}ms",
+            "PASS",
+        )
 
     # Verify run detail API
     run_detail = client.get(f"/api/runs/{runs[0]['id']}").json()
@@ -207,7 +221,16 @@ def step_6_read_apis(client: TestClient):
     assert r.status_code == 200
 
     # Step pages should render
-    for step_name in ["ingest", "eval", "mode", "configure", "provision", "compare", "history", "settings"]:
+    for step_name in [
+        "ingest",
+        "eval",
+        "mode",
+        "configure",
+        "provision",
+        "compare",
+        "history",
+        "settings",
+    ]:
         r = client.get(f"/step/{step_name}")
         assert r.status_code == 200, f"Step page {step_name} failed"
 
@@ -237,6 +260,7 @@ def step_8_cleanup(cfg: RetrieveConfig):
     log("8_CLEANUP", "Deleting resource group...")
     try:
         from retrieve.provision.teardown import delete_resource_group
+
         delete_resource_group(cfg)
         log("8_CLEANUP", "Resource group deletion initiated", "PASS")
     except Exception as e:
@@ -250,8 +274,9 @@ def _run_via_job_sync(kind: str, args: dict, cfg: RetrieveConfig):
     so we call the underlying function directly. This proves the web layer
     uses the same code path as the CLI.
     """
-    from retrieve.web.app import _run_job_sync
     import uuid
+
+    from retrieve.web.app import _run_job_sync
 
     operation_id = str(uuid.uuid4())
     log(kind.upper(), f"_run_job_sync(kind={kind}) — same function web jobs call")
@@ -263,12 +288,12 @@ def _run_via_job_sync(kind: str, args: dict, cfg: RetrieveConfig):
 
 if __name__ == "__main__":
     tmpdir = tempfile.mkdtemp(prefix="retrieve_web_e2e_")
-    print(f"\n{'='*60}")
-    print(f"RETRIEVE — WEB API END-TO-END TEST")
-    print(f"{'='*60}")
+    print(f"\n{'=' * 60}")
+    print("RETRIEVE — WEB API END-TO-END TEST")
+    print(f"{'=' * 60}")
     print(f"Working dir: {tmpdir}")
     print(f"Corpus: {CORPUS_DIR}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     cfg, config_path = build_config(tmpdir)
     app = create_app(config_path)
@@ -277,17 +302,20 @@ if __name__ == "__main__":
     import traceback
 
     steps = [
-        ("1_INGEST",    lambda: step_1_ingest(client, cfg)),
-        ("2_GENERATE",  lambda: step_2_generate(client, cfg, tmpdir)),
+        ("1_INGEST", lambda: step_1_ingest(client, cfg)),
+        ("2_GENERATE", lambda: step_2_generate(client, cfg, tmpdir)),
         # Steps 3-5 use the job system which requires async task scheduling.
         # TestClient's sync adapter doesn't run asyncio.create_task() properly.
         # So we call _run_job_sync directly (same function the job system calls).
         ("3_PROVISION", lambda: _run_via_job_sync("provision", {}, cfg)),
-        ("4_INDEX",     lambda: _run_via_job_sync("index", {}, cfg)),
-        ("5_EVAL_RUN",  lambda: _run_via_job_sync("evaluate", {"eval_set_version": "web-e2e-v1"}, cfg)),
+        ("4_INDEX", lambda: _run_via_job_sync("index", {}, cfg)),
+        (
+            "5_EVAL_RUN",
+            lambda: _run_via_job_sync("evaluate", {"eval_set_version": "web-e2e-v1"}, cfg),
+        ),
         ("6_READ_APIS", lambda: step_6_read_apis(client)),
-        ("7_TEARDOWN",  lambda: _run_via_job_sync("teardown", {}, cfg)),
-        ("8_CLEANUP",   lambda: step_8_cleanup(cfg)),
+        ("7_TEARDOWN", lambda: _run_via_job_sync("teardown", {}, cfg)),
+        ("8_CLEANUP", lambda: step_8_cleanup(cfg)),
     ]
 
     for step_name, step_fn in steps:
@@ -299,9 +327,9 @@ if __name__ == "__main__":
             print(f"\n[ERROR] {step_name} failed — continuing to next step...\n")
 
     # Summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("RESULTS")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     passes = sum(1 for r in RESULTS if r["status"] == "PASS")
     fails = sum(1 for r in RESULTS if r["status"] == "FAIL")
     print(f"  PASSED: {passes}")
@@ -312,5 +340,7 @@ if __name__ == "__main__":
 
     results_path = Path(__file__).parent.parent / "web_e2e_live_results.json"
     with open(results_path, "w") as f:
-        json.dump({"results": RESULTS, "tmpdir": tmpdir, "passes": passes, "fails": fails}, f, indent=2)
+        json.dump(
+            {"results": RESULTS, "tmpdir": tmpdir, "passes": passes, "fails": fails}, f, indent=2
+        )
     print(f"\n  Results: {results_path}")

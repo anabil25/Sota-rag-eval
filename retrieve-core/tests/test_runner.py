@@ -1,24 +1,28 @@
 """Tests for eval/runner.py — evaluation runner with mocked search and Copilot."""
 
-import tempfile
-import os
 import json
-import asyncio
-from unittest.mock import patch, MagicMock, AsyncMock
+import os
+import tempfile
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
+
 from retrieve.config import RetrieveConfig
 from retrieve.db import RetrieveDB
-from retrieve.eval.runner import query_ai_search, run_evaluation
+from retrieve.eval.runner import _canonical_doc_id, query_ai_search, run_evaluation
+from retrieve.ingest.manifest import build_document_id_aliases
 
 
 class TestQueryAISearch:
     @patch("retrieve.eval.runner._get_search_client")
     def test_successful_query(self, mock_get_client):
         mock_client = MagicMock()
-        mock_client.search.return_value = iter([
-            {"id": "doc1", "doc_id": "100", "metadata_storage_name": "100.md"},
-            {"id": "doc2", "doc_id": "101", "metadata_storage_name": "101.md"},
-        ])
+        mock_client.search.return_value = iter(
+            [
+                {"id": "doc1", "doc_id": "100", "metadata_storage_name": "100.md"},
+                {"id": "doc2", "doc_id": "101", "metadata_storage_name": "101.md"},
+            ]
+        )
         mock_get_client.return_value = mock_client
 
         ids, latency = query_ai_search(
@@ -33,25 +37,39 @@ class TestQueryAISearch:
         mock_client.search.side_effect = Exception("Forbidden")
         mock_get_client.return_value = mock_client
 
-        ids, latency = query_ai_search(
-            "https://test.search.windows.net", "test-index", "query"
-        )
+        ids, latency = query_ai_search("https://test.search.windows.net", "test-index", "query")
         assert ids == []
         assert latency > 0
 
     @patch("retrieve.eval.runner._get_search_client")
     def test_fallback_id_fields(self, mock_get_client):
         mock_client = MagicMock()
-        mock_client.search.return_value = iter([
-            {"id": "fallback-id"},  # No doc_id or metadata_storage_name
-            {"metadata_storage_name": "doc.md"},  # Falls back to this
-        ])
+        mock_client.search.return_value = iter(
+            [
+                {"id": "fallback-id"},  # No doc_id or metadata_storage_name
+                {"metadata_storage_name": "doc.md"},  # Falls back to this
+            ]
+        )
         mock_get_client.return_value = mock_client
 
-        ids, _ = query_ai_search(
-            "https://test.search.windows.net", "test-index", "query"
-        )
+        ids, _ = query_ai_search("https://test.search.windows.net", "test-index", "query")
         assert len(ids) == 2
+
+    def test_manifest_aliases_normalize_search_and_eval_ids(self):
+        manifest = {
+            "documents": [
+                {
+                    "document_id": "100-3",
+                    "source_id": "sha256:source",
+                    "relative_path": "100/100-3_confidentiality.md",
+                }
+            ]
+        }
+        aliases = build_document_id_aliases(manifest)
+
+        assert _canonical_doc_id("100-3::0", aliases) == "100-3"
+        assert _canonical_doc_id("100-3_confidentiality.md", aliases) == "100-3"
+        assert _canonical_doc_id("100/100-3_confidentiality.md", aliases) == "100-3"
 
 
 class TestRunEvaluation:
@@ -134,10 +152,9 @@ class TestFailureClassification:
         mock_get_client.return_value = mock_client
 
         mock_response = MagicMock()
-        mock_response.data.content = json.dumps({
-            "failure_type": "vocabulary_mismatch",
-            "explanation": "Different terminology"
-        })
+        mock_response.data.content = json.dumps(
+            {"failure_type": "vocabulary_mismatch", "explanation": "Different terminology"}
+        )
 
         mock_session = AsyncMock()
         mock_session.send_and_wait.return_value = mock_response
@@ -146,12 +163,14 @@ class TestFailureClassification:
         mock_client.create_session = AsyncMock(return_value=mock_session)
 
         cfg = RetrieveConfig()
-        failures = [{
-            "question_id": 1,
-            "question": "What form?",
-            "expected_chunk": "chunk content",
-            "wrong_chunk": "wrong content",
-        }]
+        failures = [
+            {
+                "question_id": 1,
+                "question": "What form?",
+                "expected_chunk": "chunk content",
+                "wrong_chunk": "wrong content",
+            }
+        ]
 
         classified = await _classify_misses(failures, cfg)
         assert len(classified) == 1
@@ -160,6 +179,7 @@ class TestFailureClassification:
     @patch("retrieve.eval.runner.get_client")
     async def test_classify_misses_empty(self, mock_get_client):
         from retrieve.eval.runner import _classify_misses
+
         cfg = RetrieveConfig()
         result = await _classify_misses([], cfg)
         assert result == []
@@ -197,11 +217,14 @@ class TestFailureClassification:
         async def fake_wait_for(awaitable, timeout):
             call_count["n"] += 1
             if call_count["n"] == 1:
-                raise asyncio.TimeoutError
+                raise TimeoutError
             return await awaitable
 
         cfg = RetrieveConfig()
         with patch("retrieve.eval.runner.asyncio.wait_for", new=fake_wait_for):
             await _classify_misses(failures, cfg)
 
-        assert any(call.args and call.args[0] == "Waiting on Copilot SDK" for call in mock_emit_progress.call_args_list)
+        assert any(
+            call.args and call.args[0] == "Waiting on Copilot SDK"
+            for call in mock_emit_progress.call_args_list
+        )

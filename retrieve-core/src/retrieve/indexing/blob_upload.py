@@ -1,6 +1,6 @@
 """Blob uploader — uploads corpus .md files to Azure Blob Storage.
 
-Skills reference: skills/azure-blob-storage.md
+Reference: docs/reference/skills/azure-blob-storage.md
 Uses Azure CLI identity locally and managed identity in Azure-hosted runs — no keys.
 """
 
@@ -126,12 +126,9 @@ def build_blob_mirror_plan(
     """Build a no-write synchronization plan from local and remote manifests."""
     local_manifest = load_corpus_manifest(corpus_dir)
     remote_manifest = _load_remote_manifest(container_client)
-    local_documents = {
-        str(entry["relative_path"]): entry for entry in local_manifest["documents"]
-    }
+    local_documents = {str(entry["relative_path"]): entry for entry in local_manifest["documents"]}
     remote_documents = {
-        str(entry["relative_path"]): entry
-        for entry in (remote_manifest or {}).get("documents", [])
+        str(entry["relative_path"]): entry for entry in (remote_manifest or {}).get("documents", [])
     }
     existing_markdown = {
         str(getattr(blob, "name", blob))
@@ -165,6 +162,7 @@ def upload_corpus(
     container_name: str = "corpus",
     *,
     dry_run: bool = False,
+    expected_plan: BlobMirrorPlan | None = None,
 ) -> int | BlobMirrorPlan:
     """Synchronize a verified canonical corpus with its Blob container.
 
@@ -182,9 +180,7 @@ def upload_corpus(
         return 0
 
     local_manifest = load_corpus_manifest(corpus_path)
-    documents = {
-        str(entry["relative_path"]): entry for entry in local_manifest["documents"]
-    }
+    documents = {str(entry["relative_path"]): entry for entry in local_manifest["documents"]}
 
     account_url = f"https://{storage_account_name}.blob.core.windows.net"
     credential = _build_credential()
@@ -199,6 +195,14 @@ def upload_corpus(
             f"{len(plan.unmanaged)} unmanaged"
         )
         return plan
+    if expected_plan is not None and plan != expected_plan:
+        raise ValueError(
+            "Remote corpus state changed after the reviewed dry run; generate a new mirror plan"
+        )
+    if plan.deletes and expected_plan is None:
+        raise ValueError(
+            "Managed corpus deletions require an exact dry-run plan passed as expected_plan"
+        )
     if plan.unmanaged:
         raise ValueError(
             "Remote corpus contains unmanaged Markdown that cannot be safely deleted: "

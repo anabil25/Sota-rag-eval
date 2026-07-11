@@ -261,8 +261,9 @@ class TestCorpusManifest:
         second_manifest = self._save_generation(second, [doc])
 
         assert first_manifest["corpus_fingerprint"] == second_manifest["corpus_fingerprint"]
-        assert first_manifest["documents"][0]["graphrag_document_id"] == (
-            second_manifest["documents"][0]["graphrag_document_id"]
+        assert (
+            first_manifest["documents"][0]["graphrag_document_id"]
+            == (second_manifest["documents"][0]["graphrag_document_id"])
         )
         assert len(first_manifest["documents"][0]["graphrag_document_id"]) == 128
         assert first_manifest["documents"][0]["source_url"] == (

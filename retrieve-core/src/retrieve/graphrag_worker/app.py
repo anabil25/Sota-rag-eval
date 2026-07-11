@@ -65,6 +65,8 @@ class IndexRequest(BaseModel):
     method: str = Field(default="fast")
     run_scope: GraphRagRunScope = Field(default="full")
     max_documents: int | None = Field(default=None, ge=1)
+    chunk_size: int | None = Field(default=None, ge=1)
+    chunk_overlap: int | None = Field(default=None, ge=0)
     corpus_fingerprint: str = Field(default="")
     ai_services_endpoint: str = Field(default="")
     search_endpoint: str = Field(default="")
@@ -83,6 +85,8 @@ class JobStatus(BaseModel):
     corpus_fingerprint: str = ""
     run_scope: GraphRagRunScope = "full"
     max_documents: int | None = None
+    chunk_size: int | None = None
+    chunk_overlap: int | None = None
     error: str = ""
     heartbeat_at: str = ""
     workflows: list[str] = Field(default_factory=list)
@@ -156,7 +160,7 @@ def _load_successful_run_config(
         artifact_prefix=artifact_prefix,
         corpus_fingerprint=corpus_fingerprint,
         search_endpoint=os.environ.get("SEARCH_ENDPOINT", "").strip(),
-        credential=_credential(),
+        blob_service=_blob_service(storage_account),
     )
 
 
@@ -292,16 +296,13 @@ def _download_corpus(
         for blob in container.list_blobs(name_starts_with=prefix_with_slash):
             name = str(blob.name)
             if name.lower().endswith(".md"):
-                relative = name[len(prefix_with_slash):] if prefix_with_slash else name
+                relative = name[len(prefix_with_slash) :] if prefix_with_slash else name
                 candidates.append((name, relative))
     else:
         selected = sorted(managed_paths)
         if max_documents is not None:
             selected = selected[:max_documents]
-        candidates = [
-            (f"{prefix_with_slash}{relative}", relative)
-            for relative in selected
-        ]
+        candidates = [(f"{prefix_with_slash}{relative}", relative) for relative in selected]
 
     for name, relative in candidates:
         target = input_dir / relative
@@ -330,21 +331,15 @@ def _write_settings(
         "GRAPHRAG_CONCURRENT_REQUESTS",
         DEFAULT_CONCURRENT_REQUESTS,
     )
-    legacy_retry_max_retries = _env_int(
-        "GRAPHRAG_RETRY_MAX_ATTEMPTS", DEFAULT_RETRY_MAX_RETRIES
-    )
-    retry_max_retries = _env_int(
-        "GRAPHRAG_RETRY_MAX_RETRIES", legacy_retry_max_retries
-    )
+    legacy_retry_max_retries = _env_int("GRAPHRAG_RETRY_MAX_ATTEMPTS", DEFAULT_RETRY_MAX_RETRIES)
+    retry_max_retries = _env_int("GRAPHRAG_RETRY_MAX_RETRIES", legacy_retry_max_retries)
     retry_base_delay = _env_float(
         "GRAPHRAG_RETRY_BASE_DELAY_SECONDS", DEFAULT_RETRY_BASE_DELAY_SECONDS
     )
     legacy_retry_max_delay = _env_float(
         "GRAPHRAG_RETRY_MAX_WAIT_SECONDS", DEFAULT_RETRY_MAX_DELAY_SECONDS
     )
-    retry_max_delay = _env_float(
-        "GRAPHRAG_RETRY_MAX_DELAY_SECONDS", legacy_retry_max_delay
-    )
+    retry_max_delay = _env_float("GRAPHRAG_RETRY_MAX_DELAY_SECONDS", legacy_retry_max_delay)
     embedding_tpm = _env_int(
         "GRAPHRAG_EMBEDDING_TOKENS_PER_MINUTE",
         DEFAULT_EMBEDDING_TPM,
@@ -369,6 +364,8 @@ def _write_settings(
         embedding_requests_per_minute=embedding_rpm,
         llm_tokens_per_minute=llm_tpm,
         llm_requests_per_minute=llm_rpm,
+        chunk_size=request.chunk_size,
+        chunk_overlap=request.chunk_overlap,
         storage_account_blob_url=(
             f"https://{storage_account}.blob.core.windows.net" if storage_account else ""
         ),
@@ -377,9 +374,7 @@ def _write_settings(
         cache_prefix=f"cache/{corpus_fingerprint}" if corpus_fingerprint else "",
         search_endpoint=request.search_endpoint,
         vector_index_prefix=(
-            f"gr-{corpus_fingerprint[:8]}-{job_id[:8]}"
-            if corpus_fingerprint and job_id
-            else ""
+            f"gr-{corpus_fingerprint[:8]}-{job_id[:8]}" if corpus_fingerprint and job_id else ""
         ),
         embedding_dimensions=request.embedding_dimensions,
     )
@@ -465,6 +460,8 @@ def _run_index(job_id: str, request: IndexRequest) -> None:
         "artifact_prefix": artifact_prefix,
         "run_scope": request.run_scope,
         "max_documents": request.max_documents,
+        "chunk_size": request.chunk_size,
+        "chunk_overlap": request.chunk_overlap,
         "error": "",
     }
     _set_status(storage_account, request.output_container, status)
@@ -483,17 +480,12 @@ def _run_index(job_id: str, request: IndexRequest) -> None:
             request.corpus_container,
         )
         corpus_fingerprint = str(manifest["corpus_fingerprint"])
-        if (
-            request.corpus_fingerprint
-            and request.corpus_fingerprint != corpus_fingerprint
-        ):
+        if request.corpus_fingerprint and request.corpus_fingerprint != corpus_fingerprint:
             raise RuntimeError(
                 "Requested corpus fingerprint does not match the canonical Blob manifest"
             )
         if not request.search_endpoint:
-            raise RuntimeError(
-                "search_endpoint is required for persistent GraphRAG vector indexes"
-            )
+            raise RuntimeError("search_endpoint is required for persistent GraphRAG vector indexes")
         artifact_prefix = request.output_prefix.strip("/") or (
             f"runs/{corpus_fingerprint}/{job_id}"
         )
@@ -503,9 +495,7 @@ def _run_index(job_id: str, request: IndexRequest) -> None:
         status["message"] = "Verified canonical corpus manifest"
         _set_status(storage_account, request.output_container, status)
 
-        managed_paths = [
-            str(document["relative_path"]) for document in manifest["documents"]
-        ]
+        managed_paths = [str(document["relative_path"]) for document in manifest["documents"]]
         count = _download_corpus(
             storage_account,
             request.corpus_container,
@@ -559,9 +549,7 @@ def _run_index(job_id: str, request: IndexRequest) -> None:
         )
         failures = [result for result in results if result.error is not None]
         if failures:
-            details = "; ".join(
-                f"{result.workflow}: {result.error}" for result in failures
-            )
+            details = "; ".join(f"{result.workflow}: {result.error}" for result in failures)
             raise RuntimeError(f"GraphRAG workflows failed: {details}")
 
         _upload_artifacts(

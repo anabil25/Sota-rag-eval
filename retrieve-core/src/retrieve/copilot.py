@@ -8,13 +8,16 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Callable
+import shutil
+import subprocess
+import time as _time
+from collections.abc import Callable
+from typing import Any
 
-from copilot import CopilotClient, PermissionHandler, SubprocessConfig, define_tool
-from pydantic import BaseModel, Field
+from copilot import CopilotClient, PermissionHandler, SubprocessConfig
 
 from retrieve.config import CopilotConfig
-from retrieve.observability import emit_event, emit_progress
+from retrieve.observability import emit_event
 
 log = logging.getLogger(__name__)
 
@@ -81,6 +84,7 @@ async def get_client(cfg: CopilotConfig | None = None) -> CopilotClient:
         if _headless_process is not None and _headless_port is not None:
             try:
                 from copilot import ExternalServerConfig
+
                 server_config = ExternalServerConfig(
                     host="127.0.0.1",
                     port=_headless_port,
@@ -125,9 +129,6 @@ async def stop_client():
 
 
 # ── Headless CLI server management ────────────────────────────────────
-
-import subprocess
-import shutil
 
 _headless_process: subprocess.Popen | None = None
 _headless_port: int | None = None
@@ -215,8 +216,6 @@ def _session_config(
 
 # ── Hooks ─────────────────────────────────────────────────────────────
 
-import time as _time
-
 _tool_timings: dict[str, float] = {}
 
 
@@ -264,9 +263,7 @@ async def send_and_wait(
     async with await client.create_session(**sc) as session:
         if stream:
             _attach_stream_handlers(session)
-        response = await session.send_and_wait(
-            prompt, timeout=timeout or cfg.timeout
-        )
+        response = await session.send_and_wait(prompt, timeout=timeout or cfg.timeout)
         if response and response.data:
             return response.data.content or ""
     return ""
@@ -290,9 +287,7 @@ async def send_and_wait_session(
         if stream:
             _attach_stream_handlers(session)
         for msg in messages:
-            response = await session.send_and_wait(
-                msg, timeout=timeout or cfg.timeout
-            )
+            response = await session.send_and_wait(msg, timeout=timeout or cfg.timeout)
             content = ""
             if response and response.data:
                 content = response.data.content or ""
@@ -309,6 +304,7 @@ def _attach_stream_handlers(session: Any) -> None:
     """
     try:
         if hasattr(session, "on"):
+
             def on_message_delta(event: Any) -> None:
                 content = ""
                 if hasattr(event, "data") and hasattr(event.data, "content"):
@@ -318,11 +314,15 @@ def _attach_stream_handlers(session: Any) -> None:
                 _dispatch_stream_event("message_delta", {"content": content})
 
             def on_tool_start(event: Any) -> None:
-                tool_name = getattr(event, "name", "unknown") if hasattr(event, "name") else "unknown"
+                tool_name = (
+                    getattr(event, "name", "unknown") if hasattr(event, "name") else "unknown"
+                )
                 _dispatch_stream_event("tool_execution_start", {"tool_name": tool_name})
 
             def on_tool_complete(event: Any) -> None:
-                tool_name = getattr(event, "name", "unknown") if hasattr(event, "name") else "unknown"
+                tool_name = (
+                    getattr(event, "name", "unknown") if hasattr(event, "name") else "unknown"
+                )
                 _dispatch_stream_event("tool_execution_complete", {"tool_name": tool_name})
 
             def on_idle(event: Any) -> None:
@@ -346,8 +346,8 @@ def run_sync(coro):
     if loop and loop.is_running():
         # Already in an async context — create a new thread
         import concurrent.futures
+
         with concurrent.futures.ThreadPoolExecutor() as pool:
             return pool.submit(asyncio.run, coro).result()
     else:
         return asyncio.run(coro)
-

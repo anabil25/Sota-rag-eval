@@ -123,15 +123,17 @@ def search_foundry_embedding_catalog(query: str = "") -> dict[str, Any]:
 
     for registry in ("azureml-cohere", "azureml"):
         try:
-            models = _az_json([
-                "ml",
-                "model",
-                "list",
-                "--registry-name",
-                registry,
-                "--max-results",
-                "100",
-            ])
+            models = _az_json(
+                [
+                    "ml",
+                    "model",
+                    "list",
+                    "--registry-name",
+                    registry,
+                    "--max-results",
+                    "100",
+                ]
+            )
         except Exception as exc:
             registry_errors.append(f"{registry}: {exc}")
             continue
@@ -171,15 +173,17 @@ def list_deployed_foundry_embeddings(resource_group: str, workspace_name: str) -
     errors: list[str] = []
     items: list[dict[str, Any]] = []
     try:
-        endpoints = _az_json([
-            "ml",
-            "serverless-endpoint",
-            "list",
-            "--resource-group",
-            resource_group,
-            "--workspace-name",
-            workspace_name,
-        ])
+        endpoints = _az_json(
+            [
+                "ml",
+                "serverless-endpoint",
+                "list",
+                "--resource-group",
+                resource_group,
+                "--workspace-name",
+                workspace_name,
+            ]
+        )
     except Exception as exc:
         return {"items": [], "errors": [str(exc)]}
 
@@ -190,21 +194,23 @@ def list_deployed_foundry_embeddings(resource_group: str, workspace_name: str) -
         if not _looks_like_embedding(" ".join([name, model_id])):
             continue
         if not scoring_uri and name:
-            code, stdout, stderr = _run_az([
-                "ml",
-                "serverless-endpoint",
-                "show",
-                "--name",
-                name,
-                "--resource-group",
-                resource_group,
-                "--workspace-name",
-                workspace_name,
-                "--query",
-                "scoring_uri",
-                "-o",
-                "tsv",
-            ])
+            code, stdout, stderr = _run_az(
+                [
+                    "ml",
+                    "serverless-endpoint",
+                    "show",
+                    "--name",
+                    name,
+                    "--resource-group",
+                    resource_group,
+                    "--workspace-name",
+                    workspace_name,
+                    "--query",
+                    "scoring_uri",
+                    "-o",
+                    "tsv",
+                ]
+            )
             if code == 0:
                 scoring_uri = stdout.strip()
             else:

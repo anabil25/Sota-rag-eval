@@ -1,15 +1,17 @@
 """Tests for eval/generate.py — eval set generation with mocked Copilot SDK."""
 
-import json
 import asyncio
-import tempfile
+import json
 import os
+import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
+
 from retrieve.config import RetrieveConfig
-from retrieve.eval.generate import generate_eval_set, _generate_for_batch
 from retrieve.eval.chunks import Chunk
+from retrieve.eval.generate import _generate_for_batch, generate_eval_set
 
 
 @pytest.fixture
@@ -68,6 +70,7 @@ class TestGenerateEvalSet:
         assert eval_set_id > 0
 
         from retrieve.db import RetrieveDB
+
         db = RetrieveDB(db_path)
         es = db.get_eval_set_by_version("test-v1")
         assert es is not None
@@ -100,12 +103,16 @@ class TestGenerateEvalSet:
 
         tmpdir = tempfile.mkdtemp()
         db_path = os.path.join(tmpdir, "test.db")
-        (Path(tmpdir) / "test.md").write_text("---\npolicy_id: test\n---\nContent", encoding="utf-8")
+        (Path(tmpdir) / "test.md").write_text(
+            "---\npolicy_id: test\n---\nContent", encoding="utf-8"
+        )
 
         cfg = RetrieveConfig()
         cfg.db_path = db_path
 
-        result = generate_eval_set(corpus_dir=tmpdir, version_label="v1", questions_per_chunk=1, cfg=cfg)
+        result = generate_eval_set(
+            corpus_dir=tmpdir, version_label="v1", questions_per_chunk=1, cfg=cfg
+        )
         assert result == -1
 
 
@@ -115,14 +122,18 @@ class TestGenerateForBatch:
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
 
-        response_json = json.dumps({
-            "questions": [{
-                "question": "What is this?",
-                "category": "direct_lookup",
-                "ground_truth_chunk_ids": ["test::0"],
-                "reasoning": "Direct answer",
-            }]
-        })
+        response_json = json.dumps(
+            {
+                "questions": [
+                    {
+                        "question": "What is this?",
+                        "category": "direct_lookup",
+                        "ground_truth_chunk_ids": ["test::0"],
+                        "reasoning": "Direct answer",
+                    }
+                ]
+            }
+        )
 
         mock_response = MagicMock()
         mock_response.data.content = response_json
@@ -248,6 +259,7 @@ class TestGenerateForBatch:
         cfg = RetrieveConfig()
         # Patch asyncio.sleep to return quickly so the heartbeat fires during the delay
         original_sleep = asyncio.sleep
+
         async def fast_sleep(duration):
             await original_sleep(0.05)
 
@@ -263,4 +275,7 @@ class TestGenerateForBatch:
                 {"intent_families": ["eligibility"]},
             )
 
-        assert any(call.args and call.args[0] == "Waiting on model" for call in mock_emit_progress.call_args_list)
+        assert any(
+            call.args and call.args[0] == "Waiting on model"
+            for call in mock_emit_progress.call_args_list
+        )

@@ -69,9 +69,7 @@ def test_easy_auth_requires_operator_role(tmp_path, monkeypatch):
 
 
 def test_easy_auth_operator_can_mutate(tmp_path, monkeypatch):
-    headers = {
-        "x-ms-client-principal": _principal_header(roles=["Retrieve.Operator"])
-    }
+    headers = {"x-ms-client-principal": _principal_header(roles=["Retrieve.Operator"])}
     with _client(tmp_path, monkeypatch) as client:
         response = client.post(
             "/api/ui/session",

@@ -207,7 +207,9 @@ def run_ingest(
             manifest_entries.append(build_manifest_entry(doc, saved_path, out_path))
             emit_progress(
                 f"Ingested {doc.policy_id or page.href}",
-                stage="ingest.page", completed=i, total=len(pages),
+                stage="ingest.page",
+                completed=i,
+                total=len(pages),
             )
             progress.advance(task)
 

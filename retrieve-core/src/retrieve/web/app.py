@@ -26,6 +26,7 @@ from retrieve.config import RetrieveConfig, load_config
 from retrieve.config_io import atomic_update_yaml
 from retrieve.db import ActiveOperationJobError, IdempotencyConflictError, RetrieveDB
 from retrieve.observability import (
+    configure_event_journal,
     configure_observability,
     operation,
     sse_event_stream,
@@ -83,7 +84,9 @@ def _redact_job_args(value: Any, key: str = "") -> Any:
     if key and any(token in key.lower() for token in _SENSITIVE_ARG_TOKENS):
         return "***"
     if isinstance(value, dict):
-        return {str(item_key): _redact_job_args(item, str(item_key)) for item_key, item in value.items()}
+        return {
+            str(item_key): _redact_job_args(item, str(item_key)) for item_key, item in value.items()
+        }
     if isinstance(value, list):
         return [_redact_job_args(item) for item in value]
     return value
@@ -111,6 +114,7 @@ def _apply_azure_args(
         cfg.azure.location = loc
         changed = True
     if changed:
+
         def update(raw: dict[str, Any]) -> dict[str, Any]:
             azure = raw.setdefault("azure", {})
             if not isinstance(azure, dict):
@@ -174,6 +178,7 @@ def _apply_ui_selections(args: dict[str, Any], cfg: RetrieveConfig) -> None:
         # SOTA mode: derive base architecture from the chosen path.
         try:
             from retrieve.registry.sota_paths import SOTA_PATHS
+
             path_key = ui.get("selected_sota_path")
             path = SOTA_PATHS.get(path_key) if path_key else None
             if path:
@@ -208,9 +213,9 @@ def _embedding_config_from_ui(ui: dict[str, Any]) -> dict[str, Any]:
             config["custom_embedding_header_name"] = str(
                 ui.get("custom_embedding_header_name") or "api-key"
             )
-            raw_dimensions = ui.get("foundry_deployed_dimensions") or ui.get(
-                "custom_embedding_dimensions"
-            ) or 0
+            raw_dimensions = (
+                ui.get("foundry_deployed_dimensions") or ui.get("custom_embedding_dimensions") or 0
+            )
             try:
                 config["custom_embedding_dimensions"] = int(raw_dimensions)
             except (TypeError, ValueError):
@@ -242,8 +247,10 @@ def _parse_foundry_catalog_choice(value: Any) -> dict[str, Any]:
 
 
 def _persist_ui_embedding_config(cfg: RetrieveConfig) -> None:
-    overrides = _embedding_config_from_ui(_load_ui_session(cfg))
-    if not overrides:
+    ui = _load_ui_session(cfg)
+    common_overrides = _embedding_config_from_ui(ui)
+    architecture_options = ui.get("architecture_options") or {}
+    if not common_overrides and not architecture_options:
         return
     db = RetrieveDB(cfg.db_path)
     try:
@@ -251,7 +258,14 @@ def _persist_ui_embedding_config(cfg: RetrieveConfig) -> None:
             arch = db.get_architecture(name)
             if not arch:
                 continue
-            arch_config = {**arch.get("config", {}), **overrides}
+            selected_options = architecture_options.get(name) or {}
+            if not isinstance(selected_options, dict):
+                selected_options = {}
+            arch_config = {
+                **arch.get("config", {}),
+                **common_overrides,
+                **selected_options,
+            }
             db.conn.execute(
                 "UPDATE architectures SET config = ? WHERE id = ?",
                 (json.dumps(arch_config), arch["id"]),
@@ -281,7 +295,9 @@ def _config_summary(cfg: RetrieveConfig) -> dict[str, Any]:
         },
         "copilot": {
             "model": cfg.copilot.model,
-            "provider_type": cfg.copilot.provider.type if cfg.copilot.provider else "signed-in-user",
+            "provider_type": cfg.copilot.provider.type
+            if cfg.copilot.provider
+            else "signed-in-user",
             "timeout": cfg.copilot.timeout,
         },
         "eval": {
@@ -311,13 +327,12 @@ def _architecture_rows(db: RetrieveDB, cfg: RetrieveConfig) -> list[dict[str, An
 def _corpus_file_rows(output_dir: str, cfg: RetrieveConfig) -> list[dict[str, Any]]:
     output_path = Path(output_dir or cfg.corpus.output_dir)
     if not output_path.is_absolute():
-        output_path = Path(cfg.corpus.source).parent / output_path if cfg.corpus.source else output_path
+        output_path = (
+            Path(cfg.corpus.source).parent / output_path if cfg.corpus.source else output_path
+        )
     if not output_path.is_dir():
         return []
-    return [
-        {"name": f.name, "size": f.stat().st_size}
-        for f in sorted(output_path.glob("*.md"))
-    ]
+    return [{"name": f.name, "size": f.stat().st_size} for f in sorted(output_path.glob("*.md"))]
 
 
 def _sota_recommendation(ui: dict[str, Any]) -> dict[str, Any]:
@@ -340,7 +355,8 @@ def _sota_recommendation(ui: dict[str, Any]) -> dict[str, Any]:
             "recommended_sota": recommended,
             "rationale": (
                 f"doc_count={doc_count}, avg_doc_length={avg_doc_length:.0f}, "
-                f"cross_ref_density={cross_ref_density:.2f} — matches the {recommended['name']} pattern."
+                f"cross_ref_density={cross_ref_density:.2f} — matches the "
+                f"{recommended['name']} pattern."
             ),
         }
     except Exception:
@@ -374,15 +390,17 @@ def _compare_context(db: RetrieveDB, cfg: RetrieveConfig, ui: dict[str, Any]) ->
         cfg_data = arch.get("config") or {}
         resources = arch.get("resources_provisioned") or {}
         arch_meta = ARCHITECTURES.get(name)
-        deployments.append({
-            "architecture_name": name,
-            "status": arch.get("status", "unknown"),
-            "endpoint": resources.get("search_endpoint") or resources.get("endpoint"),
-            "index_name": resources.get("index_name") or cfg_data.get("index_name"),
-            "resource_group": resources.get("resource_group") or cfg.azure.resource_group,
-            "location": resources.get("location") or cfg.azure.location,
-            "est_monthly_usd": arch_meta.est_monthly_usd if arch_meta else None,
-        })
+        deployments.append(
+            {
+                "architecture_name": name,
+                "status": arch.get("status", "unknown"),
+                "endpoint": resources.get("search_endpoint") or resources.get("endpoint"),
+                "index_name": resources.get("index_name") or cfg_data.get("index_name"),
+                "resource_group": resources.get("resource_group") or cfg.azure.resource_group,
+                "location": resources.get("location") or cfg.azure.location,
+                "est_monthly_usd": arch_meta.est_monthly_usd if arch_meta else None,
+            }
+        )
 
     return {
         "runs": runs,
@@ -452,7 +470,7 @@ def _run_job_sync(
             return {"doc_count": stats.doc_count}
 
         elif kind == "eval_generate":
-            from retrieve.eval.generate import generate_eval_set, DEFAULT_OPERATOR_CONTEXT
+            from retrieve.eval.generate import DEFAULT_OPERATOR_CONTEXT, generate_eval_set
 
             with step("eval_generate"):
                 eval_set_id = generate_eval_set(
@@ -461,7 +479,8 @@ def _run_job_sync(
                     cfg=cfg,
                     fresh=bool(args.get("fresh", False)),
                     base_eval_set_version=str(args.get("base_eval_set", "latest")),
-                    operator_context=str(args.get("operator_context", "")) or DEFAULT_OPERATOR_CONTEXT,
+                    operator_context=str(args.get("operator_context", ""))
+                    or DEFAULT_OPERATOR_CONTEXT,
                     mode=str(args.get("mode", cfg.eval.mode)),
                 )
             _patch_ui_session(
@@ -479,6 +498,7 @@ def _run_job_sync(
 
         elif kind == "eval_curate":
             from retrieve.eval.curate import regenerate_eval_set
+
             source_version = str(args.get("source_version", "latest"))
             if source_version == "latest":
                 db = RetrieveDB(cfg.db_path)
@@ -508,12 +528,12 @@ def _run_job_sync(
             return {"eval_set_id": eval_set_id}
 
         elif kind == "provision":
-            from retrieve.provision.orchestrator import provision_architectures
+            from retrieve.provision import provision_architectures
 
             _apply_azure_args(args, cfg, config_path)
             _apply_ui_selections(args, cfg)
             with step("provision"):
-                provision_architectures(cfg)
+                provision_architectures(cfg, config_path=config_path)
             _persist_ui_embedding_config(cfg)
             _patch_ui_session(
                 cfg,
@@ -533,12 +553,12 @@ def _run_job_sync(
 
         elif kind == "provision_index":
             from retrieve.indexing.run import index_corpus
-            from retrieve.provision.orchestrator import provision_architectures
+            from retrieve.provision import provision_architectures
 
             _apply_azure_args(args, cfg, config_path)
             _apply_ui_selections(args, cfg)
             with step("provision"):
-                provision_architectures(cfg)
+                provision_architectures(cfg, config_path=config_path)
             _persist_ui_embedding_config(cfg)
             with step("index"):
                 index_result = index_corpus(cfg) or {}
@@ -588,15 +608,16 @@ def _run_job_sync(
             if not model_id:
                 raise ValueError("Select a Foundry catalog embedding model before deploying")
             workspace_name = str(
-                args.get("foundry_workspace_name")
-                or args.get("foundry_project_name")
-                or ""
+                args.get("foundry_workspace_name") or args.get("foundry_project_name") or ""
             ).strip()
             if not workspace_name:
                 raise ValueError("Foundry project/workspace name is required")
-            resource_group = str(args.get("foundry_resource_group") or cfg.azure.resource_group).strip()
+            resource_group = str(
+                args.get("foundry_resource_group") or cfg.azure.resource_group
+            ).strip()
             endpoint_name = str(
-                args.get("foundry_endpoint_name") or f"retrieve-{model_name.lower().replace('_', '-')}"
+                args.get("foundry_endpoint_name")
+                or f"retrieve-{model_name.lower().replace('_', '-')}"
             ).strip()
             with step("deploy_foundry_embedding"):
                 result = deploy_foundry_catalog_model(
@@ -606,33 +627,41 @@ def _run_job_sync(
                     resource_group=resource_group,
                 )
 
-            vectorizer_source = "foundry_cohere" if "cohere" in model_name.lower() else "custom_web_api"
+            vectorizer_source = (
+                "foundry_cohere" if "cohere" in model_name.lower() else "custom_web_api"
+            )
             dimensions = int(choice.get("dimensions") or 0)
             db = RetrieveDB(cfg.db_path)
             try:
                 sess = db.get_generation_preferences("ui_session") or {}
-                sess.update({
-                    "selected_vectorizer": "foundry_deployed",
-                    "selected_embedding": model_name,
-                    "foundry_resource_group": resource_group,
-                    "foundry_workspace_name": workspace_name,
-                    "foundry_deployed_endpoint": endpoint_name,
-                    "foundry_deployed_uri": result.get("uri", ""),
-                    "foundry_deployed_model_name": result.get("model_name", model_name),
-                    "foundry_deployed_dimensions": dimensions,
-                    "foundry_deployed_vectorizer_source": vectorizer_source,
-                    "foundry_catalog_deploy_done": True,
-                })
+                sess.update(
+                    {
+                        "selected_vectorizer": "foundry_deployed",
+                        "selected_embedding": model_name,
+                        "foundry_resource_group": resource_group,
+                        "foundry_workspace_name": workspace_name,
+                        "foundry_deployed_endpoint": endpoint_name,
+                        "foundry_deployed_uri": result.get("uri", ""),
+                        "foundry_deployed_model_name": result.get("model_name", model_name),
+                        "foundry_deployed_dimensions": dimensions,
+                        "foundry_deployed_vectorizer_source": vectorizer_source,
+                        "foundry_catalog_deploy_done": True,
+                    }
+                )
                 if vectorizer_source == "foundry_cohere":
-                    sess.update({
-                        "cohere_uri": result.get("uri", ""),
-                        "cohere_model_name": result.get("model_name", model_name),
-                    })
+                    sess.update(
+                        {
+                            "cohere_uri": result.get("uri", ""),
+                            "cohere_model_name": result.get("model_name", model_name),
+                        }
+                    )
                 else:
-                    sess.update({
-                        "custom_embedding_uri": result.get("uri", ""),
-                        "custom_embedding_dimensions": str(dimensions or ""),
-                    })
+                    sess.update(
+                        {
+                            "custom_embedding_uri": result.get("uri", ""),
+                            "custom_embedding_dimensions": str(dimensions or ""),
+                        }
+                    )
                 db.upsert_generation_preferences(sess, "ui_session")
             finally:
                 db.close()
@@ -658,8 +687,9 @@ def _run_job_sync(
                 ui = {}
             if ui.get("selected_mode") == "sota":
                 mode = "sota"
-                from retrieve.registry.sota_paths import SOTA_PATHS
                 from itertools import product
+
+                from retrieve.registry.sota_paths import SOTA_PATHS
 
                 path_key = ui.get("selected_sota_path")
                 path = SOTA_PATHS.get(path_key) if path_key else None
@@ -699,10 +729,7 @@ def _run_job_sync(
                 db = RetrieveDB(cfg.db_path)
                 try:
                     ready_architectures = []
-                    rows = [
-                        db.get_architecture(str(name))
-                        for name in requested_architectures
-                    ]
+                    rows = [db.get_architecture(str(name)) for name in requested_architectures]
                     reconciled = reconcile_architecture_rows(
                         db,
                         [row for row in rows if row is not None],
@@ -766,6 +793,18 @@ def _run_job_sync(
 def create_app(config_path: str = "retrieve.yaml") -> FastAPI:
     configure_observability()
     cfg = load_config(config_path)
+
+    def persist_event(event: dict[str, Any]) -> int:
+        event_db = RetrieveDB(cfg.db_path)
+        try:
+            return event_db.append_operation_event(
+                str(event["operation_id"]),
+                event,
+            )
+        finally:
+            event_db.close()
+
+    configure_event_journal(persist_event)
     startup_db = RetrieveDB(cfg.db_path)
     try:
         interrupted_jobs = startup_db.mark_interrupted_operation_jobs_failed()
@@ -788,8 +827,7 @@ def create_app(config_path: str = "retrieve.yaml") -> FastAPI:
     @app.middleware("http")
     async def authorize_and_serialize_mutations(request: Request, call_next):
         is_mutation = (
-            request.url.path.startswith("/api/")
-            and request.method.upper() in _UNSAFE_HTTP_METHODS
+            request.url.path.startswith("/api/") and request.method.upper() in _UNSAFE_HTTP_METHODS
         )
         if not is_mutation:
             return await call_next(request)
@@ -960,15 +998,16 @@ def create_app(config_path: str = "retrieve.yaml") -> FastAPI:
             for category, scores in category_scores.items():
                 total_questions = sum(1 for r in results if r.get("category") == category)
                 failure_count = sum(
-                    1 for r in results
-                    if r.get("category") == category and r.get("failure_type")
+                    1 for r in results if r.get("category") == category and r.get("failure_type")
                 )
-                categories.append({
-                    "category": category,
-                    **scores,
-                    "total_questions": total_questions,
-                    "failure_count": failure_count,
-                })
+                categories.append(
+                    {
+                        "category": category,
+                        **scores,
+                        "total_questions": total_questions,
+                        "failure_count": failure_count,
+                    }
+                )
             failures = db.get_failures_for_run(run_id)
             return {
                 "run": run,
@@ -1036,7 +1075,11 @@ def create_app(config_path: str = "retrieve.yaml") -> FastAPI:
             if not row:
                 raise HTTPException(404, "Eval set not found")
             es = dict(row)
-            cats = json.loads(es["category_counts"]) if isinstance(es["category_counts"], str) else es["category_counts"]
+            cats = (
+                json.loads(es["category_counts"])
+                if isinstance(es["category_counts"], str)
+                else es["category_counts"]
+            )
             questions = db.get_questions(eval_set_id)
             cat_examples: dict[str, list[str]] = {}
             for q in questions:
@@ -1055,11 +1098,13 @@ def create_app(config_path: str = "retrieve.yaml") -> FastAPI:
     @app.get("/api/architectures")
     async def api_architectures():
         from retrieve.registry.architectures import ARCHITECTURES
+
         return {k: v.model_dump() for k, v in ARCHITECTURES.items()}
 
     @app.get("/api/models")
     async def api_models():
         from retrieve.registry.models import EMBEDDING_MODELS, RERANKER_MODELS
+
         return {
             "embedding": {k: v.model_dump() for k, v in EMBEDDING_MODELS.items()},
             "reranker": {k: v.model_dump() for k, v in RERANKER_MODELS.items()},
@@ -1083,6 +1128,7 @@ def create_app(config_path: str = "retrieve.yaml") -> FastAPI:
     @app.get("/api/sota-paths")
     async def api_sota_paths():
         from retrieve.registry.sota_paths import SOTA_PATHS
+
         return {k: v.model_dump() for k, v in SOTA_PATHS.items()}
 
     # ── REST API (mutations — thin wrappers over core) ─────────────────
@@ -1097,14 +1143,21 @@ def create_app(config_path: str = "retrieve.yaml") -> FastAPI:
         from retrieve.ingest import run_ingest
 
         stats = await asyncio.to_thread(
-            run_ingest, source=source, plugin_name=plugin, output_dir=output,
-            delay=float(body.get("delay", 0.5)), cfg=cfg,
+            run_ingest,
+            source=source,
+            plugin_name=plugin,
+            output_dir=output,
+            delay=float(body.get("delay", 0.5)),
+            cfg=cfg,
         )
-        return {"status": "complete", "stats": {
-            "doc_count": stats.doc_count,
-            "avg_doc_length": stats.avg_doc_length,
-            "cross_ref_density": stats.cross_ref_density,
-        }}
+        return {
+            "status": "complete",
+            "stats": {
+                "doc_count": stats.doc_count,
+                "avg_doc_length": stats.avg_doc_length,
+                "cross_ref_density": stats.cross_ref_density,
+            },
+        }
 
     @app.post("/api/eval/generate")
     async def api_eval_generate(request: Request):
@@ -1116,7 +1169,7 @@ def create_app(config_path: str = "retrieve.yaml") -> FastAPI:
         operator_context = body.get("operator_context", "")
         mode = body.get("mode", cfg.eval.mode)
 
-        from retrieve.eval.generate import generate_eval_set, DEFAULT_OPERATOR_CONTEXT
+        from retrieve.eval.generate import DEFAULT_OPERATOR_CONTEXT, generate_eval_set
 
         eval_set_id = await asyncio.to_thread(
             generate_eval_set,
@@ -1144,6 +1197,7 @@ def create_app(config_path: str = "retrieve.yaml") -> FastAPI:
             if latest:
                 source_version = latest["version_label"]
         from retrieve.eval.curate import regenerate_eval_set
+
         eval_set_id = await asyncio.to_thread(
             regenerate_eval_set,
             source_version=source_version,
@@ -1413,7 +1467,7 @@ def create_app(config_path: str = "retrieve.yaml") -> FastAPI:
         }
 
     @app.get("/api/ui/job/{job_id}/stream")
-    async def api_ui_job_stream(job_id: str):
+    async def api_ui_job_stream(job_id: str, request: Request):
         job = app.state.jobs.get(job_id)
         if not job:
             stream_db = RetrieveDB(cfg.db_path)
@@ -1424,21 +1478,27 @@ def create_app(config_path: str = "retrieve.yaml") -> FastAPI:
         if not job:
             raise HTTPException(404, "job not found")
 
-        if job["done"]:
-            async def _done_stream():
-                yield "event: done\ndata: \n\n"
+        last_event_id = request.headers.get("last-event-id", "0").strip() or "0"
+        if not last_event_id.isdigit():
+            raise HTTPException(400, "Last-Event-ID must be a non-negative integer")
 
-            return StreamingResponse(
-                _done_stream(),
-                media_type="text/event-stream",
-                headers={
-                    "Cache-Control": "no-cache",
-                    "Connection": "keep-alive",
-                },
-            )
+        def load_events(operation_id: str, after_sequence: int) -> list[dict[str, Any]]:
+            event_db = RetrieveDB(cfg.db_path)
+            try:
+                return event_db.list_operation_events(
+                    operation_id,
+                    after_sequence=after_sequence,
+                )
+            finally:
+                event_db.close()
 
         return StreamingResponse(
-            sse_event_stream(job.get("operation_id", job["id"])),
+            sse_event_stream(
+                job.get("operation_id", job["id"]),
+                event_loader=load_events,
+                after_sequence=int(last_event_id),
+                done=bool(job["done"]),
+            ),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
@@ -1465,7 +1525,13 @@ def _compute_step_states(db: RetrieveDB, cfg: RetrieveConfig, ui: dict[str, Any]
         "ingest": "done" if ui.get("ingest_done") else "pending",
         "eval": "done" if latest_eval else "pending",
         "mode": "done" if ui.get("selected_mode") else "pending",
-        "configure": "done" if (ui.get("configure_done") or ui.get("selected_architectures") or ui.get("selected_sota_path")) else "pending",
+        "configure": "done"
+        if (
+            ui.get("configure_done")
+            or ui.get("selected_architectures")
+            or ui.get("selected_sota_path")
+        )
+        else "pending",
         "provision": "done" if provisioned else "pending",
         "compare": "done" if runs else "pending",
         "history": "done" if runs else "pending",
@@ -1484,7 +1550,9 @@ def _build_step_context(step_name: str, db: RetrieveDB, cfg: RetrieveConfig) -> 
         corpus_files = []
         output_path = Path(output_dir)
         if not output_path.is_absolute():
-            output_path = Path(cfg.corpus.source).parent / output_dir if cfg.corpus.source else output_path
+            output_path = (
+                Path(cfg.corpus.source).parent / output_dir if cfg.corpus.source else output_path
+            )
         if output_path.is_dir():
             for f in sorted(output_path.glob("*.md")):
                 corpus_files.append({"name": f.name, "size": f.stat().st_size})
@@ -1512,6 +1580,7 @@ def _build_step_context(step_name: str, db: RetrieveDB, cfg: RetrieveConfig) -> 
 
     if step_name == "mode":
         from retrieve.registry.sota_paths import SOTA_PATHS
+
         recommendation = _sota_recommendation(ui)
         return {
             "architectures": cfg.architectures,
@@ -1524,6 +1593,7 @@ def _build_step_context(step_name: str, db: RetrieveDB, cfg: RetrieveConfig) -> 
         from retrieve.registry.architectures import ARCHITECTURES
         from retrieve.registry.models import EMBEDDING_MODELS
         from retrieve.registry.sota_paths import SOTA_PATHS
+
         return {
             "architectures": cfg.architectures,
             "selected_mode": ui.get("selected_mode") or "test",
@@ -1537,7 +1607,11 @@ def _build_step_context(step_name: str, db: RetrieveDB, cfg: RetrieveConfig) -> 
         }
 
     if step_name == "provision":
-        return {"architectures": _architecture_rows(db, cfg), "resource_group": cfg.azure.resource_group, "location": cfg.azure.location}
+        return {
+            "architectures": _architecture_rows(db, cfg),
+            "resource_group": cfg.azure.resource_group,
+            "location": cfg.azure.location,
+        }
 
     if step_name == "compare":
         return _compare_context(db, cfg, ui)

@@ -1,12 +1,14 @@
 """Tests for eval/compare.py — dashboard output and export."""
 
 import json
-import tempfile
 import os
+import tempfile
 from pathlib import Path
+
 import pytest
+
 from retrieve.db import RetrieveDB
-from retrieve.eval.compare import compare_runs, _export_csv, _export_json
+from retrieve.eval.compare import _export_csv, _export_json
 
 
 @pytest.fixture
@@ -23,23 +25,77 @@ def populated_db():
 
     # Run 1: keyword
     r1 = db.create_run(eid, "keyword", "test")
-    db.add_result(r1, q1, ["100::0"], {"recall_at_5": 1.0, "recall_at_10": 1.0, "mrr_at_10": 1.0, "ndcg_at_10": 1.0}, 8.0)
-    db.add_result(r1, q2, ["999::0"], {"recall_at_5": 0.0, "recall_at_10": 0.0, "mrr_at_10": 0.0, "ndcg_at_10": 0.0}, 7.0, failure_type="vocabulary_mismatch")
-    db.add_result(r1, q3, ["999::0"], {"recall_at_5": 0.0, "recall_at_10": 0.0, "mrr_at_10": 0.0, "ndcg_at_10": 0.0}, 9.0, failure_type="cross_ref_miss")
-    db.complete_run(r1, {
-        "recall_at_5": 0.33, "recall_at_10": 0.33, "mrr_at_10": 0.33, "ndcg_at_10": 0.33,
-        "avg_latency_ms": 8.0, "failure_count": 2, "total_questions": 3,
-    })
+    db.add_result(
+        r1,
+        q1,
+        ["100::0"],
+        {"recall_at_5": 1.0, "recall_at_10": 1.0, "mrr_at_10": 1.0, "ndcg_at_10": 1.0},
+        8.0,
+    )
+    db.add_result(
+        r1,
+        q2,
+        ["999::0"],
+        {"recall_at_5": 0.0, "recall_at_10": 0.0, "mrr_at_10": 0.0, "ndcg_at_10": 0.0},
+        7.0,
+        failure_type="vocabulary_mismatch",
+    )
+    db.add_result(
+        r1,
+        q3,
+        ["999::0"],
+        {"recall_at_5": 0.0, "recall_at_10": 0.0, "mrr_at_10": 0.0, "ndcg_at_10": 0.0},
+        9.0,
+        failure_type="cross_ref_miss",
+    )
+    db.complete_run(
+        r1,
+        {
+            "recall_at_5": 0.33,
+            "recall_at_10": 0.33,
+            "mrr_at_10": 0.33,
+            "ndcg_at_10": 0.33,
+            "avg_latency_ms": 8.0,
+            "failure_count": 2,
+            "total_questions": 3,
+        },
+    )
 
     # Run 2: hybrid
     r2 = db.create_run(eid, "hybrid", "test")
-    db.add_result(r2, q1, ["100::0"], {"recall_at_5": 1.0, "recall_at_10": 1.0, "mrr_at_10": 1.0, "ndcg_at_10": 1.0}, 45.0)
-    db.add_result(r2, q2, ["101::0"], {"recall_at_5": 1.0, "recall_at_10": 1.0, "mrr_at_10": 1.0, "ndcg_at_10": 1.0}, 50.0)
-    db.add_result(r2, q3, ["102::0"], {"recall_at_5": 0.5, "recall_at_10": 0.5, "mrr_at_10": 1.0, "ndcg_at_10": 0.5}, 55.0)
-    db.complete_run(r2, {
-        "recall_at_5": 0.83, "recall_at_10": 0.83, "mrr_at_10": 1.0, "ndcg_at_10": 0.83,
-        "avg_latency_ms": 50.0, "failure_count": 0, "total_questions": 3,
-    })
+    db.add_result(
+        r2,
+        q1,
+        ["100::0"],
+        {"recall_at_5": 1.0, "recall_at_10": 1.0, "mrr_at_10": 1.0, "ndcg_at_10": 1.0},
+        45.0,
+    )
+    db.add_result(
+        r2,
+        q2,
+        ["101::0"],
+        {"recall_at_5": 1.0, "recall_at_10": 1.0, "mrr_at_10": 1.0, "ndcg_at_10": 1.0},
+        50.0,
+    )
+    db.add_result(
+        r2,
+        q3,
+        ["102::0"],
+        {"recall_at_5": 0.5, "recall_at_10": 0.5, "mrr_at_10": 1.0, "ndcg_at_10": 0.5},
+        55.0,
+    )
+    db.complete_run(
+        r2,
+        {
+            "recall_at_5": 0.83,
+            "recall_at_10": 0.83,
+            "mrr_at_10": 1.0,
+            "ndcg_at_10": 0.83,
+            "avg_latency_ms": 50.0,
+            "failure_count": 0,
+            "total_questions": 3,
+        },
+    )
 
     yield db, r1, r2
 
@@ -58,7 +114,7 @@ class TestExportCSV:
             path = f.name
         _export_csv(runs, path)
         content = Path(path).read_text(encoding="utf-8")
-        lines = [l for l in content.strip().split("\n") if l.strip()]
+        lines = [line for line in content.strip().split("\n") if line.strip()]
         assert len(lines) == 3  # header + 2 runs
         assert "Architecture" in lines[0]
         assert "nDCG@10" in lines[0]

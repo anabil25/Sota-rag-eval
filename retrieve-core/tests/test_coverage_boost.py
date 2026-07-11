@@ -46,9 +46,7 @@ class TestBlobUpload:
         count = upload_corpus(str(corpus), "teststore")
         assert count == 2
         assert mock_container.upload_blob.call_count == 3
-        uploaded_names = {
-            call.kwargs["name"] for call in mock_container.upload_blob.call_args_list
-        }
+        uploaded_names = {call.kwargs["name"] for call in mock_container.upload_blob.call_args_list}
         assert uploaded_names == {
             "100/100_doc_1.md",
             "101/101_doc_2.md",
@@ -64,9 +62,7 @@ class TestBlobUpload:
         mock_blob,
         tmp_path,
     ):
-        shared = ConvertedDoc(
-            "100", "Shared", "", "https://example.test/100.htm", "Unchanged"
-        )
+        shared = ConvertedDoc("100", "Shared", "", "https://example.test/100.htm", "Unchanged")
         remote_root = tmp_path / "remote"
         remote_manifest = self._write_generation(
             remote_root,
@@ -100,16 +96,21 @@ class TestBlobUpload:
         mock_container.upload_blob.assert_not_called()
         mock_container.delete_blob.assert_not_called()
 
-        synchronized = upload_corpus(str(local_root), "teststore")
+        with pytest.raises(ValueError, match="require an exact dry-run plan"):
+            upload_corpus(str(local_root), "teststore")
+
+        synchronized = upload_corpus(
+            str(local_root),
+            "teststore",
+            expected_plan=plan,
+        )
 
         assert synchronized == 2
         mock_container.delete_blob.assert_called_once_with(
             "099/099_stale.md",
             delete_snapshots="include",
         )
-        uploaded_names = [
-            call.kwargs["name"] for call in mock_container.upload_blob.call_args_list
-        ]
+        uploaded_names = [call.kwargs["name"] for call in mock_container.upload_blob.call_args_list]
         assert uploaded_names == ["101/101_new.md", "_retrieve/corpus-manifest.json"]
 
     def test_upload_corpus_rejects_unmanifested_markdown(self, tmp_path):
@@ -152,6 +153,7 @@ class TestBlobUpload:
 
     def test_upload_corpus_missing_dir(self):
         from retrieve.indexing.blob_upload import upload_corpus
+
         count = upload_corpus("/nonexistent/path", "teststore")
         assert count == 0
 
@@ -160,6 +162,7 @@ class TestBlobUpload:
     def test_upload_corpus_no_files(self, mock_cred, mock_blob):
         tmpdir = tempfile.mkdtemp()
         from retrieve.indexing.blob_upload import upload_corpus
+
         count = upload_corpus(tmpdir, "teststore")
         assert count == 0
 
@@ -178,6 +181,7 @@ class TestSearchIndexWaitForIndexer:
         }
 
         from retrieve.indexing.search_index import wait_for_indexer
+
         result = wait_for_indexer("https://test.search.windows.net", "test-indexer", timeout=5)
         assert result["status"] == "success"
         assert result["item_count"] == 100
@@ -188,58 +192,8 @@ class TestSearchIndexWaitForIndexer:
         mock_rest_get.return_value = {"lastResult": {"status": "inProgress"}}
 
         from retrieve.indexing.search_index import wait_for_indexer
+
         wait_for_indexer("https://test.search.windows.net", "test-indexer", timeout=1)
-
-
-class TestProvisionOrchestratorEdgeCases:
-    @patch("retrieve.provision.orchestrator._az_json")
-    @patch("retrieve.provision.orchestrator._check_az_cli")
-    def test_unknown_architectures(self, mock_check, mock_az):
-        from retrieve.config import RetrieveConfig
-        from retrieve.provision.orchestrator import provision_architectures
-
-        cfg = RetrieveConfig()
-        cfg.azure.resource_group = "test-rg"
-        cfg.architectures = ["nonexistent"]
-        provision_architectures(cfg)  # Should print error, not crash
-
-    @patch("retrieve.provision.orchestrator._az_json")
-    @patch("retrieve.provision.orchestrator._check_az_cli")
-    def test_already_provisioned_skipped(self, mock_check, mock_az):
-        from retrieve.config import RetrieveConfig
-        from retrieve.db import RetrieveDB
-        from retrieve.provision.orchestrator import provision_architectures
-
-        tmpdir = tempfile.mkdtemp()
-        db_path = os.path.join(tmpdir, "test.db")
-        cfg = RetrieveConfig()
-        cfg.db_path = db_path
-        cfg.azure.resource_group = "test-rg"
-        cfg.architectures = ["hybrid"]
-
-        db = RetrieveDB(db_path)
-        db.register_architecture("hybrid", {})
-        db.conn.execute("UPDATE architectures SET status = 'provisioned'")
-        db.conn.commit()
-        db.close()
-
-        provision_architectures(cfg)
-        # Should skip the already provisioned architecture
-
-    @patch("retrieve.provision.orchestrator._az_json")
-    @patch("retrieve.provision.orchestrator._check_az_cli")
-    def test_rg_creation_failure_is_propagated(self, mock_check, mock_az):
-        from retrieve.config import RetrieveConfig
-        from retrieve.provision.orchestrator import provision_architectures
-
-        mock_az.side_effect = RuntimeError("RG creation failed")
-
-        cfg = RetrieveConfig()
-        cfg.db_path = os.path.join(tempfile.mkdtemp(), "test.db")
-        cfg.azure.resource_group = "test-rg"
-        cfg.architectures = ["hybrid"]
-        with pytest.raises(RuntimeError, match="RG creation failed"):
-            provision_architectures(cfg)
 
 
 class TestTeardownEdgeCases:
@@ -265,6 +219,7 @@ class TestTeardownEdgeCases:
 class TestHTMLPluginEdgeCases:
     def test_get_with_waf_block(self):
         from retrieve.ingest.html_plugin import HtmlPlugin
+
         with patch("retrieve.ingest.html_plugin.requests.Session") as MockSession:
             mock_session = MagicMock()
             resp = MagicMock()

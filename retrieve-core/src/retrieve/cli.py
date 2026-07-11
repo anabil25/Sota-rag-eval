@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 from rich.console import Console
@@ -24,15 +23,15 @@ app.add_typer(domain_app)
 
 console = Console()
 
-ConfigOpt = Annotated[
-    Path, typer.Option("--config", "-c", help="Path to retrieve.yaml")
-]
+ConfigOpt = Annotated[Path, typer.Option("--config", "-c", help="Path to retrieve.yaml")]
 
 
 @app.callback()
 def main_callback(
     verbose: Annotated[bool, typer.Option("--verbose", "-v")] = False,
-    azure_sdk_logging: Annotated[bool, typer.Option("--azure-sdk-logging", help="Enable verbose Azure SDK HTTP logging")] = False,
+    azure_sdk_logging: Annotated[
+        bool, typer.Option("--azure-sdk-logging", help="Enable verbose Azure SDK HTTP logging")
+    ] = False,
 ):
     configure_observability(verbose=verbose, azure_sdk_logging=azure_sdk_logging)
 
@@ -42,9 +41,15 @@ def main_callback(
 
 @app.command()
 def ingest(
-    source: Annotated[str, typer.Option("--source", "-s", help="URL or local path to corpus source")],
-    plugin: Annotated[str, typer.Option("--plugin", "-p", help="Ingestion plugin: html, pdf, markdown")] = "html",
-    output: Annotated[str, typer.Option("--output", "-o", help="Output directory for Markdown files")] = "corpus",
+    source: Annotated[
+        str, typer.Option("--source", "-s", help="URL or local path to corpus source")
+    ],
+    plugin: Annotated[
+        str, typer.Option("--plugin", "-p", help="Ingestion plugin: html, pdf, markdown")
+    ] = "html",
+    output: Annotated[
+        str, typer.Option("--output", "-o", help="Output directory for Markdown files")
+    ] = "corpus",
     config: ConfigOpt = Path("retrieve.yaml"),
     delay: Annotated[float, typer.Option("--delay", help="Seconds between HTTP requests")] = 0.5,
 ):
@@ -60,7 +65,9 @@ def ingest(
             cfg = load_config(config)
         with step("run_ingest"):
             with capture_module_consoles([run_ingest]):
-                run_ingest(source=source, plugin_name=plugin, output_dir=output, delay=delay, cfg=cfg)
+                run_ingest(
+                    source=source, plugin_name=plugin, output_dir=output, delay=delay, cfg=cfg
+                )
 
 
 # ── eval generate ────────────────────────────────────────────────────
@@ -71,14 +78,25 @@ def eval_generate(
     corpus: Annotated[str, typer.Option("--corpus", help="Path to corpus directory")],
     output: Annotated[str, typer.Option("--output", help="Eval set version label")] = "v1",
     config: ConfigOpt = Path("retrieve.yaml"),
-    mode: Annotated[str, typer.Option("--mode", "-m", help="Eval mode: 'sample' (~30 questions) or 'full' (~0.5 per doc)")] = "sample",
-    fresh: Annotated[bool, typer.Option("--fresh", help="Start fresh instead of building on latest eval set")] = False,
-    base_eval_set: Annotated[str, typer.Option("--base-eval-set", help="Base eval set version (default: latest)")] = "latest",
-    operator_context: Annotated[str, typer.Option("--operator-context", help="Domain context for question generation")] = "",
+    mode: Annotated[
+        str,
+        typer.Option(
+            "--mode", "-m", help="Eval mode: 'sample' (~30 questions) or 'full' (~0.5 per doc)"
+        ),
+    ] = "sample",
+    fresh: Annotated[
+        bool, typer.Option("--fresh", help="Start fresh instead of building on latest eval set")
+    ] = False,
+    base_eval_set: Annotated[
+        str, typer.Option("--base-eval-set", help="Base eval set version (default: latest)")
+    ] = "latest",
+    operator_context: Annotated[
+        str, typer.Option("--operator-context", help="Domain context for question generation")
+    ] = "",
 ):
     """Generate a golden evaluation set from the corpus."""
-    from retrieve.eval.generate import generate_eval_set, DEFAULT_OPERATOR_CONTEXT
     from retrieve.eval import generate as eval_generate_mod
+    from retrieve.eval.generate import DEFAULT_OPERATOR_CONTEXT, generate_eval_set
 
     with operation(
         "cli.eval.generate",
@@ -109,20 +127,35 @@ def eval_generate(
 
 @eval_app.command("curate")
 def eval_curate(
-    eval_set: Annotated[str, typer.Option("--eval-set", help="Eval set version to curate")] = "latest",
+    eval_set: Annotated[
+        str, typer.Option("--eval-set", help="Eval set version to curate")
+    ] = "latest",
     config: ConfigOpt = Path("retrieve.yaml"),
-    more: Annotated[Optional[str], typer.Option("--more", help="Categories to add more of (comma-separated)")] = None,
-    fewer: Annotated[Optional[str], typer.Option("--fewer", help="Categories to reduce (comma-separated)")] = None,
-    add_category: Annotated[Optional[str], typer.Option("--add-category", help="New categories to add (comma-separated)")] = None,
-    remove_category: Annotated[Optional[str], typer.Option("--remove-category", help="Categories to remove (comma-separated)")] = None,
-    question_types: Annotated[Optional[str], typer.Option("--question-types", help="Question types to bias toward (comma-separated)")] = None,
-    output: Annotated[Optional[str], typer.Option("--output", "-o", help="New version label")] = None,
-    corpus: Annotated[Optional[str], typer.Option("--corpus", help="Corpus directory for regeneration")] = None,
-    notes: Annotated[Optional[str], typer.Option("--notes", help="SME notes for steering")] = None,
+    more: Annotated[
+        str | None, typer.Option("--more", help="Categories to add more of (comma-separated)")
+    ] = None,
+    fewer: Annotated[
+        str | None, typer.Option("--fewer", help="Categories to reduce (comma-separated)")
+    ] = None,
+    add_category: Annotated[
+        str | None, typer.Option("--add-category", help="New categories to add (comma-separated)")
+    ] = None,
+    remove_category: Annotated[
+        str | None, typer.Option("--remove-category", help="Categories to remove (comma-separated)")
+    ] = None,
+    question_types: Annotated[
+        str | None,
+        typer.Option("--question-types", help="Question types to bias toward (comma-separated)"),
+    ] = None,
+    output: Annotated[str | None, typer.Option("--output", "-o", help="New version label")] = None,
+    corpus: Annotated[
+        str | None, typer.Option("--corpus", help="Corpus directory for regeneration")
+    ] = None,
+    notes: Annotated[str | None, typer.Option("--notes", help="SME notes for steering")] = None,
 ):
     """Review and steer eval set categories, regenerate with new balance."""
-    from retrieve.eval.curate import show_eval_set_summary, regenerate_eval_set
     from retrieve.eval import curate as eval_curate_mod
+    from retrieve.eval.curate import regenerate_eval_set, show_eval_set_summary
 
     with operation("cli.eval.curate", source="cli", metadata={"eval_set": eval_set}):
         with step("load_config"):
@@ -134,7 +167,10 @@ def eval_curate(
             with step("show_eval_set_summary"):
                 with capture_module_consoles([eval_curate_mod]):
                     show_eval_set_summary(eval_set, cfg)
-                    console.print("\n[dim]To steer: --more cross_document --fewer direct_lookup --output v2[/dim]")
+                    console.print(
+                        "\n[dim]To steer: --more cross_document "
+                        "--fewer direct_lookup --output v2[/dim]"
+                    )
             return
 
         # Build steering dict
@@ -163,15 +199,21 @@ def eval_curate(
 
 @eval_app.command("export-csv")
 def eval_export_csv(
-    eval_set: Annotated[str, typer.Option("--eval-set", help="Eval set version to export")] = "latest",
-    output: Annotated[str, typer.Option("--output", "-o", help="Output CSV path")] = "eval_questions.csv",
+    eval_set: Annotated[
+        str, typer.Option("--eval-set", help="Eval set version to export")
+    ] = "latest",
+    output: Annotated[
+        str, typer.Option("--output", "-o", help="Output CSV path")
+    ] = "eval_questions.csv",
     config: ConfigOpt = Path("retrieve.yaml"),
 ):
     """Export eval questions (with Q/A pairs and metadata) to CSV."""
-    from retrieve.eval.io_csv import export_eval_set_to_csv
     from retrieve.db import RetrieveDB
+    from retrieve.eval.io_csv import export_eval_set_to_csv
 
-    with operation("cli.eval.export_csv", source="cli", metadata={"eval_set": eval_set, "output": output}):
+    with operation(
+        "cli.eval.export_csv", source="cli", metadata={"eval_set": eval_set, "output": output}
+    ):
         with step("load_config"):
             cfg = load_config(config)
         db = RetrieveDB(cfg.db_path)
@@ -193,15 +235,23 @@ def eval_export_csv(
 
 @eval_app.command("import-csv")
 def eval_import_csv(
-    input_csv: Annotated[str, typer.Option("--input", "-i", help="Input CSV path")] = "eval_questions.csv",
-    output_version: Annotated[str, typer.Option("--output", "-o", help="New eval set version label")] = "v-imported",
-    base_eval_set: Annotated[str, typer.Option("--base-eval-set", help="Base eval set to extend (default: latest)")] = "latest",
-    fresh: Annotated[bool, typer.Option("--fresh", help="Import into a fresh eval set (do not extend base)")] = False,
+    input_csv: Annotated[
+        str, typer.Option("--input", "-i", help="Input CSV path")
+    ] = "eval_questions.csv",
+    output_version: Annotated[
+        str, typer.Option("--output", "-o", help="New eval set version label")
+    ] = "v-imported",
+    base_eval_set: Annotated[
+        str, typer.Option("--base-eval-set", help="Base eval set to extend (default: latest)")
+    ] = "latest",
+    fresh: Annotated[
+        bool, typer.Option("--fresh", help="Import into a fresh eval set (do not extend base)")
+    ] = False,
     config: ConfigOpt = Path("retrieve.yaml"),
 ):
     """Import eval questions from CSV into a new eval set version."""
-    from retrieve.eval.io_csv import import_eval_set_from_csv
     from retrieve.db import RetrieveDB
+    from retrieve.eval.io_csv import import_eval_set_from_csv
 
     with operation(
         "cli.eval.import_csv",
@@ -243,13 +293,17 @@ def eval_import_csv(
 @eval_app.command("run")
 def eval_run(
     eval_set: Annotated[str, typer.Option("--eval-set", help="Eval set version to run")] = "latest",
-    architectures: Annotated[str, typer.Option("--architectures", "-a", help="Comma-separated list or 'all'")] = "all",
+    architectures: Annotated[
+        str, typer.Option("--architectures", "-a", help="Comma-separated list or 'all'")
+    ] = "all",
     config: ConfigOpt = Path("retrieve.yaml"),
-    parallel: Annotated[bool, typer.Option("--parallel", help="Run different architectures in parallel")] = False,
+    parallel: Annotated[
+        bool, typer.Option("--parallel", help="Run different architectures in parallel")
+    ] = False,
 ):
     """Run the golden eval set against provisioned architectures."""
-    from retrieve.eval.runner import run_evaluation
     from retrieve.eval import runner as eval_runner_mod
+    from retrieve.eval.runner import run_evaluation
 
     with operation(
         "cli.eval.run",
@@ -274,14 +328,20 @@ def eval_run(
 
 @eval_app.command("compare")
 def eval_compare(
-    runs: Annotated[Optional[str], typer.Option("--runs", help="Comma-separated run IDs to compare")] = None,
-    export: Annotated[Optional[str], typer.Option("--export", help="Export path (csv or json)")] = None,
-    web: Annotated[bool, typer.Option("--web", help="Open comparison dashboard in browser")] = False,
+    runs: Annotated[
+        str | None, typer.Option("--runs", help="Comma-separated run IDs to compare")
+    ] = None,
+    export: Annotated[
+        str | None, typer.Option("--export", help="Export path (csv or json)")
+    ] = None,
+    web: Annotated[
+        bool, typer.Option("--web", help="Open comparison dashboard in browser")
+    ] = False,
     config: ConfigOpt = Path("retrieve.yaml"),
 ):
     """Compare evaluation runs side by side."""
-    from retrieve.eval.compare import compare_runs
     from retrieve.eval import compare as eval_compare_mod
+    from retrieve.eval.compare import compare_runs
 
     with operation(
         "cli.eval.compare",
@@ -304,15 +364,15 @@ def provision(
     config: ConfigOpt = Path("retrieve.yaml"),
 ):
     """Provision Azure resources for selected architectures."""
+    from retrieve.provision import azd as provision_mod
     from retrieve.provision import provision_architectures
-    from retrieve.provision import orchestrator as provision_mod
 
     with operation("cli.provision", source="cli"):
         with step("load_config"):
             cfg = load_config(config)
         with step("provision_architectures"):
             with capture_module_consoles([provision_mod]):
-                provision_architectures(cfg)
+                provision_architectures(cfg, config_path=config)
 
 
 # ── index ────────────────────────────────────────────────────────────
@@ -323,9 +383,9 @@ def index(
     config: ConfigOpt = Path("retrieve.yaml"),
 ):
     """Upload corpus and build search indexes."""
+    from retrieve.indexing import blob_upload as blob_upload_mod
     from retrieve.indexing import index_corpus
     from retrieve.indexing import run as indexing_run_mod
-    from retrieve.indexing import blob_upload as blob_upload_mod
     from retrieve.indexing import search_index as search_index_mod
 
     with operation("cli.index", source="cli"):
@@ -341,12 +401,14 @@ def index(
 
 @app.command()
 def teardown(
-    keep: Annotated[Optional[str], typer.Option("--keep", help="Architectures to keep (comma-separated)")] = None,
+    keep: Annotated[
+        str | None, typer.Option("--keep", help="Architectures to keep (comma-separated)")
+    ] = None,
     config: ConfigOpt = Path("retrieve.yaml"),
 ):
     """Tear down unselected Azure resources."""
-    from retrieve.provision.teardown import teardown as do_teardown
     from retrieve.provision import teardown as teardown_mod
+    from retrieve.provision.teardown import teardown as do_teardown
 
     with operation("cli.teardown", source="cli", metadata={"keep": keep or ""}):
         with step("load_config"):
@@ -365,53 +427,43 @@ def validate(
     config: ConfigOpt = Path("retrieve.yaml"),
 ):
     """Validate Bicep templates and configuration before deployment."""
-    import subprocess
     import shutil
+    import subprocess
 
     with operation("cli.validate", source="cli"):
         with step("load_config"):
             cfg = load_config(config)
 
-        bicep_dir = Path(__file__).parent / "provision" / "bicep"
+        bicep_dir = Path(__file__).resolve().parents[3] / "infra"
         main_bicep = bicep_dir / "main.bicep"
 
         # Check az CLI is available
         az_path = shutil.which("az")
         if not az_path:
-            console.print("[red]Azure CLI not found. Install it: https://aka.ms/installazurecli[/red]")
+            console.print(
+                "[red]Azure CLI not found. Install it: https://aka.ms/installazurecli[/red]"
+            )
             raise typer.Exit(1)
 
         # Validate Bicep templates
         with step("validate_bicep"):
-            bicep_files = list(bicep_dir.rglob("*.bicep"))
-            console.print(f"\n[bold]Validating {len(bicep_files)} Bicep templates...[/bold]\n")
-
-            errors = 0
-            for bf in bicep_files:
-                rel = bf.relative_to(bicep_dir)
-                result = subprocess.run(
-                    [az_path, "bicep", "build", "--file", str(bf)],
-                    capture_output=True,
-                    text=True,
-                )
-                if result.returncode != 0:
-                    console.print(f"  [red]✗[/red] {rel}")
-                    for line in result.stderr.strip().split("\n"):
-                        if line.strip():
-                            console.print(f"    {line}")
-                    errors += 1
-                else:
-                    console.print(f"  [green]✓[/green] {rel}")
-
-            if errors:
-                console.print(f"\n[red]{errors} template(s) failed validation.[/red]")
+            console.print("\n[bold]Validating root infrastructure Bicep...[/bold]\n")
+            result = subprocess.run(
+                [az_path, "bicep", "build", "--file", str(main_bicep), "--stdout"],
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode != 0:
+                console.print("  [red]✗[/red] infra/main.bicep")
+                for line in result.stderr.strip().split("\n"):
+                    if line.strip():
+                        console.print(f"    {line}")
                 raise typer.Exit(1)
-            else:
-                console.print(f"\n[green]All {len(bicep_files)} templates valid.[/green]")
+            console.print("  [green]✓[/green] infra/main.bicep and referenced modules")
 
         # Validate configuration
         with step("validate_config"):
-            console.print(f"\n[bold]Validating configuration...[/bold]\n")
+            console.print("\n[bold]Validating configuration...[/bold]\n")
             issues = []
 
             if not cfg.azure.name_prefix:
@@ -440,10 +492,10 @@ def validate(
 @app.command()
 def info(config: ConfigOpt = Path("retrieve.yaml")):
     """Show architecture registry and configuration."""
+    from rich.table import Table
+
     from retrieve.registry.architectures import ARCHITECTURES
     from retrieve.registry.models import EMBEDDING_MODELS, RERANKER_MODELS
-
-    from rich.table import Table
 
     with operation("cli.info", source="cli"):
         console.print("\n[bold]Architecture Registry[/bold]\n")
@@ -488,10 +540,11 @@ def ui(
 ):
     """Launch the web UI (primary interface)."""
     import uvicorn
+
     from retrieve.web.app import create_app
 
     with operation("cli.ui", source="cli", metadata={"host": host, "port": port}):
-        console.print(f"\n[bold]Starting Retrieve UI[/bold]")
+        console.print("\n[bold]Starting Retrieve UI[/bold]")
         console.print(f"  → [cyan]http://{host}:{port}[/cyan]\n")
 
         web_app = create_app(str(config))
@@ -503,8 +556,12 @@ def ui(
 
 @eval_app.command("sota")
 def eval_sota(
-    path_name: Annotated[Optional[str], typer.Option("--path", "-p", help="SOTA path name (auto-detected if omitted)")] = None,
-    max_variants: Annotated[int, typer.Option("--max-variants", help="Max toggle combinations")] = 50,
+    path_name: Annotated[
+        str | None, typer.Option("--path", "-p", help="SOTA path name (auto-detected if omitted)")
+    ] = None,
+    max_variants: Annotated[
+        int, typer.Option("--max-variants", help="Max toggle combinations")
+    ] = 50,
     config: ConfigOpt = Path("retrieve.yaml"),
 ):
     """Run SOTA eval mode — test all toggle combinations for a pipeline path."""
@@ -535,7 +592,9 @@ def domain_analyze(
 @domain_app.command("generate-training")
 def domain_generate_training(
     corpus: Annotated[str, typer.Option("--corpus", help="Path to corpus directory")] = "corpus",
-    output: Annotated[str, typer.Option("--output", "-o", help="Output JSONL file")] = "training_pairs.jsonl",
+    output: Annotated[
+        str, typer.Option("--output", "-o", help="Output JSONL file")
+    ] = "training_pairs.jsonl",
     max_pairs: Annotated[int, typer.Option("--max-pairs", help="Maximum training pairs")] = 500,
     config: ConfigOpt = Path("retrieve.yaml"),
 ):
@@ -548,15 +607,21 @@ def domain_generate_training(
         generate_training_pairs(
             corpus_dir=corpus,
             output_file=output,
-            ai_services_endpoint=cfg.azure.ai_services_endpoint if hasattr(cfg.azure, 'ai_services_endpoint') else "",
+            ai_services_endpoint=cfg.azure.ai_services_endpoint
+            if hasattr(cfg.azure, "ai_services_endpoint")
+            else "",
             max_pairs=max_pairs,
         )
 
 
 @domain_app.command("finetune")
 def domain_finetune(
-    training_file: Annotated[str, typer.Option("--training-file", help="Training data JSONL file")] = "training_pairs.jsonl",
-    base_model: Annotated[str, typer.Option("--base-model", help="Base model for fine-tuning")] = "gpt-4o-mini-2024-07-18",
+    training_file: Annotated[
+        str, typer.Option("--training-file", help="Training data JSONL file")
+    ] = "training_pairs.jsonl",
+    base_model: Annotated[
+        str, typer.Option("--base-model", help="Base model for fine-tuning")
+    ] = "gpt-4o-mini-2024-07-18",
     config: ConfigOpt = Path("retrieve.yaml"),
 ):
     """Submit a fine-tuning job to Azure OpenAI."""
@@ -567,7 +632,9 @@ def domain_finetune(
             cfg = load_config(config)
         submit_finetune_job(
             training_file=training_file,
-            ai_services_endpoint=cfg.azure.ai_services_endpoint if hasattr(cfg.azure, 'ai_services_endpoint') else "",
+            ai_services_endpoint=cfg.azure.ai_services_endpoint
+            if hasattr(cfg.azure, "ai_services_endpoint")
+            else "",
             base_model=base_model,
         )
 
@@ -585,7 +652,9 @@ def domain_status(
             cfg = load_config(config)
         check_finetune_status(
             job_id=job_id,
-            ai_services_endpoint=cfg.azure.ai_services_endpoint if hasattr(cfg.azure, 'ai_services_endpoint') else "",
+            ai_services_endpoint=cfg.azure.ai_services_endpoint
+            if hasattr(cfg.azure, "ai_services_endpoint")
+            else "",
         )
 
 

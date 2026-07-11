@@ -64,6 +64,7 @@ def load_successful_graphrag_run_config(
     corpus_fingerprint: str,
     search_endpoint: str,
     credential: Any | None = None,
+    blob_service: Any | None = None,
 ) -> Any:
     """Load and boundary-check one immutable, successful GraphRAG run."""
     normalized_prefix = artifact_prefix.strip("/")
@@ -73,11 +74,12 @@ def load_successful_graphrag_run_config(
     if not storage_account or not output_container or not search_endpoint:
         raise ValueError("Blob-backed GraphRAG queries require storage and Search endpoints")
 
-    blob_service = BlobServiceClient(
-        account_url=f"https://{storage_account}.blob.core.windows.net",
-        credential=credential
-        or DefaultAzureCredential(exclude_interactive_browser_credential=True),
-    )
+    if blob_service is None:
+        blob_service = BlobServiceClient(
+            account_url=f"https://{storage_account}.blob.core.windows.net",
+            credential=credential
+            or DefaultAzureCredential(exclude_interactive_browser_credential=True),
+        )
     container = blob_service.get_container_client(output_container)
     job_id = match.group("job_id")
     try:
@@ -91,9 +93,7 @@ def load_successful_graphrag_run_config(
         raise ValueError("GraphRAG query requires a successful immutable run")
 
     try:
-        settings_payload = container.download_blob(
-            f"{normalized_prefix}/settings.yaml"
-        ).readall()
+        settings_payload = container.download_blob(f"{normalized_prefix}/settings.yaml").readall()
         settings = yaml.safe_load(bytes(settings_payload).decode("utf-8"))
     except Exception as exc:
         raise ValueError("Persisted GraphRAG settings are unavailable") from exc
@@ -181,9 +181,7 @@ def _context_text_unit_ids(context: Any, tables: dict[str, Any]) -> list[str]:
 
     text_lookup = _row_lookup(text_units, "id", "human_readable_id")
     entity_lookup = _row_lookup(tables.get("entities"), "id", "human_readable_id")
-    relationship_lookup = _row_lookup(
-        tables.get("relationships"), "id", "human_readable_id"
-    )
+    relationship_lookup = _row_lookup(tables.get("relationships"), "id", "human_readable_id")
     report_lookup = _row_lookup(
         tables.get("community_reports"),
         "id",
@@ -265,8 +263,7 @@ def build_graphrag_evidence(
         return (), (), ()
     text_lookup = _row_lookup(text_units, "id", "human_readable_id")
     manifest_lookup = {
-        str(document["graphrag_document_id"]): document
-        for document in corpus_manifest["documents"]
+        str(document["graphrag_document_id"]): document for document in corpus_manifest["documents"]
     }
 
     selected_text_unit_ids = _context_text_unit_ids(context, tables)
@@ -331,10 +328,7 @@ async def _load_query_tables(config: Any, mode: GraphRagQueryMode) -> dict[str, 
         ],
         "basic": ["text_units"],
     }
-    tables = {
-        name: await getattr(reader, name)()
-        for name in required_by_mode[mode]
-    }
+    tables = {name: await getattr(reader, name)() for name in required_by_mode[mode]}
     if mode == "local" and await table_provider.has("covariates"):
         tables["covariates"] = await reader.covariates()
     else:

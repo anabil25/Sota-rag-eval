@@ -15,7 +15,9 @@ REGIONS = (
 )
 PROTECTED_RESOURCE_GROUPS = {
     resource_group.strip()
-    for resource_group in os.environ.get("RETRIEVE_PROTECTED_RESOURCE_GROUPS", "").split(",")
+    for resource_group in os.environ.get(
+        "RETRIEVE_PROTECTED_RESOURCE_GROUPS", ""
+    ).split(",")
     if resource_group.strip()
 }
 
@@ -64,7 +66,9 @@ def _select_region(current: str) -> str:
 
 
 def main() -> None:
-    environment_name = get_value("AZURE_ENV_NAME") or os.environ.get("AZURE_ENV_NAME", "")
+    environment_name = get_value("AZURE_ENV_NAME") or os.environ.get(
+        "AZURE_ENV_NAME", ""
+    )
     resource_group = f"rg-{environment_name}" if environment_name else ""
     allow_protected = os.environ.get("RETRIEVE_ALLOW_PROTECTED_ENV", "").lower() in {
         "1",

@@ -11,10 +11,11 @@ bun.lockb
 # Migrated backend, data, and reference material
 /retrieve-core/
 /corpus/
-/skills/
 /docs/vision/
-/evals/
-/solution-accelerator/
+/docs/reference/skills/
+/docs/reference/azure-search-api/
+/docs/reference/azure-capacity-model.md
+/docs/archive/
 /node_modules/
 /build/
 /.svelte-kit/

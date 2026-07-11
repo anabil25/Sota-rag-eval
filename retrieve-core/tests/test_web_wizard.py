@@ -217,11 +217,15 @@ def test_ui_job_provision_index_eval_branches(
     monkeypatch: pytest.MonkeyPatch,
     wizard_client: TestClient,
 ):
+    import retrieve.provision as provision
     from retrieve.eval import runner as eval_runner
     from retrieve.indexing import run as indexing_run
-    from retrieve.provision import orchestrator
 
-    monkeypatch.setattr(orchestrator, "provision_architectures", lambda cfg: None)
+    monkeypatch.setattr(
+        provision,
+        "provision_architectures",
+        lambda cfg, config_path="retrieve.yaml": None,
+    )
     monkeypatch.setattr(indexing_run, "index_corpus", lambda cfg: None)
     monkeypatch.setattr(eval_runner, "run_evaluation", lambda **kwargs: None)
 

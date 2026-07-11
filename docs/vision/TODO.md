@@ -8,7 +8,7 @@
 > Copilot SDK reference: [copilot-sdk/](copilot-sdk/) — Python SDK at `copilot-sdk/python/`
 > Copilot CLI reference: [copilot-cli/](copilot-cli/) — feature set at `copilot-cli/feature-set.md`
 >
-> Azure skills: [skills/](skills/) — 10 skill files covering all Azure services used by Retrieve
+> Azure skills: [../reference/skills/](../reference/skills/) — reviewed reference files for Azure services used by Retrieve
 > Service matrix: [service-matrix.md](service-matrix.md) — which architectures spin up which resources, deployment order, role assignments, costs
 > Search API spec: [search.json](search.json) — Azure AI Search `2025-11-01-preview` Swagger (includes Knowledge Bases / agentic retrieval)
 
@@ -104,7 +104,7 @@
 
 ## 5. Architecture & model registries
 
-> Skills: `skills/embedding-models.md`, `skills/azure-ai-search.md`, `skills/azure-ai-search-agentic.md`, `skills/graphrag-lightrag.md`, `service-matrix.md`
+> Skills: `docs/reference/skills/embedding-models.md`, `docs/reference/skills/azure-ai-search.md`, `docs/reference/skills/azure-ai-search-agentic.md`, `docs/reference/skills/graphrag-lightrag.md`, `service-matrix.md`
 > See Retrieve.md Phase 3 (both modes).
 
 ### Architecture registry
@@ -140,7 +140,7 @@
 
 ## 6. Azure provisioning (`retrieve provision`)
 
-> Skills: `skills/azure-bicep-iac.md`, `skills/azure-ai-foundry.md`, `skills/azure-blob-storage.md`, `skills/azure-ai-search.md`, `skills/azure-cosmos-db.md`, `skills/azure-functions.md`, `skills/embedding-models.md`, `service-matrix.md`
+> Skills: `docs/reference/skills/azure-bicep-iac.md`, `docs/reference/skills/azure-ai-foundry.md`, `docs/reference/skills/azure-blob-storage.md`, `docs/reference/skills/azure-ai-search.md`, `docs/reference/skills/embedding-models.md`, `service-matrix.md`
 > See Retrieve.md Phase 4. All resources use managed identity, no keys.
 
 - [x] Bicep templates — modular structure:
@@ -163,7 +163,7 @@
 
 ## 7. Corpus indexing (`retrieve index`)
 
-> Skills: `skills/azure-blob-storage.md`, `skills/azure-ai-search.md`, `skills/azure-indexer-pipeline.md`, `skills/azure-ai-search-agentic.md`, `skills/embedding-models.md`, `skills/graphrag-lightrag.md`
+> Skills: `docs/reference/skills/azure-blob-storage.md`, `docs/reference/skills/azure-ai-search.md`, `docs/reference/skills/azure-indexer-pipeline.md`, `docs/reference/skills/azure-ai-search-agentic.md`, `docs/reference/skills/embedding-models.md`, `docs/reference/skills/graphrag-lightrag.md`
 > Upload corpus to blob, configure search indexes per architecture.
 
 - [x] Blob uploader (`indexing/blob_upload.py`): upload .md files to blob container using managed identity
@@ -184,7 +184,7 @@
 
 ## 8. Evaluation runner (`retrieve eval run`)
 
-> Skills: `skills/azure-ai-search.md` (query API), `skills/azure-ai-search-agentic.md` (KB retrieve endpoint), `skills/graphrag-lightrag.md` (GraphRAG/LightRAG query), `copilot-sdk/python/README.md` (failure classification)
+> Skills: `docs/reference/skills/azure-ai-search.md` (query API), `docs/reference/skills/azure-ai-search-agentic.md` (KB retrieve endpoint), `docs/reference/skills/graphrag-lightrag.md` (GraphRAG/LightRAG query); Copilot SDK behavior is pinned and covered by package contract tests.
 > See Retrieve.md Phase 5.
 
 - [x] Query executor: for each question in the eval set, query the target architecture's search endpoint directly via REST API, collect top-K results with latency
@@ -227,7 +227,7 @@
 
 ## 10. Select & teardown (`retrieve teardown`)
 
-> Skills: `skills/azure-bicep-iac.md` (teardown patterns, az CLI delete commands)
+> Skills: `docs/reference/skills/azure-bicep-iac.md` (teardown patterns, azd lifecycle)
 > See Retrieve.md Phase 6.
 
 - [x] Selection UI: from the web dashboard, mark architecture(s) to keep
@@ -364,7 +364,7 @@
 
 ## 15. Advanced architectures (v0.5)
 
-> Skills: `skills/azure-ai-search-agentic.md`, `skills/graphrag-lightrag.md`, `skills/azure-cosmos-db.md`, `skills/azure-functions.md`, `skills/embedding-models.md`
+> Skills: `docs/reference/skills/azure-ai-search-agentic.md`, `docs/reference/skills/graphrag-lightrag.md`, `docs/reference/skills/embedding-models.md`
 > See Retrieve.md roadmap v0.5.
 
 - [x] **Multi-vector (BGE-M3)**: AML skill + AML vectorizer for Foundry model catalog integration, index builder with dense + semantic fields, query adapter with multi-vector fusion

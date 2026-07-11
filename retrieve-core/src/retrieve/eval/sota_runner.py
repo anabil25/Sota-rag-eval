@@ -13,10 +13,7 @@ but adds toggle-aware index provisioning and comparative analysis.
 
 from __future__ import annotations
 
-import json
 import logging
-import time
-from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -24,13 +21,13 @@ from rich.console import Console
 from rich.table import Table
 
 from retrieve.config import RetrieveConfig
-from retrieve.eval.runner import query_ai_search, estimate_cost
+from retrieve.eval.runner import estimate_cost, query_ai_search
 from retrieve.observability import emit_progress
 from retrieve.registry.sota_paths import (
+    SOTA_PATHS,
     SOTAPath,
     generate_toggle_combinations,
     recommend_sota_path,
-    SOTA_PATHS,
 )
 
 log = logging.getLogger(__name__)
@@ -83,21 +80,28 @@ def run_sota_eval(
     if not questions:
         # Load from eval database
         from retrieve.eval.store import EvalStore
+
         store = EvalStore(cfg.project_root)
         questions = store.get_approved_questions()
         if not questions:
-            console.print("[red]No approved eval questions found. Run 'retrieve eval generate' first.[/red]")
+            console.print(
+                "[red]No approved eval questions found. Run 'retrieve eval generate' first.[/red]"
+            )
             return SOTARunResult(path_name=path_name or "unknown", base_architecture="unknown")
 
     # Determine SOTA path
     if path_name:
         path = SOTA_PATHS.get(path_name)
         if not path:
-            console.print(f"[red]Unknown SOTA path: {path_name}. Available: {', '.join(SOTA_PATHS.keys())}[/red]")
+            console.print(
+                f"[red]Unknown SOTA path: {path_name}. "
+                f"Available: {', '.join(SOTA_PATHS.keys())}[/red]"
+            )
             return SOTARunResult(path_name=path_name, base_architecture="unknown")
     else:
         # Auto-detect from corpus stats
         from retrieve.eval.store import EvalStore
+
         store = EvalStore(cfg.project_root)
         stats = store.get_corpus_stats()
         path = recommend_sota_path(
@@ -117,7 +121,9 @@ def run_sota_eval(
     # Generate toggle combinations
     combinations = generate_toggle_combinations(path)
     if len(combinations) > max_variants:
-        console.print(f"  [yellow]Capping at {max_variants} variants (of {len(combinations)})[/yellow]")
+        console.print(
+            f"  [yellow]Capping at {max_variants} variants (of {len(combinations)})[/yellow]"
+        )
         combinations = combinations[:max_variants]
 
     console.print(f"  Variants to evaluate: {len(combinations)}\n")
@@ -126,7 +132,7 @@ def run_sota_eval(
     arch_configs = cfg.get_architecture_configs()
     base_config = arch_configs.get(path.base_architecture, {})
     endpoint = base_config.get("search_endpoint", "")
-    index_prefix = cfg.azure.name_prefix if hasattr(cfg, 'azure') else ""
+    index_prefix = cfg.azure.name_prefix if hasattr(cfg, "azure") else ""
 
     if not endpoint:
         console.print("[red]No search endpoint configured. Run 'retrieve provision' first.[/red]")
@@ -311,7 +317,9 @@ def _compute_deltas(
                     deltas[delta_key] = {
                         "recall_delta": round(v.recall_at_10 - base_recall, 4),
                         "mrr_delta": round(v.mrr_at_10 - default_variant.mrr_at_10, 4),
-                        "latency_delta_ms": round(v.avg_latency_ms - default_variant.avg_latency_ms, 2),
+                        "latency_delta_ms": round(
+                            v.avg_latency_ms - default_variant.avg_latency_ms, 2
+                        ),
                         "recall": v.recall_at_10,
                     }
                     break
@@ -356,7 +364,9 @@ def _print_summary(result: SOTARunResult, path: SOTAPath):
             result.component_deltas.items(),
             key=lambda x: -abs(x[1]["recall_delta"]),
         ):
-            recall_color = "green" if d["recall_delta"] > 0 else "red" if d["recall_delta"] < 0 else "white"
+            recall_color = (
+                "green" if d["recall_delta"] > 0 else "red" if d["recall_delta"] < 0 else "white"
+            )
             delta_table.add_row(
                 change,
                 f"[{recall_color}]{d['recall_delta']:+.4f}[/{recall_color}]",
@@ -367,6 +377,6 @@ def _print_summary(result: SOTARunResult, path: SOTAPath):
         console.print(delta_table)
 
     # Recommended config
-    console.print(f"\n[bold green]Recommended configuration:[/bold green]")
+    console.print("\n[bold green]Recommended configuration:[/bold green]")
     for k, v in result.recommended_config.items():
         console.print(f"  {k}: [cyan]{v}[/cyan]")

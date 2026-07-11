@@ -8,15 +8,17 @@ Retrieve is an end-to-end tool for comparing Azure AI Search architectures (keyw
 
 | Tool                   | Install                                                         | Required For                         |
 | ---------------------- | --------------------------------------------------------------- | ------------------------------------ |
-| **Node.js** ≥ 18       | [nodejs.org](https://nodejs.org)                                | SvelteKit frontend                   |
+| **Node.js** 22         | [nodejs.org](https://nodejs.org)                                | SvelteKit frontend                   |
 | **Python** ≥ 3.11      | [python.org](https://python.org)                                | Backend/CLI                          |
 | **Azure CLI**          | `winget install Microsoft.AzureCLI` / `brew install azure-cli`  | Provisioning, indexing               |
+| **Azure Developer CLI** | `winget install Microsoft.Azd` / `brew install azd`            | Infrastructure lifecycle            |
 | **GitHub Copilot CLI** | `winget install GitHub.CopilotCLI` / `brew install copilot-cli` | Eval generation, miss classification |
 
 ### Sign In
 
 ```sh
 az login                    # Azure subscription access
+azd auth login              # Azure Developer CLI access
 copilot login               # GitHub Copilot access (for eval generation)
 ```
 
@@ -26,7 +28,7 @@ copilot login               # GitHub Copilot access (for eval generation)
 
 ```sh
 # Frontend
-npm install
+npm ci
 
 # Backend (editable install)
 npm run backend:install
@@ -43,7 +45,7 @@ pip install -e "./retrieve-core[lightrag]"   # LightRAG support
 
 ### 2. Configure
 
-Create `retrieve.yaml` in the project root:
+Copy `retrieve.example.yaml` to the ignored local file `retrieve.yaml`, then set corpus and Copilot options. Azure resource fields are written from validated azd outputs after provisioning.
 
 ```yaml
 copilot:
@@ -59,16 +61,13 @@ corpus:
   output_dir: corpus
 
 azure:
-  resource_group: rg-retrieve
-  location: southcentralus
-  name_prefix: retrieve
-  subscription_id: <your-subscription-id>
-  deployer_object_id: <your-entra-object-id>
+  location: northcentralus # initial whole-stack candidate
 
 architectures:
-  - keyword
-  - hybrid
   - hybrid-reranker
+  - agentic-kb
+  - graphrag
+  - lightrag
 
 eval:
   mode: sample # sample (~30 questions) | full (~0.5 per doc)
@@ -86,7 +85,12 @@ retrieve eval generate --corpus corpus --output v1
 # Step 3: (Optional) Curate eval set
 retrieve eval curate --eval-set v1 --more cross_document --fewer direct_lookup --output v2
 
-# Step 4: Provision Azure resources
+# One-time: create a unique, disposable azd environment
+azd env new retrieve-<unique-suffix> --no-prompt
+azd env set AZURE_SUBSCRIPTION_ID <subscription-id>
+azd env set AZURE_PRINCIPAL_ID <entra-object-id>
+
+# Step 4: Capacity-check and provision Azure experiment dependencies
 retrieve provision
 
 # Step 5: Upload corpus & build indexes
@@ -98,8 +102,11 @@ retrieve eval run --eval-set v1 --architectures keyword,hybrid,hybrid-reranker
 # Step 7: Compare results
 retrieve eval compare --web
 
-# Step 8: Tear down unused architectures
+# Step 8: Remove unselected architecture data/indexes
 retrieve teardown --keep hybrid-reranker
+
+# Delete the complete experiment environment when finished
+azd down --purge --force --no-prompt
 ```
 
 Or use the **web UI** (recommended):
@@ -121,7 +128,7 @@ npm run backend:dev    # http://127.0.0.1:8000
 npm run dev            # http://127.0.0.1:5173
 ```
 
-The SvelteKit app owns the UI plus read-only local data surfaces (`retrieve.db`, `retrieve.yaml`, and corpus files). The Python backend remains the operation worker for long-running jobs such as ingest, eval generation, provisioning, indexing, teardown, CSV import/export, and curation. Override the operation worker URL with `PRIVATE_RETRIEVE_API_BASE`.
+The SvelteKit app owns browser routes and read-only local data surfaces. FastAPI is the sole operational writer for SQLite/config state and runs long jobs. Azure hosts experiment dependencies plus the manual GraphRAG Job; it does not host the UI or FastAPI in the current topology. Override the local operation worker URL with `PRIVATE_RETRIEVE_API_BASE`.
 
 ## Validation
 
@@ -136,10 +143,12 @@ npm run test:e2e        # Playwright
 npm run test:live:eval  # Starts real backend in temp workspace and runs sample eval generation
 
 # Backend
-npm run backend:test    # pytest (300+ tests)
+npm run backend:test
+python -m ruff check retrieve-core/src retrieve-core/tests scripts
 
 # Infrastructure
-retrieve validate       # Bicep template validation + config check
+retrieve validate
+azd provision --preview --no-prompt
 ```
 
 ## CLI Reference
@@ -153,9 +162,9 @@ retrieve validate       # Bicep template validation + config check
 | `retrieve eval import-csv` | Import eval questions from CSV                            |
 | `retrieve eval run`        | Run eval set against provisioned architectures            |
 | `retrieve eval compare`    | Compare evaluation runs side-by-side                      |
-| `retrieve provision`       | Provision Azure resources (Bicep)                         |
+| `retrieve provision`       | Capacity-check and provision via azd/Bicep                 |
 | `retrieve index`           | Upload corpus and build search indexes                    |
-| `retrieve teardown`        | Remove unselected Azure resources                         |
+| `retrieve teardown`        | Remove unselected architecture data/indexes                |
 | `retrieve validate`        | Validate Bicep templates and configuration                |
 | `retrieve info`            | Show architecture and model registries                    |
 | `retrieve ui`              | Launch web UI (primary interface)                         |
@@ -191,11 +200,8 @@ corpus:
   output_dir: corpus # Output directory for Markdown files
 
 azure:
-  resource_group: '' # Azure resource group
-  location: southcentralus # Azure region
-  name_prefix: retrieve # Prefix for all Azure resources
-  subscription_id: '' # Azure subscription ID
-  deployer_object_id: '' # Your Entra ID object ID
+  location: northcentralus # Initial whole-stack region candidate
+  # Remaining fields are populated from azd outputs after provisioning.
 
 eval:
   mode: sample # sample (~30 questions) | full (~0.5 per doc)
@@ -282,14 +288,18 @@ retrieve-ui/
 │   │   ├── eval/           # Eval generation, curation, runner, metrics
 │   │   ├── ingest/         # Corpus ingestion plugins (HTML, PDF, Markdown)
 │   │   ├── indexing/       # Blob upload, search index builders
-│   │   ├── provision/      # Azure provisioning (Bicep orchestrator)
+│   │   ├── provision/      # Capacity-aware azd lifecycle
 │   │   └── web/            # FastAPI app, job runner, SSE endpoints
 │   └── tests/              # 300+ Python tests
-├── docs/vision/            # Design specs, service matrix, TODO
-├── corpus/                 # Ingested Markdown corpus
+├── infra/                  # Subscription-scoped modular Bicep
+├── scripts/                # Thin azd lifecycle hooks
+├── docs/                   # Vision, plans, operations, references, audits
+├── corpus/                 # Ignored local canonical Markdown corpus
 └── retrieve.yaml           # Configuration
 ```
 
 ## Current Boundary
 
 SvelteKit owns browser-facing routes. FastAPI remains the headless API/job runner around the tested Python retrieval core. New UI work happens in SvelteKit routes and components.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md), [CONTRIBUTING.md](CONTRIBUTING.md), and [Azure lifecycle operations](docs/operations/azure-lifecycle.md).

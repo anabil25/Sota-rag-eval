@@ -9,13 +9,11 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import math
 import random
 import time
 from typing import Any
 
 from rich.console import Console
-from rich.progress import Progress
 
 from retrieve.config import RetrieveConfig
 from retrieve.copilot import get_client, run_sync, stop_client
@@ -158,7 +156,9 @@ async def _generate_batch(
     if cfg.copilot.provider:
         session_config["provider"] = cfg.copilot.provider.to_sdk_dict()
 
-    cat_lines = "\n".join(f"  - {c}: {batch_targets.get(c, 0)}" for c in categories if batch_targets.get(c, 0) > 0)
+    cat_lines = "\n".join(
+        f"  - {c}: {batch_targets.get(c, 0)}" for c in categories if batch_targets.get(c, 0) > 0
+    )
     chunk_blocks = "\n".join(_format_chunk_block(c) for c in batch_chunks)
     chunk_id_list = [c.chunk_id for c in batch_chunks]
 
@@ -197,7 +197,7 @@ async def _generate_batch(
 
         try:
             response = await asyncio.wait_for(model_task, timeout=600)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             log.warning("%s timed out after 600s", batch_label)
             console.print(f"  [yellow]{batch_label} timed out[/yellow]")
             model_task.cancel()
@@ -324,10 +324,16 @@ async def _generate_for_group(
     if target_count > max_reasonable:
         log.info(
             "%s: capping target from %d to %d (%d × %d chunks)",
-            group_name, target_count, max_reasonable, max_q_per_chunk, len(chunks),
+            group_name,
+            target_count,
+            max_reasonable,
+            max_q_per_chunk,
+            len(chunks),
         )
         scale = max_reasonable / target_count
-        category_targets = {c: max(1, round(category_targets.get(c, 0) * scale)) for c in categories}
+        category_targets = {
+            c: max(1, round(category_targets.get(c, 0) * scale)) for c in categories
+        }
         target_count = sum(category_targets.get(c, 0) for c in categories)
 
     # Build the system message (shared across all batches in this group)
@@ -339,7 +345,7 @@ async def _generate_for_group(
     )
 
     # Split into batches of BATCH_SIZE chunks
-    chunk_batches = [chunks[i:i + BATCH_SIZE] for i in range(0, len(chunks), BATCH_SIZE)]
+    chunk_batches = [chunks[i : i + BATCH_SIZE] for i in range(0, len(chunks), BATCH_SIZE)]
     n_batches = len(chunk_batches)
     batch_target_list = _split_targets(categories, category_targets, n_batches)
 
@@ -365,7 +371,7 @@ async def _generate_for_group(
     # Run all batches in parallel
     tasks = []
     for bi, (b_chunks, b_targets) in enumerate(zip(chunk_batches, batch_target_list)):
-        b_label = f"[{group_name}]" if n_batches == 1 else f"[{group_name}:{bi+1}/{n_batches}]"
+        b_label = f"[{group_name}]" if n_batches == 1 else f"[{group_name}:{bi + 1}/{n_batches}]"
         tasks.append(
             _generate_batch(
                 batch_label=b_label,
@@ -383,9 +389,9 @@ async def _generate_for_group(
     all_questions: list[dict[str, Any]] = []
     for i, result in enumerate(results):
         if isinstance(result, Exception):
-            b_label = f"{group_name}:{i+1}" if n_batches > 1 else group_name
+            b_label = f"{group_name}:{i + 1}" if n_batches > 1 else group_name
             log.warning("Batch %s failed: %s", b_label, result)
-            console.print(f"  [yellow]{label} batch {i+1} failed: {result}[/yellow]")
+            console.print(f"  [yellow]{label} batch {i + 1} failed: {result}[/yellow]")
         else:
             all_questions.extend(result)
 
@@ -420,7 +426,7 @@ def _select_docs(
 
     docs = sorted(by_doc.keys())
     random.Random(seed).shuffle(docs)
-    picked = docs[:min(n_docs, len(docs))]
+    picked = docs[: min(n_docs, len(docs))]
     selected: list[Chunk] = []
     for doc_id in picked:
         selected.extend(by_doc[doc_id])
@@ -444,14 +450,21 @@ def _summarize_corpus(chunks: list[Chunk]) -> dict[str, Any]:
     for c in chunks:
         d = docs.setdefault(c.doc_id, {"title": c.doc_title, "chunks": 0})
         d["chunks"] += 1
-        xrefs += len(c.metadata.get("cross_references", [])) if isinstance(c.metadata.get("cross_references", []), list) else 0
+        xrefs += (
+            len(c.metadata.get("cross_references", []))
+            if isinstance(c.metadata.get("cross_references", []), list)
+            else 0
+        )
 
     return {
         "document_count": len(docs),
         "chunk_count": len(chunks),
         "cross_reference_count": xrefs,
         "default_categories": categories,
-        "sample_docs": [{"doc_id": k, "title": v["title"], "chunks": v["chunks"]} for k, v in list(docs.items())[:20]],
+        "sample_docs": [
+            {"doc_id": k, "title": v["title"], "chunks": v["chunks"]}
+            for k, v in list(docs.items())[:20]
+        ],
     }
 
 
@@ -470,7 +483,13 @@ async def _derive_intent_map_with_llm(
     raw = await run_single_prompt(cfg, prompt)
     if not raw:
         return {
-            "intent_families": ["definitions", "procedures", "requirements", "exceptions", "cross_references"],
+            "intent_families": [
+                "definitions",
+                "procedures",
+                "requirements",
+                "exceptions",
+                "cross_references",
+            ],
             "question_type_mix": {
                 "factual_lookup": 0.20,
                 "procedural": 0.20,
@@ -491,7 +510,11 @@ async def _derive_intent_map_with_llm(
                 "hallucination_bait": 0.05,
                 "multi_document_reasoning": 0.10,
             },
-            "multi_hop_focus": ["cross-document exceptions", "procedure preconditions", "requirement dependencies"],
+            "multi_hop_focus": [
+                "cross-document exceptions",
+                "procedure preconditions",
+                "requirement dependencies",
+            ],
         }
 
     try:
@@ -506,7 +529,13 @@ async def _derive_intent_map_with_llm(
         return json.loads(raw.strip())
     except Exception:
         return {
-            "intent_families": ["definitions", "procedures", "requirements", "exceptions", "cross_references"],
+            "intent_families": [
+                "definitions",
+                "procedures",
+                "requirements",
+                "exceptions",
+                "cross_references",
+            ],
             "question_type_mix": {
                 "factual_lookup": 0.20,
                 "procedural": 0.20,
@@ -527,33 +556,38 @@ async def _derive_intent_map_with_llm(
                 "hallucination_bait": 0.05,
                 "multi_document_reasoning": 0.10,
             },
-            "multi_hop_focus": ["cross-document exceptions", "procedure preconditions", "requirement dependencies"],
+            "multi_hop_focus": [
+                "cross-document exceptions",
+                "procedure preconditions",
+                "requirement dependencies",
+            ],
         }
 
 
 async def run_single_prompt(cfg: RetrieveConfig, prompt: str) -> str:
     from retrieve.copilot import send_and_wait
+
     return await send_and_wait(cfg.copilot, prompt, timeout=cfg.copilot.timeout)
 
 
 # Category mix — derived from real eval data across 10 policy manuals (191 questions).
 # Ordered by corpus coverage efficiency (cross-doc questions touch ~2 docs each).
 CATEGORY_MIX = {
-    "cross_policy": 0.20,        # multi-doc synthesis, highest coverage efficiency
-    "factual_lookup": 0.15,      # baseline retrieval
-    "procedural": 0.15,          # common real-world pattern
-    "edge_case": 0.15,           # where architectures diverge most
-    "cross_document": 0.10,      # within-doc cross-section questions
-    "negation": 0.08,            # what's NOT in docs — tricky for vector search
+    "cross_policy": 0.20,  # multi-doc synthesis, highest coverage efficiency
+    "factual_lookup": 0.15,  # baseline retrieval
+    "procedural": 0.15,  # common real-world pattern
+    "edge_case": 0.15,  # where architectures diverge most
+    "cross_document": 0.10,  # within-doc cross-section questions
+    "negation": 0.08,  # what's NOT in docs — tricky for vector search
     "colloquial_mapping": 0.07,  # user language ≠ doc language
-    "calculation": 0.05,         # numeric/threshold questions
-    "unanswerable": 0.05,        # refusal behavior, guards against hallucination
+    "calculation": 0.05,  # numeric/threshold questions
+    "unanswerable": 0.05,  # refusal behavior, guards against hallucination
 }
 
 # Doc coverage targets per mode
 _MODE_CONFIG = {
     "sample": {"doc_coverage": 0.25, "min_per_category": 2, "fixed_total": 25},
-    "full":   {"doc_coverage": 0.70, "min_per_category": 5, "doc_fraction": 0.67},
+    "full": {"doc_coverage": 0.70, "min_per_category": 5, "doc_fraction": 0.67},
 }
 
 
@@ -662,7 +696,9 @@ def generate_eval_set(
 
         all_questions = run_sync(_legacy_run())
         if not all_questions:
-            console.print("[red]No questions generated. Check your Copilot SDK configuration.[/red]")
+            console.print(
+                "[red]No questions generated. Check your Copilot SDK configuration.[/red]"
+            )
             return -1
 
         db = RetrieveDB(cfg.db_path)
@@ -724,7 +760,13 @@ def generate_eval_set(
                 return await _derive_intent_map_with_llm(cfg, corpus_summary, operator_context)
             except Exception:
                 return {
-                    "intent_families": ["definitions", "procedures", "requirements", "exceptions", "cross_references"],
+                    "intent_families": [
+                        "definitions",
+                        "procedures",
+                        "requirements",
+                        "exceptions",
+                        "cross_references",
+                    ],
                     "question_type_mix": {
                         "factual_lookup": 0.20,
                         "procedural": 0.20,
@@ -745,7 +787,11 @@ def generate_eval_set(
                         "hallucination_bait": 0.05,
                         "multi_document_reasoning": 0.10,
                     },
-                    "multi_hop_focus": ["cross-document exceptions", "procedure preconditions", "requirement dependencies"],
+                    "multi_hop_focus": [
+                        "cross-document exceptions",
+                        "procedure preconditions",
+                        "requirement dependencies",
+                    ],
                 }
             finally:
                 await stop_client()
@@ -757,11 +803,18 @@ def generate_eval_set(
         # The groups differ by what categories they generate + prompt guidance.
 
         cat_targets = targets.get("category_targets", {})
-        n_docs = len(set(c.doc_id for c in chunks))
-
         # Compute how many docs each group needs (1 doc per question for
         # single_doc, ≥3 docs for cross groups, a handful for unanswerable).
-        single_doc_n = sum(cat_targets.get(c, 0) for c in ["factual_lookup", "procedural", "negation", "calculation", "colloquial_mapping"])
+        single_doc_n = sum(
+            cat_targets.get(c, 0)
+            for c in [
+                "factual_lookup",
+                "procedural",
+                "negation",
+                "calculation",
+                "colloquial_mapping",
+            ]
+        )
         cross_doc_n = max(3, sum(cat_targets.get(c, 0) for c in ["cross_policy", "edge_case"]))
         cross_section_n = max(3, cat_targets.get("cross_document", 2))
         unanswerable_n = max(3, cat_targets.get("unanswerable", 2))
@@ -771,7 +824,9 @@ def generate_eval_set(
         cross_doc_chunks = _select_docs(chunks, cross_doc_n, seed=9)
         cross_doc_docs = {c.doc_id for c in cross_doc_chunks}
 
-        cross_section_chunks = _select_docs(chunks, cross_section_n, seed=8, exclude_docs=cross_doc_docs)
+        cross_section_chunks = _select_docs(
+            chunks, cross_section_n, seed=8, exclude_docs=cross_doc_docs
+        )
         cross_section_docs = {c.doc_id for c in cross_section_chunks}
 
         claimed = cross_doc_docs | cross_section_docs
@@ -782,7 +837,13 @@ def generate_eval_set(
         # Define the 4 category groups with pre-selected chunks
         CATEGORY_GROUPS = {
             "single_doc": {
-                "categories": ["factual_lookup", "procedural", "negation", "calculation", "colloquial_mapping"],
+                "categories": [
+                    "factual_lookup",
+                    "procedural",
+                    "negation",
+                    "calculation",
+                    "colloquial_mapping",
+                ],
                 "chunks": single_doc_chunks,
                 "max_q_per_chunk": 1,
                 "prompt_extra": (
@@ -832,7 +893,8 @@ def generate_eval_set(
 
         # Filter to only groups that have targets > 0
         active_groups = {
-            name: grp for name, grp in CATEGORY_GROUPS.items()
+            name: grp
+            for name, grp in CATEGORY_GROUPS.items()
             if any(cat_targets.get(c, 0) > 0 for c in grp["categories"])
         }
 
@@ -852,7 +914,9 @@ def generate_eval_set(
             grp_chunks = len(grp["chunks"])
             grp_docs = len(set(c.doc_id for c in grp["chunks"]))
             cat_detail = ", ".join(f"{c}:{cat_targets.get(c, 0)}" for c in cats)
-            console.print(f"  [dim]{grp_name}: {grp_total} questions, {grp_docs} docs, {grp_chunks} chunks ({cat_detail})[/dim]")
+            console.print(
+                f"  [dim]{grp_name}: {grp_total} questions, {grp_docs} docs, {grp_chunks} chunks ({cat_detail})[/dim]"
+            )
         console.print()
 
         emit_progress(
@@ -902,7 +966,9 @@ def generate_eval_set(
         console.print(f"\n  Generated [green]{len(all_questions)}[/green] questions total\n")
 
         if not all_questions:
-            console.print("[red]No questions generated. Check your Copilot SDK configuration.[/red]")
+            console.print(
+                "[red]No questions generated. Check your Copilot SDK configuration.[/red]"
+            )
             return -1
 
         # Semantic deduplication — remove near-duplicate questions
@@ -934,7 +1000,11 @@ def generate_eval_set(
             notes=notes,
             parent_eval_set_id=base_eval["id"] if base_eval else None,
             build_mode="fresh" if fresh else "extend",
-            steering_state={"coverage_target": targets["coverage_target"], "operator_context": operator_context, "mode": eval_mode},
+            steering_state={
+                "coverage_target": targets["coverage_target"],
+                "operator_context": operator_context,
+                "mode": eval_mode,
+            },
             operator_context=operator_context,
         )
 
@@ -995,7 +1065,12 @@ def generate_eval_set(
             corpus_coverage_target=targets["coverage_target"],
             corpus_summary=corpus_summary,
             intent_map=intent_map,
-            plan={"category_groups": list(active_groups.keys()), "mode": eval_mode, "total_target": total_target, "category_targets": cat_targets},
+            plan={
+                "category_groups": list(active_groups.keys()),
+                "mode": eval_mode,
+                "total_target": total_target,
+                "category_targets": cat_targets,
+            },
         )
         db.upsert_generation_preferences(
             {
@@ -1010,9 +1085,15 @@ def generate_eval_set(
         eval_set = db.get_eval_set_by_version(version_label)
 
         # Print summary
-        console.print(f"[bold green]Eval set '{version_label}' saved[/bold green] (id={eval_set_id})")
+        console.print(
+            f"[bold green]Eval set '{version_label}' saved[/bold green] (id={eval_set_id})"
+        )
         if eval_set:
-            cats = json.loads(eval_set["category_counts"]) if isinstance(eval_set["category_counts"], str) else eval_set["category_counts"]
+            cats = (
+                json.loads(eval_set["category_counts"])
+                if isinstance(eval_set["category_counts"], str)
+                else eval_set["category_counts"]
+            )
             console.print(f"  Total questions: [green]{eval_set['question_count']}[/green]")
             console.print("  Categories:")
             for cat, count in sorted(cats.items()):

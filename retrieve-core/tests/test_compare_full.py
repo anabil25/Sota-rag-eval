@@ -1,19 +1,20 @@
 """Tests for eval/compare.py — CLI table outputs and HTML generation."""
 
 import json
-import tempfile
 import os
+import tempfile
 from pathlib import Path
-from io import StringIO
 from unittest.mock import patch
+
 import pytest
+
 from retrieve.db import RetrieveDB
 from retrieve.eval.compare import (
-    _print_test_mode_table,
-    _print_sota_mode_table,
+    _generate_html,
     _print_category_breakdown,
     _print_miss_analysis,
-    _generate_html,
+    _print_sota_mode_table,
+    _print_test_mode_table,
     compare_runs,
 )
 
@@ -31,20 +32,91 @@ def db_with_runs():
 
     # Test mode runs
     r1 = db.create_run(eid, "keyword", "test")
-    db.add_result(r1, q1, ["100::0"], {"recall_at_5": 1.0, "recall_at_10": 1.0, "mrr_at_10": 1.0, "ndcg_at_10": 1.0}, 8.0)
-    db.add_result(r1, q2, ["999"], {"recall_at_5": 0.0, "recall_at_10": 0.0, "mrr_at_10": 0.0, "ndcg_at_10": 0.0}, 7.0, "vocabulary_mismatch", "different terms")
-    db.complete_run(r1, {"recall_at_5": 0.5, "recall_at_10": 0.5, "mrr_at_10": 0.5, "ndcg_at_10": 0.5, "avg_latency_ms": 7.5, "failure_count": 1, "total_questions": 2})
+    db.add_result(
+        r1,
+        q1,
+        ["100::0"],
+        {"recall_at_5": 1.0, "recall_at_10": 1.0, "mrr_at_10": 1.0, "ndcg_at_10": 1.0},
+        8.0,
+    )
+    db.add_result(
+        r1,
+        q2,
+        ["999"],
+        {"recall_at_5": 0.0, "recall_at_10": 0.0, "mrr_at_10": 0.0, "ndcg_at_10": 0.0},
+        7.0,
+        "vocabulary_mismatch",
+        "different terms",
+    )
+    db.complete_run(
+        r1,
+        {
+            "recall_at_5": 0.5,
+            "recall_at_10": 0.5,
+            "mrr_at_10": 0.5,
+            "ndcg_at_10": 0.5,
+            "avg_latency_ms": 7.5,
+            "failure_count": 1,
+            "total_questions": 2,
+        },
+    )
 
     r2 = db.create_run(eid, "hybrid", "test")
-    db.add_result(r2, q1, ["100::0"], {"recall_at_5": 1.0, "recall_at_10": 1.0, "mrr_at_10": 1.0, "ndcg_at_10": 1.0}, 45.0)
-    db.add_result(r2, q2, ["101::0"], {"recall_at_5": 1.0, "recall_at_10": 1.0, "mrr_at_10": 1.0, "ndcg_at_10": 1.0}, 50.0)
-    db.complete_run(r2, {"recall_at_5": 1.0, "recall_at_10": 1.0, "mrr_at_10": 1.0, "ndcg_at_10": 1.0, "avg_latency_ms": 47.5, "failure_count": 0, "total_questions": 2})
+    db.add_result(
+        r2,
+        q1,
+        ["100::0"],
+        {"recall_at_5": 1.0, "recall_at_10": 1.0, "mrr_at_10": 1.0, "ndcg_at_10": 1.0},
+        45.0,
+    )
+    db.add_result(
+        r2,
+        q2,
+        ["101::0"],
+        {"recall_at_5": 1.0, "recall_at_10": 1.0, "mrr_at_10": 1.0, "ndcg_at_10": 1.0},
+        50.0,
+    )
+    db.complete_run(
+        r2,
+        {
+            "recall_at_5": 1.0,
+            "recall_at_10": 1.0,
+            "mrr_at_10": 1.0,
+            "ndcg_at_10": 1.0,
+            "avg_latency_ms": 47.5,
+            "failure_count": 0,
+            "total_questions": 2,
+        },
+    )
 
     # SOTA mode run
     r3 = db.create_run(eid, "hybrid-no-reranker", "sota")
-    db.add_result(r3, q1, ["100::0"], {"recall_at_5": 1.0, "recall_at_10": 1.0, "mrr_at_10": 1.0, "ndcg_at_10": 0.9}, 30.0)
-    db.add_result(r3, q2, ["101::0"], {"recall_at_5": 1.0, "recall_at_10": 1.0, "mrr_at_10": 1.0, "ndcg_at_10": 0.8}, 32.0)
-    db.complete_run(r3, {"recall_at_5": 1.0, "recall_at_10": 1.0, "mrr_at_10": 1.0, "ndcg_at_10": 0.85, "avg_latency_ms": 31.0, "failure_count": 0, "total_questions": 2})
+    db.add_result(
+        r3,
+        q1,
+        ["100::0"],
+        {"recall_at_5": 1.0, "recall_at_10": 1.0, "mrr_at_10": 1.0, "ndcg_at_10": 0.9},
+        30.0,
+    )
+    db.add_result(
+        r3,
+        q2,
+        ["101::0"],
+        {"recall_at_5": 1.0, "recall_at_10": 1.0, "mrr_at_10": 1.0, "ndcg_at_10": 0.8},
+        32.0,
+    )
+    db.complete_run(
+        r3,
+        {
+            "recall_at_5": 1.0,
+            "recall_at_10": 1.0,
+            "mrr_at_10": 1.0,
+            "ndcg_at_10": 0.85,
+            "avg_latency_ms": 31.0,
+            "failure_count": 0,
+            "total_questions": 2,
+        },
+    )
 
     yield db
 

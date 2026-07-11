@@ -59,6 +59,12 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
 
+[tool.ruff.lint.per-file-ignores]
+"src/retrieve/eval/generate.py" = ["E501"]
+"tests/test_compare_full.py" = ["E402", "E501"]
+"tests/test_e2e.py" = ["E501"]
+"tests/test_generate.py" = ["E501"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"

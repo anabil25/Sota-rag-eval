@@ -1,0 +1,61 @@
+# Retrieve configuration
+# ── Copilot SDK settings ──────────────────────────────────────────────
+# All LLM interactions go through the GitHub Copilot SDK.
+# Default: uses your signed-in Copilot CLI user. No config needed.
+# Override with BYOK provider for Azure OpenAI, Ollama, etc.
+
+copilot:
+  model: gpt-4.1
+  timeout: 120 # seconds per send_and_wait call
+
+  # BYOK provider — uncomment ONE of these blocks:
+
+  # Azure OpenAI:
+  # provider:
+  #   type: azure
+  #   base_url: https://YOUR-RESOURCE.openai.azure.com
+  #   api_key: ${AZURE_OPENAI_KEY}
+  #   azure:
+  #     api_version: "2024-10-21"
+
+  # Ollama (local):
+  # provider:
+  #   type: openai
+  #   base_url: http://localhost:11434/v1
+
+# ── Corpus settings ───────────────────────────────────────────────────
+corpus:
+  source: '' # URL or local path
+  plugin: html # html, markdown, pdf
+  output_dir: corpus
+
+# ── Azure settings ────────────────────────────────────────────────────
+azure:
+  # The capacity-aware azd lifecycle starts here and can retry the next
+  # whole-stack candidate after a classified backend-capacity failure.
+  location: northcentralus
+
+# ── Eval settings ─────────────────────────────────────────────────────
+eval:
+  mode: sample
+  categories:
+    - factual_lookup
+    - procedural
+    - cross_document
+    - cross_policy
+    - edge_case
+    - negation
+    - colloquial_mapping
+    - calculation
+    - unanswerable
+
+# ── Architectures to evaluate ─────────────────────────────────────────
+architectures:
+  - hybrid-reranker
+  - agentic-kb
+  - graphrag
+  - lightrag
+
+# ── Database ──────────────────────────────────────────────────────────
+db_path: retrieve.db
+log_level: INFO

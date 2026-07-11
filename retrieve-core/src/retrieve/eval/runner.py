@@ -23,6 +23,7 @@ from retrieve.config import RetrieveConfig
 from retrieve.copilot import get_client, run_sync, stop_client
 from retrieve.db import RetrieveDB
 from retrieve.eval.metrics import aggregate_scores, compute_scores
+from retrieve.ingest.manifest import build_document_id_aliases, load_corpus_manifest
 from retrieve.observability import emit_error, emit_progress, step
 
 log = logging.getLogger(__name__)
@@ -129,16 +130,21 @@ def _extract_doc_id(identifier: str) -> str:
     - "100-10_ethical_conduct.md" → "100-10_ethical_conduct"   (filename from search)
     - "aGVsbG8="                  → "aGVsbG8="                 (base64 ID, passthrough)
     """
-    s = identifier
-    # Strip file extension
+    s = identifier.strip().replace("\\", "/")
+    # Strip chunk index suffix before checking the extension.
+    if "::" in s:
+        s = s.split("::", 1)[0]
     for ext in (".md", ".htm", ".html", ".txt", ".pdf"):
         if s.endswith(ext):
             s = s[: -len(ext)]
             break
-    # Strip chunk index suffix
-    if "::" in s:
-        s = s.split("::")[0]
     return s
+
+
+def _canonical_doc_id(identifier: str, aliases: dict[str, str]) -> str:
+    normalized = _extract_doc_id(identifier)
+    return aliases.get(normalized, aliases.get(identifier, normalized))
+
 
 # ── Search query adapters ─────────────────────────────────────────────
 # Each architecture uses its native query mode per azure-ai-search.md skill:
@@ -244,14 +250,18 @@ def query_ai_search(
     elif arch_name == "agentic-kb":
         # Agentic Knowledge Base — delegates to KnowledgeBaseRetrievalClient
         from retrieve.indexing.advanced import query_agentic_kb
+
         return query_agentic_kb(
-            endpoint=endpoint, kb_name=index_name,
-            query=query, top_k=top_k,
+            endpoint=endpoint,
+            kb_name=index_name,
+            query=query,
+            top_k=top_k,
         )
 
     elif arch_name == "graphrag":
         # GraphRAG — delegates to the configured remote endpoint or local graphrag
         from retrieve.indexing.advanced import query_graphrag
+
         return query_graphrag(
             query=query,
             mode=kwargs.get("graphrag_mode", "local"),
@@ -269,11 +279,15 @@ def query_ai_search(
     elif arch_name == "lightrag":
         # LightRAG — delegates to Container Apps endpoint or local lightrag
         from retrieve.indexing.advanced import query_lightrag
+
         return query_lightrag(
             query=query,
             mode=kwargs.get("lightrag_mode", "mix"),
             ai_services_endpoint=kwargs.get("ai_services_endpoint", ""),
             container_app_endpoint=kwargs.get("container_app_endpoint", ""),
+            corpus_dir=kwargs.get("corpus_dir", "corpus"),
+            embedding_model=kwargs.get("embedding_model", "text-embedding-3-large"),
+            llm_model=kwargs.get("llm_model", "gpt-4.1"),
         )
 
     else:
@@ -306,9 +320,14 @@ def query_ai_search(
             # Retry on 429 (embedding vectorizer rate limit) with exponential backoff
             if "429" in err_str or "TooManyRequests" in err_str:
                 if attempt < max_retries:
-                    wait = 2 ** attempt  # 1, 2, 4, 8, 16 seconds
-                    log.info("Vectorizer rate-limited for %s, retrying in %ds (attempt %d/%d)",
-                             arch_name, wait, attempt + 1, max_retries)
+                    wait = 2**attempt  # 1, 2, 4, 8, 16 seconds
+                    log.info(
+                        "Vectorizer rate-limited for %s, retrying in %ds (attempt %d/%d)",
+                        arch_name,
+                        wait,
+                        attempt + 1,
+                        max_retries,
+                    )
                     time.sleep(wait)
                     continue
             log.warning("Search query failed for %s: %s", arch_name, e)
@@ -503,11 +522,13 @@ def run_evaluation(
         variants_to_run: list[dict[str, Any]] = []
         if variants:
             for v in variants:
-                variants_to_run.append({
-                    "base": v["base"],
-                    "name": v.get("name") or v["base"],
-                    "toggles": v.get("toggles") or {},
-                })
+                variants_to_run.append(
+                    {
+                        "base": v["base"],
+                        "name": v.get("name") or v["base"],
+                        "toggles": v.get("toggles") or {},
+                    }
+                )
         else:
             for an in arch_names:
                 variants_to_run.append({"base": an, "name": an, "toggles": {}})
@@ -516,12 +537,15 @@ def run_evaluation(
             # Group by base architecture — variants sharing a base run serially
             # (same index → same vectorizer → rate limits), different bases in parallel.
             from collections import defaultdict
+
             groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
             for v in variants_to_run:
                 groups[v["base"]].append(v)
 
-            console.print(f"\n[bold]Running {len(variants_to_run)} variants across "
-                          f"{len(groups)} base architectures in parallel[/bold]")
+            console.print(
+                f"\n[bold]Running {len(variants_to_run)} variants across "
+                f"{len(groups)} base architectures in parallel[/bold]"
+            )
 
             def _run_group(group_variants: list[dict[str, Any]]) -> None:
                 # Each thread gets its own DB connection for thread safety
@@ -532,9 +556,7 @@ def run_evaluation(
                 finally:
                     thread_db.close()
 
-            with concurrent.futures.ThreadPoolExecutor(
-                max_workers=min(len(groups), 4)
-            ) as executor:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(groups), 4)) as executor:
                 futures = [executor.submit(_run_group, g) for g in groups.values()]
                 for f in concurrent.futures.as_completed(futures):
                     f.result()  # re-raises any exception
@@ -570,8 +592,10 @@ def _eval_variant(
     variant_label = variant["name"]
     toggles = variant["toggles"]
 
-    console.print(f"\n[bold cyan]Evaluating: {variant_label}[/bold cyan]"
-                  + (f" [dim]({arch_name} + toggles)[/dim]" if toggles else ""))
+    console.print(
+        f"\n[bold cyan]Evaluating: {variant_label}[/bold cyan]"
+        + (f" [dim]({arch_name} + toggles)[/dim]" if toggles else "")
+    )
     emit_progress(
         "Starting architecture evaluation",
         stage="eval_run.query",
@@ -584,6 +608,12 @@ def _eval_variant(
     arch_record = db.get_architecture(arch_name)
     arch_config = dict(arch_record["config"]) if arch_record else {}
     arch_id = arch_record["id"] if arch_record else None
+
+    try:
+        corpus_manifest = load_corpus_manifest(cfg.corpus.output_dir)
+        document_aliases = build_document_id_aliases(corpus_manifest)
+    except (FileNotFoundError, ValueError):
+        document_aliases = {}
 
     # Bake toggles into the persisted config so the audit trail captures them
     if toggles:
@@ -633,23 +663,19 @@ def _eval_variant(
                 ai_services_endpoint=arch_config.get("ai_services_endpoint", ""),
                 function_endpoint=arch_config.get("function_endpoint", ""),
                 graph_worker_endpoint=arch_config.get("graph_worker_endpoint", ""),
-                graph_worker_artifact_prefix=arch_config.get(
-                    "graph_worker_artifact_prefix", ""
-                ),
+                graph_worker_artifact_prefix=arch_config.get("graph_worker_artifact_prefix", ""),
                 corpus_fingerprint=arch_config.get("corpus_fingerprint", ""),
                 storage_account=arch_config.get("storage_account", ""),
-                graph_output_container=arch_config.get(
-                    "graph_output_container", "graphrag"
-                ),
+                graph_output_container=arch_config.get("graph_output_container", "graphrag"),
             )
 
             # Compute metrics — normalize IDs for matching
             ground_truth = q["ground_truth_chunk_ids"]
-            ground_truth_doc_ids = {_extract_doc_id(gt) for gt in ground_truth}
+            ground_truth_doc_ids = {_canonical_doc_id(gt, document_aliases) for gt in ground_truth}
             seen: set[str] = set()
             retrieved_doc_ids: list[str] = []
             for rid in retrieved_ids:
-                did = _extract_doc_id(rid)
+                did = _canonical_doc_id(rid, document_aliases)
                 if did not in seen:
                     seen.add(did)
                     retrieved_doc_ids.append(did)
@@ -669,12 +695,14 @@ def _eval_variant(
 
             # Check for miss (none of the ground truth in top 10)
             if scores["recall_at_10"] == 0 and ground_truth:
-                misses_to_classify.append({
-                    "question_id": q["id"],
-                    "question": q["question_text"],
-                    "expected_chunk": ", ".join(ground_truth),
-                    "wrong_chunk": retrieved_ids[0] if retrieved_ids else "no results",
-                })
+                misses_to_classify.append(
+                    {
+                        "question_id": q["id"],
+                        "question": q["question_text"],
+                        "expected_chunk": ", ".join(ground_truth),
+                        "wrong_chunk": retrieved_ids[0] if retrieved_ids else "no results",
+                    }
+                )
 
             # Store result
             db.add_result(
@@ -690,8 +718,7 @@ def _eval_variant(
     # Classify misses via Copilot SDK
     if misses_to_classify:
         console.print(
-            f"\n  [yellow]Classifying {len(misses_to_classify)} misses "
-            f"via Copilot SDK...[/yellow]"
+            f"\n  [yellow]Classifying {len(misses_to_classify)} misses via Copilot SDK...[/yellow]"
         )
 
         async def _classify():
@@ -723,9 +750,7 @@ def _eval_variant(
     agg = aggregate_scores(all_scores)
     agg["avg_latency_ms"] = sum(all_latencies) / len(all_latencies) if all_latencies else 0
     agg["p95_latency_ms"] = (
-        sorted(all_latencies)[int(len(all_latencies) * 0.95)]
-        if all_latencies
-        else 0
+        sorted(all_latencies)[int(len(all_latencies) * 0.95)] if all_latencies else 0
     )
     agg["miss_count"] = len(misses_to_classify)
     agg["total_questions"] = len(questions)
@@ -746,8 +771,7 @@ def _eval_variant(
     console.print(f"    Misses:      [yellow]{agg['miss_count']}/{agg['total_questions']}[/yellow]")
     console.print(f"    Est. cost:   [green]${cost['eval_run_cost']:.4f}[/green] (this run)")
     console.print(
-        f"    Monthly est: [green]${cost['monthly_estimate']:.2f}/mo[/green] "
-        "@ 10k queries"
+        f"    Monthly est: [green]${cost['monthly_estimate']:.2f}/mo[/green] @ 10k queries"
     )
 
     # Per-category breakdown

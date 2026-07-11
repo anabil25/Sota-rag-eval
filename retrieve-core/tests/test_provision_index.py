@@ -1,6 +1,5 @@
-"""Tests for provision/ and indexing/ — with mocked Azure CLI and Search API."""
+"""Tests for GraphRAG, indexing, Search, and app-level teardown."""
 
-import json
 import os
 import tempfile
 from pathlib import Path
@@ -10,451 +9,6 @@ import pytest
 
 from retrieve.config import RetrieveConfig
 from retrieve.db import RetrieveDB
-from retrieve.provision.naming import DeploymentNames, NameIssue, build_deployment_names
-
-
-class TestProvisionNaming:
-    def test_build_deployment_names(self):
-        names = build_deployment_names("retrieve")
-
-        assert names.storage_account == "retrievestore"
-        assert names.ai_services == "retrieveai"
-        assert names.search_service == "retrieve-search"
-        assert names.cosmos_account == "retrievecosmos"
-        assert names.container_environment == "retrieve-env"
-        assert names.container_app == "retrieve-lightrag"
-        assert names.graph_worker_environment == "retrieve-graph-env"
-        assert names.graph_worker_app == "retrieve-graphrag-d4"
-
-    @patch("retrieve.provision.naming._random_suffix", return_value="a1b2")
-    def test_candidate_resource_group_names_suffixes_deleting_group(self, mock_suffix):
-        from retrieve.provision.naming import candidate_resource_group_names
-
-        assert list(candidate_resource_group_names("rg-protected-live", max_attempts=2)) == [
-            "rg-protected-live",
-            "rg-protected-live-a1b2",
-        ]
-        assert mock_suffix.called
-
-    @patch("retrieve.provision.naming._random_suffix", return_value="a1b2")
-    @patch("retrieve.provision.naming._deployment_name_issues")
-    def test_resolve_deployment_names_suffixes_on_collision(self, mock_issues, mock_suffix):
-        mock_issues.side_effect = [
-            [NameIssue("storage account", "retrievestore", "AlreadyExists")],
-            [],
-        ]
-
-        from retrieve.provision.naming import resolve_deployment_names
-
-        names = resolve_deployment_names(
-            "retrieve",
-            resource_group="rg-test",
-            location="southcentralus",
-            architectures=["hybrid"],
-            max_attempts=2,
-        )
-
-        assert names.name_prefix == "retrievea1b2"
-        assert names.storage_account == "retrievea1b2store"
-        assert mock_suffix.called
-
-    @patch("retrieve.provision.naming._az_json_or_none")
-    @patch("retrieve.provision.naming._check_ai_services_domain_availability")
-    def test_graphrag_checks_cosmos_name(
-        self,
-        mock_ai_domain,
-        mock_az,
-    ):
-        mock_ai_domain.return_value = {"nameAvailable": True}
-
-        def az_side_effect(args):
-            if args[:3] == ["storage", "account", "check-name"]:
-                return {"nameAvailable": True}
-            if args[:3] == ["search", "service", "check-name-availability"]:
-                return {"nameAvailable": True}
-            if args[:2] == ["cosmosdb", "check-name-exists"]:
-                return True
-            if args[:3] == ["cognitiveservices", "account", "list-deleted"]:
-                return []
-            return None
-
-        mock_az.side_effect = az_side_effect
-
-        from retrieve.provision.naming import _deployment_name_issues
-
-        issues = _deployment_name_issues(
-            build_deployment_names("retrieve"),
-            resource_group="rg-test",
-            location="southcentralus",
-            architectures=["graphrag"],
-        )
-
-        assert {issue.resource for issue in issues} == {"Cosmos DB account"}
-
-    @patch("retrieve.provision.naming._az_json_or_none")
-    def test_failed_existing_cosmos_account_forces_new_prefix(self, mock_az):
-        def az_side_effect(args):
-            if args[:3] == ["storage", "account", "check-name"]:
-                return {"nameAvailable": True}
-            if args[:3] == ["search", "service", "check-name-availability"]:
-                return {"nameAvailable": True}
-            if args[:3] == ["cognitiveservices", "account", "list-deleted"]:
-                return []
-            if args[:2] == ["resource", "show"]:
-                return {"properties": {"provisioningState": "Failed"}}
-            return None
-
-        mock_az.side_effect = az_side_effect
-
-        from retrieve.provision.naming import _deployment_name_issues
-
-        issues = _deployment_name_issues(
-            build_deployment_names("retrieve"),
-            resource_group="rg-test",
-            location="southcentralus",
-            architectures=["graphrag"],
-        )
-
-        assert any(issue.resource == "Cosmos DB account" for issue in issues)
-
-
-class TestProvisionOrchestrator:
-    def test_resolve_deployer_oid_from_arm_token_fallback(self):
-        arm_claims = {"oid": "22760309-6a28-40f2-88c8-e0cd749fa92b"}
-        token_payload = (
-            __import__("base64")
-            .urlsafe_b64encode(json.dumps(arm_claims).encode("utf-8"))
-            .decode("ascii")
-            .rstrip("=")
-        )
-        token = f"header.{token_payload}.sig"
-
-        ad_result = MagicMock(returncode=1, stdout="", stderr="InteractionRequired")
-        token_result = MagicMock(returncode=0, stdout=token)
-
-        with patch(
-            "retrieve.provision.orchestrator.subprocess.run",
-            side_effect=[ad_result, token_result],
-        ):
-            from retrieve.provision.orchestrator import _resolve_deployer_object_id
-            oid, source = _resolve_deployer_object_id("")
-
-        assert oid == "22760309-6a28-40f2-88c8-e0cd749fa92b"
-        assert source == "arm-token"
-
-    @patch("retrieve.provision.orchestrator._deploy_group_template")
-    @patch("retrieve.provision.orchestrator._az_json")
-    @patch("retrieve.provision.orchestrator.resolve_deployment_names")
-    @patch("retrieve.provision.orchestrator._check_az_cli")
-    def test_provision_creates_architectures(self, mock_check, mock_names, mock_az, mock_deploy):
-        """Test provision flow with mocked az CLI."""
-        mock_names.return_value = DeploymentNames(
-            name_prefix="testx1",
-            storage_account="testx1store",
-            ai_services="testx1ai",
-            search_service="testx1-search",
-            cosmos_account="testx1cosmos",
-            container_environment="testx1-env",
-            container_app="testx1-lightrag",
-            graph_worker_environment="testx1-graph-env",
-            graph_worker_app="testx1-graphrag-d4",
-            log_analytics_workspace="testx1-env-logs",
-        )
-        mock_az.return_value = {}
-        mock_deploy.return_value = {
-            "properties": {
-                "outputs": {
-                    "searchEndpoint": {"value": "https://test-search.search.windows.net"},
-                    "storageAccountName": {"value": "testx1store"},
-                    "searchServiceName": {"value": "testx1-search"},
-                    "aiServicesEndpoint": {"value": "https://test-ai.openai.azure.com"},
-                }
-            }
-        }
-
-        tmpdir = tempfile.mkdtemp()
-        db_path = os.path.join(tmpdir, "test.db")
-        cfg = RetrieveConfig()
-        cfg.db_path = db_path
-        cfg.azure.resource_group = "test-rg"
-        cfg.azure.name_prefix = "test"
-        cfg.architectures = ["keyword", "hybrid"]
-
-        from retrieve.provision.orchestrator import provision_architectures
-        with patch(
-            "retrieve.provision.orchestrator._resolve_deployer_object_id",
-            return_value=("oid-123", "configured"),
-        ), patch(
-            "retrieve.provision.orchestrator.http_requests.get",
-            return_value=MagicMock(),
-        ):
-            provision_architectures(cfg)
-
-        db = RetrieveDB(db_path)
-        arch = db.get_architecture("hybrid")
-        assert arch is not None
-        assert arch["status"] == "provisioned"
-        assert arch["config"]["search_endpoint"] == "https://test-search.search.windows.net"
-        assert arch["config"]["storage_account"] == "testx1store"
-        assert arch["config"]["index_name"] == "testx1-hybrid"
-        db.close()
-
-    @patch("retrieve.provision.orchestrator._deploy_group_template")
-    @patch("retrieve.provision.orchestrator._az_json")
-    @patch("retrieve.provision.orchestrator.resolve_deployment_names")
-    @patch("retrieve.provision.orchestrator._check_az_cli")
-    def test_provision_retries_prefix_on_bicep_name_collision(
-        self,
-        mock_check,
-        mock_names,
-        mock_az,
-        mock_deploy,
-    ):
-        first_names = DeploymentNames(
-            name_prefix="retrieve",
-            storage_account="retrievestore",
-            ai_services="retrieveai",
-            search_service="retrieve-search",
-            cosmos_account="retrievecosmos",
-            container_environment="retrieve-env",
-            container_app="retrieve-lightrag",
-            graph_worker_environment="retrieve-graph-env",
-            graph_worker_app="retrieve-graphrag-d4",
-            log_analytics_workspace="retrieve-env-logs",
-        )
-        second_names = DeploymentNames(
-            name_prefix="retrievea1b2",
-            storage_account="retrievea1b2store",
-            ai_services="retrievea1b2ai",
-            search_service="retrievea1b2-search",
-            cosmos_account="retrievea1b2cosmos",
-            container_environment="retrievea1b2-env",
-            container_app="retrievea1b2-lightrag",
-            graph_worker_environment="retrievea1b2-graph-env",
-            graph_worker_app="retrievea1b2-graphrag-d4",
-            log_analytics_workspace="retrievea1b2-env-logs",
-        )
-        mock_names.side_effect = [first_names, second_names]
-        mock_az.return_value = {}
-        mock_deploy.side_effect = [
-            RuntimeError("CustomDomainInUse: retrieveai"),
-            {
-                "properties": {
-                    "outputs": {
-                        "searchEndpoint": {
-                            "value": "https://retrievea1b2-search.search.windows.net"
-                        },
-                        "storageAccountName": {"value": "retrievea1b2store"},
-                        "searchServiceName": {"value": "retrievea1b2-search"},
-                        "aiServicesEndpoint": {
-                            "value": "https://retrievea1b2ai.openai.azure.com"
-                        },
-                    }
-                }
-            },
-        ]
-
-        tmpdir = tempfile.mkdtemp()
-        cfg = RetrieveConfig()
-        cfg.db_path = os.path.join(tmpdir, "test.db")
-        cfg.azure.resource_group = "test-rg"
-        cfg.azure.name_prefix = "retrieve"
-        cfg.architectures = ["hybrid"]
-
-        from retrieve.provision.orchestrator import provision_architectures
-
-        with patch(
-            "retrieve.provision.orchestrator._resolve_deployer_object_id",
-            return_value=("oid-123", "configured"),
-        ), patch(
-            "retrieve.provision.orchestrator.http_requests.get",
-            return_value=MagicMock(),
-        ):
-            provision_architectures(cfg)
-
-        db = RetrieveDB(cfg.db_path)
-        arch = db.get_architecture("hybrid")
-        assert arch["config"]["storage_account"] == "retrievea1b2store"
-        assert arch["config"]["index_name"] == "retrievea1b2-hybrid"
-        assert mock_names.call_args_list[-1].kwargs["blocked_prefixes"] == {"retrieve"}
-        db.close()
-
-    @patch("retrieve.provision.orchestrator._deploy_group_template")
-    @patch("retrieve.provision.orchestrator._deploy_graphrag_worker_container")
-    @patch("retrieve.provision.orchestrator._az_json")
-    @patch("retrieve.provision.orchestrator.resolve_deployment_names")
-    @patch("retrieve.provision.orchestrator._check_az_cli")
-    def test_provision_retries_whole_deployment_region_on_capacity_failure(
-        self,
-        mock_check,
-        mock_names,
-        mock_az,
-        mock_worker,
-        mock_deploy,
-    ):
-        mock_worker.return_value = ("https://retrievea1b2-graphrag-d4.example", "principal-123")
-        first_names = DeploymentNames(
-            name_prefix="retrieve",
-            storage_account="retrievestore",
-            ai_services="retrieveai",
-            search_service="retrieve-search",
-            cosmos_account="retrievecosmos",
-            container_environment="retrieve-env",
-            container_app="retrieve-lightrag",
-            graph_worker_environment="retrieve-graph-env",
-            graph_worker_app="retrieve-graphrag-d4",
-            log_analytics_workspace="retrieve-env-logs",
-        )
-        second_names = DeploymentNames(
-            name_prefix="retrievea1b2",
-            storage_account="retrievea1b2store",
-            ai_services="retrievea1b2ai",
-            search_service="retrievea1b2-search",
-            cosmos_account="retrievea1b2cosmos",
-            container_environment="retrievea1b2-env",
-            container_app="retrievea1b2-lightrag",
-            graph_worker_environment="retrievea1b2-graph-env",
-            graph_worker_app="retrievea1b2-graphrag-d4",
-            log_analytics_workspace="retrievea1b2-env-logs",
-        )
-        mock_names.side_effect = [first_names, second_names]
-        mock_az.return_value = {}
-        mock_deploy.side_effect = [
-            RuntimeError("ServiceUnavailable: high demand in South Central US"),
-            {
-                "properties": {
-                    "outputs": {
-                        "searchEndpoint": {
-                            "value": "https://retrievea1b2-search.search.windows.net"
-                        },
-                        "storageAccountName": {"value": "retrievea1b2store"},
-                        "searchServiceName": {"value": "retrievea1b2-search"},
-                        "aiServicesEndpoint": {
-                            "value": "https://retrievea1b2ai.openai.azure.com"
-                        },
-                    }
-                }
-            },
-        ]
-
-        written_params: list[dict] = []
-
-        def write_params(self, text, *args, **kwargs):
-            written_params.append(json.loads(text))
-            return None
-
-        tmpdir = tempfile.mkdtemp()
-        cfg = RetrieveConfig()
-        cfg.db_path = os.path.join(tmpdir, "test.db")
-        cfg.azure.resource_group = "rg-test"
-        cfg.azure.location = "southcentralus"
-        cfg.azure.name_prefix = "retrieve"
-        cfg.architectures = ["graphrag"]
-
-        from retrieve.provision.orchestrator import provision_architectures
-
-        with patch(
-            "retrieve.provision.orchestrator._resolve_deployer_object_id",
-            return_value=("oid-123", "configured"),
-        ), patch(
-            "retrieve.provision.orchestrator.http_requests.get",
-            return_value=MagicMock(),
-        ), patch("retrieve.provision.orchestrator.Path.write_text", write_params):
-            provision_architectures(cfg)
-
-        assert cfg.azure.location == "centralus"
-        assert cfg.azure.name_prefix == "retrievea1b2"
-        assert mock_names.call_args_list[-1].args[2] == "centralus"
-        assert mock_names.call_args_list[-1].kwargs["blocked_prefixes"] == {"retrieve"}
-        assert written_params[-1]["location"]["value"] == "centralus"
-        assert written_params[-1]["searchLocation"]["value"] == "centralus"
-        assert written_params[-1]["namePrefix"]["value"] == "retrievea1b2"
-        assert mock_worker.call_args.kwargs["search_endpoint"] == (
-            "https://retrievea1b2-search.search.windows.net"
-        )
-
-        db = RetrieveDB(cfg.db_path)
-        arch = db.get_architecture("graphrag")
-        assert arch["config"]["storage_account"] == "retrievea1b2store"
-        assert arch["config"]["index_name"] == "retrievea1b2-graphrag"
-        assert arch["config"]["graph_worker_endpoint"] == "https://retrievea1b2-graphrag-d4.example"
-        assert arch["config"]["graph_worker_environment"] == "retrievea1b2-graph-env"
-        assert arch["config"]["graph_worker_workload_profile"] == "graph-d4"
-        db.close()
-
-    @patch("retrieve.provision.orchestrator._deploy_group_template")
-    @patch("retrieve.provision.orchestrator._az_json")
-    @patch("retrieve.provision.orchestrator.resolve_deployment_names")
-    @patch("retrieve.provision.orchestrator.candidate_resource_group_names")
-    @patch("retrieve.provision.orchestrator._check_az_cli")
-    def test_provision_uses_generated_rg_when_requested_rg_is_deleting(
-        self,
-        mock_check,
-        mock_rg_names,
-        mock_names,
-        mock_az,
-        mock_deploy,
-    ):
-        mock_rg_names.return_value = iter(["rg-protected-live", "rg-protected-live-a1b2"])
-        mock_names.return_value = DeploymentNames(
-            name_prefix="retrieve",
-            storage_account="retrievestore",
-            ai_services="retrieveai",
-            search_service="retrieve-search",
-            cosmos_account="retrievecosmos",
-            container_environment="retrieve-env",
-            container_app="retrieve-lightrag",
-            graph_worker_environment="retrieve-graph-env",
-            graph_worker_app="retrieve-graphrag-d4",
-            log_analytics_workspace="retrieve-env-logs",
-        )
-        mock_az.side_effect = [
-            RuntimeError("ResourceGroupBeingDeleted: rg-protected-live"),
-            {},
-        ]
-        mock_deploy.return_value = {
-            "properties": {
-                "outputs": {
-                    "searchEndpoint": {"value": "https://retrieve-search.search.windows.net"},
-                    "storageAccountName": {"value": "retrievestore"},
-                    "searchServiceName": {"value": "retrieve-search"},
-                    "aiServicesEndpoint": {"value": "https://retrieveai.openai.azure.com"},
-                }
-            }
-        }
-
-        tmpdir = tempfile.mkdtemp()
-        cfg = RetrieveConfig()
-        cfg.db_path = os.path.join(tmpdir, "test.db")
-        cfg.azure.resource_group = "rg-protected-live"
-        cfg.architectures = ["hybrid"]
-
-        from retrieve.provision.orchestrator import provision_architectures
-
-        with patch(
-            "retrieve.provision.orchestrator._resolve_deployer_object_id",
-            return_value=("oid-123", "configured"),
-        ), patch(
-            "retrieve.provision.orchestrator.http_requests.get",
-            return_value=MagicMock(),
-        ):
-            provision_architectures(cfg)
-
-        assert cfg.azure.resource_group == "rg-protected-live-a1b2"
-        assert mock_names.call_args.args[1] == "rg-protected-live-a1b2"
-        db = RetrieveDB(cfg.db_path)
-        assert (
-            db.get_architecture("hybrid")["config"]["resource_group"]
-            == "rg-protected-live-a1b2"
-        )
-        db.close()
-
-    def test_provision_no_resource_group(self):
-        cfg = RetrieveConfig()
-        cfg.azure.resource_group = ""
-        from retrieve.provision.orchestrator import provision_architectures
-        with pytest.raises(ValueError, match="No resource_group set"):
-            provision_architectures(cfg)
 
 
 class TestGraphRAGWorkerSettings:
@@ -516,9 +70,7 @@ class TestGraphRAGWorkerSettings:
             input_dir="input",
             ai_services_endpoint="https://test-ai.cognitiveservices.azure.com/",
         )
-        settings["completion_models"]["default_completion_model"][
-            "requests_per_minute"
-        ] = 10
+        settings["completion_models"]["default_completion_model"]["requests_per_minute"] = 10
 
         with pytest.raises(ValueError, match="requests_per_minute"):
             validate_graphrag_settings(settings)
@@ -541,9 +93,7 @@ class TestGraphRAGWorkerSettings:
             _write_settings(
                 root,
                 input_dir,
-                IndexRequest(
-                    ai_services_endpoint="https://test-ai.cognitiveservices.azure.com/"
-                ),
+                IndexRequest(ai_services_endpoint="https://test-ai.cognitiveservices.azure.com/"),
             )
             settings = yaml.safe_load((root / "settings.yaml").read_text(encoding="utf-8"))
 
@@ -577,9 +127,7 @@ class TestGraphRAGWorkerSettings:
                 corpus_fingerprint=fingerprint,
                 job_id="job12345",
             )
-            settings = yaml.safe_load(
-                (root / "settings.yaml").read_text(encoding="utf-8")
-            )
+            settings = yaml.safe_load((root / "settings.yaml").read_text(encoding="utf-8"))
 
         parsed = validate_graphrag_settings(settings)
         assert parsed.output_storage.type == "blob"
@@ -625,18 +173,14 @@ class TestGraphRAGWorkerSettings:
             )
         )
         callbacks.workflow_end("create_base_text_units", object())
-        callbacks.pipeline_end(
-            [SimpleNamespace(workflow="create_base_text_units", error=None)]
-        )
+        callbacks.pipeline_end([SimpleNamespace(workflow="create_base_text_units", error=None)])
 
         assert status["workflows"] == ["create_base_text_units", "extract_graph"]
         assert status["completed_workflows"] == ["create_base_text_units"]
         assert status["progress_description"] == "Chunking documents"
         assert status["progress_completed"] == 4
         assert status["progress_total"] == 10
-        assert status["workflow_results"] == [
-            {"workflow": "create_base_text_units", "error": ""}
-        ]
+        assert status["workflow_results"] == [{"workflow": "create_base_text_units", "error": ""}]
         assert status["heartbeat_at"]
         assert mock_set_status.call_count == 5
 
@@ -788,9 +332,7 @@ class TestGraphRAGSafety:
 
     @patch("retrieve.indexing.advanced.uuid.uuid4")
     @patch("retrieve.indexing.advanced.subprocess.run")
-    def test_container_job_launch_is_bound_to_immutable_run(
-        self, mock_run, mock_uuid, tmp_path
-    ):
+    def test_container_job_launch_is_bound_to_immutable_run(self, mock_run, mock_uuid, tmp_path):
         from types import SimpleNamespace
 
         from retrieve.indexing.advanced import run_graphrag_indexing
@@ -829,15 +371,13 @@ class TestGraphRAGSafety:
         assert "azgrjtest" in command
         assert "rg-test" in command
         assert "--subscription" in command
-        assert f"GRAPH_WORKER_JOB_ID=job123" in command
+        assert "GRAPH_WORKER_JOB_ID=job123" in command
         assert f"CORPUS_FINGERPRINT={fingerprint}" in command
         assert f"GRAPH_OUTPUT_PREFIX=runs/{fingerprint}/job123" in command
         assert "GRAPHRAG_RUN_SCOPE=sample" in command
         assert "GRAPHRAG_MAX_DOCUMENTS=50" in command
         assert result["graph_job_execution_name"] == "graph-job-abc"
-        assert result["graph_worker_artifact_prefix"] == (
-            f"runs/{fingerprint}/job123"
-        )
+        assert result["graph_worker_artifact_prefix"] == (f"runs/{fingerprint}/job123")
         assert result["graph_worker_status_blob"] == "jobs/job123/status.json"
 
     def test_local_indexing_uses_public_api_not_cli(self, monkeypatch, tmp_path):
@@ -864,9 +404,7 @@ class TestGraphRAGSafety:
             tmp_path,
             [build_manifest_entry(doc, output, tmp_path)],
         )
-        build_index = AsyncMock(
-            return_value=[SimpleNamespace(workflow="pipeline", error=None)]
-        )
+        build_index = AsyncMock(return_value=[SimpleNamespace(workflow="pipeline", error=None)])
         monkeypatch.setattr(graphrag.api, "build_index", build_index)
         monkeypatch.setenv(FULL_RUN_APPROVAL_ENV, "true")
         monkeypatch.setenv("RETRIEVE_ALLOW_LOCAL_GRAPHRAG", "true")
@@ -921,6 +459,7 @@ class TestTeardown:
         cfg.architectures = ["hybrid"]
 
         from retrieve.provision.teardown import teardown
+
         # Should not crash
         teardown(keep=None, cfg=cfg)
 
@@ -943,12 +482,15 @@ class TestIndexOrchestrator:
         db_path = os.path.join(tmpdir, "test.db")
 
         db = RetrieveDB(db_path)
-        db.register_architecture("hybrid", {
-            "search_endpoint": "https://test.search.windows.net",
-            "index_name": "test-hybrid",
-            "storage_account": "teststore",
-            "ai_services_endpoint": "https://test-ai.openai.azure.com",
-        })
+        db.register_architecture(
+            "hybrid",
+            {
+                "search_endpoint": "https://test.search.windows.net",
+                "index_name": "test-hybrid",
+                "storage_account": "teststore",
+                "ai_services_endpoint": "https://test-ai.openai.azure.com",
+            },
+        )
         db.conn.execute("UPDATE architectures SET status = 'provisioned'")
         db.conn.commit()
         db.close()
@@ -959,6 +501,7 @@ class TestIndexOrchestrator:
         cfg.corpus.output_dir = tmpdir
 
         from retrieve.indexing.run import index_corpus
+
         index_corpus(cfg)
 
         mock_upload.assert_called_once()
@@ -1028,6 +571,7 @@ class TestIndexOrchestrator:
         cfg.architectures = ["hybrid"]
 
         from retrieve.indexing.run import index_corpus
+
         # Should not crash
         index_corpus(cfg)
 
@@ -1079,6 +623,7 @@ class TestSearchIndexBuilder:
     @patch("retrieve.indexing.search_index.DefaultAzureCredential")
     def test_create_keyword_index(self, mock_cred, mock_idx_client, mock_idxr_client):
         from retrieve.indexing.search_index import create_index_for_architecture
+
         create_index_for_architecture(
             "keyword", "https://test.search.windows.net", "test-keyword", "", "", "teststore"
         )
@@ -1092,9 +637,14 @@ class TestSearchIndexBuilder:
     @patch("retrieve.indexing.search_index.DefaultAzureCredential")
     def test_create_hybrid_index(self, mock_cred, mock_idx_client, mock_idxr_client):
         from retrieve.indexing.search_index import create_index_for_architecture
+
         create_index_for_architecture(
-            "hybrid", "https://test.search.windows.net", "test-hybrid",
-            "https://test-ai.openai.azure.com", "text-embedding-3-large", "teststore"
+            "hybrid",
+            "https://test.search.windows.net",
+            "test-hybrid",
+            "https://test-ai.openai.azure.com",
+            "text-embedding-3-large",
+            "teststore",
         )
         # Should have created: data source, skillset, index, indexer
         mock_idxr_client.return_value.create_or_update_data_source_connection.assert_called_once()
@@ -1107,9 +657,14 @@ class TestSearchIndexBuilder:
     @patch("retrieve.indexing.search_index.DefaultAzureCredential")
     def test_create_hybrid_reranker_index(self, mock_cred, mock_idx_client, mock_idxr_client):
         from retrieve.indexing.search_index import create_index_for_architecture
+
         create_index_for_architecture(
-            "hybrid-reranker", "https://test.search.windows.net", "test-hr",
-            "https://test-ai.openai.azure.com", "text-embedding-3-large", "teststore"
+            "hybrid-reranker",
+            "https://test.search.windows.net",
+            "test-hr",
+            "https://test-ai.openai.azure.com",
+            "text-embedding-3-large",
+            "teststore",
         )
         # Same as hybrid but with semantic config
         mock_idx_client.return_value.create_or_update_index.assert_called_once()
@@ -1117,6 +672,7 @@ class TestSearchIndexBuilder:
 
     def test_unimplemented_architecture(self):
         from retrieve.indexing.search_index import create_index_for_architecture
+
         # Should not crash — just prints warning
         create_index_for_architecture(
             "graphrag", "https://test.search.windows.net", "test-gr", "", "", ""
@@ -1199,17 +755,13 @@ class TestSearchIndexBuilder:
         assert vectorizer["customWebApiParameters"]["uri"] == (
             "https://embeddings.example.com/vectorize"
         )
-        assert vectorizer["customWebApiParameters"]["httpHeaders"] == {
-            "x-api-key": "secret-key"
-        }
+        assert vectorizer["customWebApiParameters"]["httpHeaders"] == {"x-api-key": "secret-key"}
 
         skillset_payload = mock_put.call_args_list[1].args[2]
         web_api_skill = skillset_payload["skills"][1]
         assert web_api_skill["@odata.type"] == "#Microsoft.Skills.Custom.WebApiSkill"
         assert web_api_skill["uri"] == "https://embeddings.example.com/vectorize"
-        assert web_api_skill["outputs"] == [
-            {"name": "vector", "targetName": "content_vector"}
-        ]
+        assert web_api_skill["outputs"] == [{"name": "vector", "targetName": "content_vector"}]
         mapping = skillset_payload["indexProjections"]["selectors"][0]["mappings"][1]
         assert mapping["source"] == "/document/chunks/*/content_vector"
 

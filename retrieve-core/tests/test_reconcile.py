@@ -76,9 +76,7 @@ def test_successful_run_becomes_active(mock_get, tmp_path):
             "artifact_prefix": f"runs/{'f' * 64}/job123",
             "corpus_fingerprint": "f" * 64,
             "completed_workflows": ["create_final_documents"],
-            "workflow_results": [
-                {"workflow": "create_final_documents", "error": ""}
-            ],
+            "workflow_results": [{"workflow": "create_final_documents", "error": ""}],
         }
     )
 
@@ -86,12 +84,8 @@ def test_successful_run_becomes_active(mock_get, tmp_path):
 
     assert reconciled["status"] == "active"
     assert reconciled["config"]["cloud_index_status"] == "succeeded"
-    assert reconciled["config"]["graph_worker_artifact_prefix"] == (
-        f"runs/{'f' * 64}/job123"
-    )
-    assert reconciled["config"]["graph_worker_completed_workflows"] == [
-        "create_final_documents"
-    ]
+    assert reconciled["config"]["graph_worker_artifact_prefix"] == (f"runs/{'f' * 64}/job123")
+    assert reconciled["config"]["graph_worker_completed_workflows"] == ["create_final_documents"]
     db.close()
 
 
@@ -124,9 +118,7 @@ def test_transient_status_outage_keeps_indexing(mock_get, tmp_path):
     reconciled = reconcile_graphrag_architecture(db, architecture)
 
     assert reconciled["status"] == "indexing"
-    assert "temporary DNS failure" in reconciled["config"][
-        "graph_worker_reconciliation_error"
-    ]
+    assert "temporary DNS failure" in reconciled["config"]["graph_worker_reconciliation_error"]
     db.close()
 
 
@@ -151,9 +143,7 @@ def test_tampered_status_url_fails_without_request(mock_get, tmp_path):
 
 @patch("retrieve.indexing.reconcile._load_job_blob_status")
 @patch("retrieve.indexing.reconcile.subprocess.run")
-def test_container_job_and_durable_status_must_both_succeed(
-    mock_run, mock_blob_status, tmp_path
-):
+def test_container_job_and_durable_status_must_both_succeed(mock_run, mock_blob_status, tmp_path):
     db = RetrieveDB(tmp_path / "retrieve.db")
     architecture = _job_architecture(db)
     mock_run.return_value = SimpleNamespace(

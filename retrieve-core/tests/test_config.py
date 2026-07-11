@@ -1,10 +1,9 @@
 """Tests for config.py — YAML loading and typed config access."""
 
-from pathlib import Path
 import tempfile
-import pytest
+from pathlib import Path
+
 from retrieve.config import (
-    CopilotConfig,
     ProviderConfig,
     RetrieveConfig,
     load_config,

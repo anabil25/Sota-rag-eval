@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import csv
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -34,10 +34,10 @@ CSV_COLUMNS = [
     "reasoning",
     "status",
     # ── lineage ──────────────────────────────────────────
-    "csv_source_file",    # filename the row was originally imported from
-    "csv_source_row",     # 1-based data row index within that file
-    "csv_eval_set_id",    # eval_set_id at time of export (audit trail)
-    "csv_imported_at",    # ISO-8601 timestamp when the row was written
+    "csv_source_file",  # filename the row was originally imported from
+    "csv_source_row",  # 1-based data row index within that file
+    "csv_eval_set_id",  # eval_set_id at time of export (audit trail)
+    "csv_imported_at",  # ISO-8601 timestamp when the row was written
 ]
 
 
@@ -51,7 +51,7 @@ def export_eval_set_to_csv(db: RetrieveDB, eval_set_id: int, output_path: str | 
     out = Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)
 
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     with out.open("w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=CSV_COLUMNS)
@@ -109,7 +109,7 @@ def import_eval_set_from_csv(
         raise FileNotFoundError(f"CSV not found: {inp}")
 
     source_filename = inp.name
-    import_ts = datetime.now(timezone.utc).isoformat()
+    import_ts = datetime.now(UTC).isoformat()
 
     parent_id = None if fresh else base_eval_set_id
     new_eval_set_id = db.create_eval_set(
@@ -117,14 +117,23 @@ def import_eval_set_from_csv(
         notes=f"Imported from CSV: {source_filename}",
         parent_eval_set_id=parent_id,
         build_mode="fresh" if fresh else "extend",
-        steering_state={"source": "csv-import", "csv_source_file": source_filename, "csv_imported_at": import_ts},
+        steering_state={
+            "source": "csv-import",
+            "csv_source_file": source_filename,
+            "csv_imported_at": import_ts,
+        },
         operator_context="",
     )
 
     dedup: set[tuple[str, str]] = set()
     if base_eval_set_id and not fresh:
         for q in db.get_questions(base_eval_set_id):
-            dedup.add((q.get("question_text", "").strip().lower(), q.get("answer_text", "").strip().lower()))
+            dedup.add(
+                (
+                    q.get("question_text", "").strip().lower(),
+                    q.get("answer_text", "").strip().lower(),
+                )
+            )
             # Forward existing rows, preserving whatever lineage they already carry
             db.add_question(
                 eval_set_id=new_eval_set_id,

@@ -92,7 +92,9 @@ ARCHITECTURES: dict[str, Architecture] = {
         latency="★★★",
         best_for="Dense, sparse, and token-level retrieval signals",
         required_azure_resources=["storage", "search", "aci"],
-        description="Multiple vector representations per chunk; embedding source is configured separately.",
+        description=(
+            "Multiple vector representations per chunk; embedding source is configured separately."
+        ),
         est_monthly_usd=320,
     ),
     "agentic-kb": Architecture(
@@ -120,7 +122,13 @@ ARCHITECTURES: dict[str, Architecture] = {
         cost="$$$$",
         latency="★★",
         best_for="Graph-augmented retrieval, lighter than full GraphRAG",
-        required_azure_resources=["storage", "search", "ai_foundry", "container_apps", "postgresql"],
+        required_azure_resources=[
+            "storage",
+            "search",
+            "ai_foundry",
+            "container_apps",
+            "postgresql",
+        ],
         est_monthly_usd=480,
     ),
 }
@@ -128,7 +136,5 @@ ARCHITECTURES: dict[str, Architecture] = {
 
 def get_architecture(name: str) -> Architecture:
     if name not in ARCHITECTURES:
-        raise ValueError(
-            f"Unknown architecture '{name}'. Available: {', '.join(ARCHITECTURES)}"
-        )
+        raise ValueError(f"Unknown architecture '{name}'. Available: {', '.join(ARCHITECTURES)}")
     return ARCHITECTURES[name]

@@ -20,11 +20,14 @@ import time
 import traceback
 import uuid
 from collections import defaultdict
+from collections.abc import AsyncGenerator, Callable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, AsyncGenerator, Callable, Iterator
+from typing import Any
 
-_CTX: contextvars.ContextVar[OperationContext | None] = contextvars.ContextVar("retrieve_operation", default=None)
+_CTX: contextvars.ContextVar[OperationContext | None] = contextvars.ContextVar(
+    "retrieve_operation", default=None
+)
 
 
 @dataclass
@@ -66,7 +69,9 @@ class EventBus:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         # operation_id → list of (asyncio.Queue, asyncio event loop)
-        self._subs: dict[str, list[tuple[asyncio.Queue, asyncio.AbstractEventLoop]]] = defaultdict(list)
+        self._subs: dict[str, list[tuple[asyncio.Queue, asyncio.AbstractEventLoop]]] = defaultdict(
+            list
+        )
 
     def subscribe(self, operation_id: str, loop: asyncio.AbstractEventLoop) -> asyncio.Queue:
         """Create a new subscription queue for an operation. Call from async context."""
@@ -105,14 +110,23 @@ class EventBus:
 
 _bus = EventBus()
 _sink: JsonlEventSink | None = None
+_event_journal: Callable[[dict[str, Any]], int] | None = None
 
 
 def get_event_bus() -> EventBus:
     return _bus
 
 
+def configure_event_journal(
+    journal: Callable[[dict[str, Any]], int] | None,
+) -> None:
+    """Configure durable event persistence; pass ``None`` to disable it."""
+    global _event_journal
+    _event_journal = journal
+
+
 def _utc_now_iso() -> str:
-    return dt.datetime.now(dt.timezone.utc).isoformat()
+    return dt.datetime.now(dt.UTC).isoformat()
 
 
 def get_default_log_path() -> Path:
@@ -156,10 +170,10 @@ def _configure_otel(endpoint: str) -> None:
     """Configure OpenTelemetry trace export to an OTLP HTTP endpoint."""
     try:
         from opentelemetry import trace
-        from opentelemetry.sdk.trace import TracerProvider
-        from opentelemetry.sdk.trace.export import BatchSpanProcessor
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
         from opentelemetry.sdk.resources import Resource
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
         resource = Resource.create({"service.name": "retrieve", "service.version": "0.1.0"})
         provider = TracerProvider(resource=resource)
@@ -210,6 +224,9 @@ def emit_event(
         )
     if fields:
         event.update(fields)
+
+    if ctx and _event_journal is not None:
+        event["event_sequence"] = _event_journal(dict(event))
 
     assert _sink is not None
     _sink.write(event)
@@ -298,7 +315,27 @@ def capture_module_consoles(modules: list) -> Iterator[None]:
     yield
 
 
-async def sse_event_stream(operation_id: str) -> AsyncGenerator[str, None]:
+def _format_sse_event(event: dict[str, Any]) -> str:
+    message = str(event.get("message", ""))
+    safe_message = message.replace("\n", " ").replace("\r", "")
+    payload = {
+        "message": safe_message,
+        "event_type": event.get("event_type", ""),
+        "stage": event.get("stage", ""),
+        "timestamp": event.get("timestamp", ""),
+    }
+    sequence = int(event.get("event_sequence") or 0)
+    prefix = f"id: {sequence}\n" if sequence else ""
+    return f"{prefix}data: {json.dumps(payload)}\n\n"
+
+
+async def sse_event_stream(
+    operation_id: str,
+    *,
+    event_loader: Callable[[str, int], list[dict[str, Any]]] | None = None,
+    after_sequence: int = 0,
+    done: bool = False,
+) -> AsyncGenerator[str, None]:
     """Async generator yielding SSE-formatted events for an operation.
 
     Subscribe to the event bus for *operation_id* and yield each event
@@ -306,14 +343,26 @@ async def sse_event_stream(operation_id: str) -> AsyncGenerator[str, None]:
     """
     loop = asyncio.get_running_loop()
     q = _bus.subscribe(operation_id, loop)
+    last_sequence = after_sequence
     try:
+        if event_loader is not None:
+            for event in event_loader(operation_id, after_sequence):
+                sequence = int(event.get("event_sequence") or 0)
+                if sequence > last_sequence:
+                    last_sequence = sequence
+                    yield _format_sse_event(event)
+        if done:
+            yield "event: done\ndata: \n\n"
+            return
         while True:
             event = await q.get()
             if event is _DONE_SENTINEL:
                 yield "event: done\ndata: \n\n"
                 return
-            msg = event.get("message", "")
-            safe = msg.replace("\n", " ").replace("\r", "")
-            yield f"data: {json.dumps({'message': safe, 'event_type': event.get('event_type', ''), 'stage': event.get('stage', ''), 'timestamp': event.get('timestamp', '')})}\n\n"
+            sequence = int(event.get("event_sequence") or 0)
+            if sequence and sequence <= last_sequence:
+                continue
+            last_sequence = max(last_sequence, sequence)
+            yield _format_sse_event(event)
     finally:
         _bus.unsubscribe(operation_id, q)

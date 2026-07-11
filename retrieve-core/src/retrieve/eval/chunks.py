@@ -31,7 +31,7 @@ def parse_frontmatter(text: str) -> tuple[dict[str, Any], str]:
         fm = yaml.safe_load(m.group(1)) or {}
     except yaml.YAMLError:
         fm = {}
-    body = text[m.end():]
+    body = text[m.end() :]
     return fm, body
 
 
@@ -56,22 +56,26 @@ def chunk_by_heading(doc_id: str, doc_title: str, body: str) -> list[Chunk]:
         if heading_match:
             heading = heading_match.group(2).strip()
 
-        chunks.append(Chunk(
-            chunk_id=f"{doc_id}::{i}",
-            doc_id=doc_id,
-            doc_title=doc_title,
-            content=section,
-            heading=heading,
-        ))
+        chunks.append(
+            Chunk(
+                chunk_id=f"{doc_id}::{i}",
+                doc_id=doc_id,
+                doc_title=doc_title,
+                content=section,
+                heading=heading,
+            )
+        )
 
     # If no headings found, return the whole doc as one chunk
     if not chunks and body.strip():
-        chunks.append(Chunk(
-            chunk_id=f"{doc_id}::0",
-            doc_id=doc_id,
-            doc_title=doc_title,
-            content=body.strip(),
-        ))
+        chunks.append(
+            Chunk(
+                chunk_id=f"{doc_id}::0",
+                doc_id=doc_id,
+                doc_title=doc_title,
+                content=body.strip(),
+            )
+        )
 
     return chunks
 
@@ -85,10 +89,9 @@ def load_corpus_chunks(corpus_dir: str | Path) -> list[Chunk]:
         text = md_file.read_text(encoding="utf-8")
         fm, body = parse_frontmatter(text)
 
-        # Use filename stem as the canonical document ID.
-        # This is generalizable to any corpus — not tied to policy numbering.
-        # Frontmatter 'doc_id' overrides if present; otherwise filename stem.
-        doc_id = fm.get("doc_id", md_file.stem)
+        # Prefer the source's stable logical identifier; filename stems remain
+        # a compatibility fallback for corpora without identity metadata.
+        doc_id = fm.get("document_id") or fm.get("doc_id") or fm.get("policy_id") or md_file.stem
         doc_title = fm.get("title", md_file.stem)
 
         chunks = chunk_by_heading(doc_id, doc_title, body)

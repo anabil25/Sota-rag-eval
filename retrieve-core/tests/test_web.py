@@ -1,10 +1,11 @@
 """Tests for web/app.py — FastAPI endpoints."""
 
-import json
-import tempfile
 import os
+import tempfile
+
 import pytest
 from fastapi.testclient import TestClient
+
 from retrieve.db import RetrieveDB
 from retrieve.web.app import create_app
 
@@ -28,12 +29,32 @@ def client():
     db.update_eval_set_counts(eid)
 
     rid = db.create_run(eid, "hybrid", "test")
-    db.add_result(rid, q1, ["100::0"], {"recall_at_5": 1.0, "recall_at_10": 1.0, "mrr_at_10": 1.0, "ndcg_at_10": 1.0}, 45.0)
-    db.add_result(rid, q2, ["101::0"], {"recall_at_5": 1.0, "recall_at_10": 1.0, "mrr_at_10": 1.0, "ndcg_at_10": 0.8}, 50.0)
-    db.complete_run(rid, {
-        "recall_at_5": 1.0, "recall_at_10": 1.0, "mrr_at_10": 1.0, "ndcg_at_10": 0.9,
-        "avg_latency_ms": 47.5, "failure_count": 0, "total_questions": 2,
-    })
+    db.add_result(
+        rid,
+        q1,
+        ["100::0"],
+        {"recall_at_5": 1.0, "recall_at_10": 1.0, "mrr_at_10": 1.0, "ndcg_at_10": 1.0},
+        45.0,
+    )
+    db.add_result(
+        rid,
+        q2,
+        ["101::0"],
+        {"recall_at_5": 1.0, "recall_at_10": 1.0, "mrr_at_10": 1.0, "ndcg_at_10": 0.8},
+        50.0,
+    )
+    db.complete_run(
+        rid,
+        {
+            "recall_at_5": 1.0,
+            "recall_at_10": 1.0,
+            "mrr_at_10": 1.0,
+            "ndcg_at_10": 0.9,
+            "avg_latency_ms": 47.5,
+            "failure_count": 0,
+            "total_questions": 2,
+        },
+    )
     db.close()
 
     app = create_app(config_path)

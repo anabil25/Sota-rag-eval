@@ -19,11 +19,14 @@ logs
 
 # Generated local validation/data artifacts
 .graphrag/
+.lightrag/
 corpus/
 retrieve-core/corpus/
 retrieve-core/e2e_corpus/
 retrieve-core/*e2e_live_results.json
 manual-validation/
+evals/
+*.csv
 
 # Output
 .output
@@ -32,6 +35,7 @@ manual-validation/
 .wrangler
 /.svelte-kit
 /build
+/out
 
 # OS
 .DS_Store

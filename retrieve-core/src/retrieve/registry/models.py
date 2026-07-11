@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-
 # ── Embedding models ──────────────────────────────────────────────────
 
 
@@ -70,7 +69,10 @@ class RerankerModel(BaseModel):
 RERANKER_MODELS: dict[str, RerankerModel] = {
     "azure-semantic-ranker": RerankerModel(
         name="Azure semantic ranker",
-        notes="Built-in cross-encoder in AI Search. No external deployment. Enable via SemanticConfiguration.",
+        notes=(
+            "Built-in cross-encoder in AI Search. No external deployment. "
+            "Enable via SemanticConfiguration."
+        ),
         provider="azure_native",
     ),
     "bge-reranker-v2-m3": RerankerModel(

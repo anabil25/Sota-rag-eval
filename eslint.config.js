@@ -14,7 +14,6 @@ export default defineConfig(
 	includeIgnoreFile(gitignorePath),
 	{
 		ignores: [
-			'solution-accelerator/**',
 			'retrieve-core/**',
 			'corpus/**',
 			'build/**',

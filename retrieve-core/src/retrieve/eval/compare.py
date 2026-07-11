@@ -84,7 +84,6 @@ def _print_sota_mode_table(runs: list[dict[str, Any]]):
         delta = ndcg - baseline_ndcg
 
         delta_str = "—" if run is baseline else f"{delta:+.3f}"
-        delta_style = ""
         if delta > 0:
             delta_str = f"[green]{delta_str}[/green]"
         elif delta < 0:
@@ -173,21 +172,23 @@ def _generate_html(runs: list[dict[str, Any]], db: RetrieveDB) -> str:
         cat_scores = db.get_per_category_scores(run["id"])
         failures = db.get_failures_for_run(run["id"])
 
-        rows.append({
-            "name": run["architecture_name"],
-            "mode": run["mode"],
-            "created_at": run["created_at"],
-            "metrics": m,
-            "categories": cat_scores,
-            "miss_count": len(failures),
-            "misses": [
-                {
-                    "type": f.get("failure_type", "unknown"),
-                    "details": str(f.get("failure_details", ""))[:100],
-                }
-                for f in failures[:50]
-            ],
-        })
+        rows.append(
+            {
+                "name": run["architecture_name"],
+                "mode": run["mode"],
+                "created_at": run["created_at"],
+                "metrics": m,
+                "categories": cat_scores,
+                "miss_count": len(failures),
+                "misses": [
+                    {
+                        "type": f.get("failure_type", "unknown"),
+                        "details": str(f.get("failure_details", ""))[:100],
+                    }
+                    for f in failures[:50]
+                ],
+            }
+        )
 
     data_json = json.dumps(rows, indent=2)
 
@@ -216,17 +217,17 @@ def _generate_html(runs: list[dict[str, Any]], db: RetrieveDB) -> str:
         delta_str = "—" if r is rows[0] else f"{delta:+.3f}"
         delta_class = "positive" if delta > 0 else ("negative" if delta < 0 else "")
 
-        cost = m.get('est_monthly_cost')
+        cost = m.get("est_monthly_cost")
         cost_str = f"${cost:.0f}" if cost else "—"
 
         table_rows += f"""<tr>
-            <td class="arch-name">{r['name']}</td>
-            <td>{m.get('recall_at_5', 0):.3f}</td>
-            <td>{m.get('recall_at_10', 0):.3f}</td>
-            <td>{m.get('mrr_at_10', 0):.3f}</td>
+            <td class="arch-name">{r["name"]}</td>
+            <td>{m.get("recall_at_5", 0):.3f}</td>
+            <td>{m.get("recall_at_10", 0):.3f}</td>
+            <td>{m.get("mrr_at_10", 0):.3f}</td>
             <td>{ndcg:.3f}</td>
             <td class="{delta_class}">{delta_str}</td>
-            <td>{m.get('avg_latency_ms', 0):.0f}ms</td>
+            <td>{m.get("avg_latency_ms", 0):.0f}ms</td>
             <td>{cost_str}</td>
         </tr>"""
 
@@ -243,7 +244,7 @@ def _generate_html(runs: list[dict[str, Any]], db: RetrieveDB) -> str:
             for f in r["misses"]:
                 miss_rows += f"<tr><td>{f['type']}</td><td>{f['details']}</td></tr>"
             miss_sections += f"""
-            <h3>{r['name']} — {len(r['misses'])} misses</h3>
+            <h3>{r["name"]} — {len(r["misses"])} misses</h3>
             <table class="data-table">
                 <tr><th>Type</th><th>Details</th></tr>
                 {miss_rows}
@@ -309,7 +310,7 @@ def _generate_html(runs: list[dict[str, Any]], db: RetrieveDB) -> str:
 
 <div id="misses" class="tab-content">
 <h2>Miss Analysis</h2>
-{miss_sections if miss_sections else '<p>No misses recorded.</p>'}
+{miss_sections if miss_sections else "<p>No misses recorded.</p>"}
 </div>
 
 <script>
@@ -334,22 +335,32 @@ def _export_csv(runs: list[dict[str, Any]], path: str):
     """Export comparison table as CSV."""
     output = StringIO()
     writer = csv.writer(output)
-    writer.writerow([
-        "Architecture", "Mode", "Recall@5", "Recall@10", "MRR@10",
-        "nDCG@10", "Avg Latency (ms)", "Est. Monthly Cost",
-    ])
+    writer.writerow(
+        [
+            "Architecture",
+            "Mode",
+            "Recall@5",
+            "Recall@10",
+            "MRR@10",
+            "nDCG@10",
+            "Avg Latency (ms)",
+            "Est. Monthly Cost",
+        ]
+    )
     for run in runs:
         m = run["aggregate_metrics"]
-        writer.writerow([
-            run["architecture_name"],
-            run["mode"],
-            f"{m.get('recall_at_5', 0):.3f}",
-            f"{m.get('recall_at_10', 0):.3f}",
-            f"{m.get('mrr_at_10', 0):.3f}",
-            f"{m.get('ndcg_at_10', 0):.3f}",
-            f"{m.get('avg_latency_ms', 0):.0f}",
-            str(m.get("est_monthly_cost", "")),
-        ])
+        writer.writerow(
+            [
+                run["architecture_name"],
+                run["mode"],
+                f"{m.get('recall_at_5', 0):.3f}",
+                f"{m.get('recall_at_10', 0):.3f}",
+                f"{m.get('mrr_at_10', 0):.3f}",
+                f"{m.get('ndcg_at_10', 0):.3f}",
+                f"{m.get('avg_latency_ms', 0):.0f}",
+                str(m.get("est_monthly_cost", "")),
+            ]
+        )
 
     Path(path).write_text(output.getvalue(), encoding="utf-8")
     console.print(f"  Exported CSV to [cyan]{path}[/cyan]")
@@ -389,7 +400,8 @@ def compare_runs(
 
         emit_progress(
             f"Loaded {len(runs)} runs for comparison",
-            stage="compare.load", run_count=len(runs),
+            stage="compare.load",
+            run_count=len(runs),
         )
 
         # Determine mode from runs

@@ -23,6 +23,8 @@ def main() -> None:
         method=os.environ.get("GRAPHRAG_METHOD", "fast"),
         run_scope=os.environ.get("GRAPHRAG_RUN_SCOPE", "full"),
         max_documents=_optional_int("GRAPHRAG_MAX_DOCUMENTS"),
+        chunk_size=_optional_int("GRAPHRAG_CHUNK_SIZE"),
+        chunk_overlap=_optional_int("GRAPHRAG_CHUNK_OVERLAP"),
         corpus_fingerprint=os.environ.get("CORPUS_FINGERPRINT", ""),
         ai_services_endpoint=os.environ.get("AI_SERVICES_ENDPOINT", ""),
         search_endpoint=os.environ.get("SEARCH_ENDPOINT", ""),

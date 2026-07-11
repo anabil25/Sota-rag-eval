@@ -11,7 +11,7 @@ from typing import Any
 
 log = logging.getLogger(__name__)
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 class ActiveOperationJobError(RuntimeError):
@@ -20,6 +20,7 @@ class ActiveOperationJobError(RuntimeError):
 
 class IdempotencyConflictError(ValueError):
     """Raised when an idempotency key is reused with a different request."""
+
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -138,6 +139,15 @@ CREATE INDEX IF NOT EXISTS idx_operation_jobs_state ON operation_jobs(state);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_operation_jobs_idempotency
     ON operation_jobs(owner_id, idempotency_key)
     WHERE idempotency_key <> '';
+
+CREATE TABLE IF NOT EXISTS operation_events (
+    sequence              INTEGER PRIMARY KEY AUTOINCREMENT,
+    operation_id          TEXT NOT NULL,
+    event_json            TEXT NOT NULL,
+    created_at            TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_operation_events_operation_sequence
+    ON operation_events(operation_id, sequence);
 """
 
 
@@ -208,24 +218,16 @@ class RetrieveDB:
                 "question_type",
                 "TEXT NOT NULL DEFAULT 'direct_lookup'",
             )
-            self._ensure_column(
-                "eval_questions", "persona", "TEXT NOT NULL DEFAULT 'domain_user'"
-            )
+            self._ensure_column("eval_questions", "persona", "TEXT NOT NULL DEFAULT 'domain_user'")
             self._ensure_column(
                 "eval_questions", "intent_family", "TEXT NOT NULL DEFAULT 'general'"
             )
-            self._ensure_column(
-                "eval_questions", "difficulty", "TEXT NOT NULL DEFAULT 'medium'"
-            )
+            self._ensure_column("eval_questions", "difficulty", "TEXT NOT NULL DEFAULT 'medium'")
             self._ensure_column(
                 "eval_questions", "expected_search_challenge", "TEXT NOT NULL DEFAULT ''"
             )
-            self._ensure_column(
-                "eval_questions", "evidence_summary", "TEXT NOT NULL DEFAULT ''"
-            )
-            self._ensure_column(
-                "eval_questions", "status", "TEXT NOT NULL DEFAULT 'active'"
-            )
+            self._ensure_column("eval_questions", "evidence_summary", "TEXT NOT NULL DEFAULT ''")
+            self._ensure_column("eval_questions", "status", "TEXT NOT NULL DEFAULT 'active'")
 
             # New tables for persistent preferences and generation artifacts
             self.conn.executescript(
@@ -280,6 +282,20 @@ class RetrieveDB:
                 CREATE UNIQUE INDEX IF NOT EXISTS idx_operation_jobs_idempotency
                     ON operation_jobs(owner_id, idempotency_key)
                     WHERE idempotency_key <> '';
+                """
+            )
+
+        if current_version < 4:
+            self.conn.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS operation_events (
+                    sequence              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    operation_id          TEXT NOT NULL,
+                    event_json            TEXT NOT NULL,
+                    created_at            TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+                CREATE INDEX IF NOT EXISTS idx_operation_events_operation_sequence
+                    ON operation_events(operation_id, sequence);
                 """
             )
 
@@ -339,9 +355,7 @@ class RetrieveDB:
         self.conn.commit()
 
     def get_latest_eval_set(self) -> dict[str, Any] | None:
-        row = self.conn.execute(
-            "SELECT * FROM eval_sets ORDER BY id DESC LIMIT 1"
-        ).fetchone()
+        row = self.conn.execute("SELECT * FROM eval_sets ORDER BY id DESC LIMIT 1").fetchone()
         return dict(row) if row else None
 
     def get_eval_set_by_version(self, version_label: str) -> dict[str, Any] | None:
@@ -545,9 +559,7 @@ class RetrieveDB:
 
     # ── Architectures ─────────────────────────────────────────────────
 
-    def register_architecture(
-        self, name: str, config: dict[str, Any] | None = None
-    ) -> int:
+    def register_architecture(self, name: str, config: dict[str, Any] | None = None) -> int:
         cur = self.conn.execute(
             "INSERT INTO architectures (name, config) VALUES (?, ?)",
             (name, json.dumps(config or {})),
@@ -566,6 +578,50 @@ class RetrieveDB:
             d["resources_provisioned"] = json.loads(d["resources_provisioned"])
             return d
         return None
+
+    # ── Durable operation events ─────────────────────────────────────
+
+    def append_operation_event(
+        self,
+        operation_id: str,
+        event: dict[str, Any],
+        *,
+        retain: int = 2_000,
+    ) -> int:
+        cursor = self.conn.execute(
+            "INSERT INTO operation_events (operation_id, event_json) VALUES (?, ?)",
+            (operation_id, json.dumps(event, ensure_ascii=True)),
+        )
+        sequence = int(cursor.lastrowid)
+        if retain > 0:
+            self.conn.execute(
+                "DELETE FROM operation_events WHERE operation_id = ? AND sequence < ("
+                "SELECT COALESCE(MAX(sequence), 0) - ? FROM operation_events "
+                "WHERE operation_id = ?)",
+                (operation_id, retain, operation_id),
+            )
+        self.conn.commit()
+        return sequence
+
+    def list_operation_events(
+        self,
+        operation_id: str,
+        *,
+        after_sequence: int = 0,
+        limit: int = 2_000,
+    ) -> list[dict[str, Any]]:
+        rows = self.conn.execute(
+            "SELECT sequence, event_json FROM operation_events "
+            "WHERE operation_id = ? AND sequence > ? "
+            "ORDER BY sequence LIMIT ?",
+            (operation_id, after_sequence, limit),
+        ).fetchall()
+        events: list[dict[str, Any]] = []
+        for row in rows:
+            event = json.loads(row["event_json"])
+            event["event_sequence"] = int(row["sequence"])
+            events.append(event)
+        return events
 
     # ── Durable operation jobs ───────────────────────────────────────
 
@@ -600,8 +656,7 @@ class RetrieveDB:
         try:
             if idempotency_key:
                 existing = conn.execute(
-                    "SELECT * FROM operation_jobs WHERE owner_id = ? "
-                    "AND idempotency_key = ?",
+                    "SELECT * FROM operation_jobs WHERE owner_id = ? AND idempotency_key = ?",
                     (owner_id, idempotency_key),
                 ).fetchone()
                 if existing:
@@ -752,9 +807,7 @@ class RetrieveDB:
         self.conn.commit()
 
     def fail_run(self, run_id: int):
-        self.conn.execute(
-            "UPDATE runs SET status = 'failed' WHERE id = ?", (run_id,)
-        )
+        self.conn.execute("UPDATE runs SET status = 'failed' WHERE id = ?", (run_id,))
         self.conn.commit()
 
     def get_run(self, run_id: int) -> dict[str, Any] | None:

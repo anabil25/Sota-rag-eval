@@ -7,12 +7,8 @@ Uses an isolated temp DB and mocks external services (Copilot SDK, Azure Search)
 
 from __future__ import annotations
 
-import json
-import time
-import tempfile
 from pathlib import Path
-from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -29,7 +25,7 @@ def tmp_config(tmp_path: Path) -> RetrieveConfig:
     corpus_dir.mkdir()
     # Create a minimal corpus file so generate can find something
     (corpus_dir / "test_doc.md").write_text(
-        "---\npolicy_id: \"test-1\"\ntitle: \"Test Doc\"\nparent: \"Root\"\n---\n\n"
+        '---\npolicy_id: "test-1"\ntitle: "Test Doc"\nparent: "Root"\n---\n\n'
         "# Test Doc\n\nThis is test content for evaluation generation.\n",
         encoding="utf-8",
     )
@@ -45,10 +41,12 @@ def tmp_config(tmp_path: Path) -> RetrieveConfig:
 def client(tmp_config: RetrieveConfig, tmp_path: Path) -> TestClient:
     # Write a config file
     import yaml
+
     config_path = tmp_path / "retrieve.yaml"
     config_path.write_text(yaml.dump(tmp_config.model_dump()), encoding="utf-8")
 
     from retrieve.web.app import create_app
+
     app = create_app(str(config_path))
     return TestClient(app)
 
@@ -99,10 +97,13 @@ def seeded_db(tmp_config: RetrieveConfig) -> RetrieveDB:
     db.update_eval_set_counts(es_id)
 
     # Register an architecture
-    arch_id = db.register_architecture("keyword", config={
-        "search_endpoint": "https://test-search.search.windows.net",
-        "index_name": "test-keyword",
-    })
+    arch_id = db.register_architecture(
+        "keyword",
+        config={
+            "search_endpoint": "https://test-search.search.windows.net",
+            "index_name": "test-keyword",
+        },
+    )
 
     # Create a completed run with results
     run_id = db.create_run(
@@ -128,11 +129,18 @@ def seeded_db(tmp_config: RetrieveConfig) -> RetrieveDB:
         failure_type="vocabulary_mismatch",
         failure_details="Different terms used",
     )
-    db.complete_run(run_id, {
-        "recall_at_5": 0.5, "recall_at_10": 0.5,
-        "mrr_at_10": 0.5, "ndcg_at_10": 0.5,
-        "avg_latency_ms": 48.5, "miss_count": 1, "total_questions": 2,
-    })
+    db.complete_run(
+        run_id,
+        {
+            "recall_at_5": 0.5,
+            "recall_at_10": 0.5,
+            "mrr_at_10": 0.5,
+            "ndcg_at_10": 0.5,
+            "avg_latency_ms": 48.5,
+            "miss_count": 1,
+            "total_questions": 2,
+        },
+    )
     db.close()
     return RetrieveDB(tmp_config.db_path)
 
@@ -151,9 +159,19 @@ class TestHTMLPages:
             r = client.get(path, follow_redirects=False)
             assert r.status_code == 302
 
-    @pytest.mark.parametrize("step_name", [
-        "ingest", "eval", "mode", "configure", "provision", "compare", "history", "settings",
-    ])
+    @pytest.mark.parametrize(
+        "step_name",
+        [
+            "ingest",
+            "eval",
+            "mode",
+            "configure",
+            "provision",
+            "compare",
+            "history",
+            "settings",
+        ],
+    )
     def test_step_pages_render(self, client: TestClient, seeded_db: RetrieveDB, step_name: str):
         r = client.get(f"/step/{step_name}")
         assert r.status_code == 200
@@ -253,10 +271,13 @@ class TestPreferences:
         assert isinstance(r.json(), dict)
 
     def test_update_preferences(self, client: TestClient):
-        r = client.post("/api/eval/preferences", json={
-            "scope_key": "test",
-            "preferences": {"coverage_target": 0.9},
-        })
+        r = client.post(
+            "/api/eval/preferences",
+            json={
+                "scope_key": "test",
+                "preferences": {"coverage_target": 0.9},
+            },
+        )
         assert r.status_code == 200
         assert r.json()["preferences"]["coverage_target"] == 0.9
 
@@ -285,11 +306,14 @@ class TestMutationAPIs:
     def test_ingest(self, client: TestClient):
         mock_stats = CorpusStats(doc_count=5, avg_doc_length=1200.0, cross_ref_density=2.5)
         with patch("retrieve.ingest.run_ingest", return_value=mock_stats) as mock:
-            r = client.post("/api/ingest", json={
-                "source": "http://example.com",
-                "plugin": "html",
-                "output": "corpus",
-            })
+            r = client.post(
+                "/api/ingest",
+                json={
+                    "source": "http://example.com",
+                    "plugin": "html",
+                    "output": "corpus",
+                },
+            )
         assert r.status_code == 200
         data = r.json()
         assert data["status"] == "complete"
@@ -298,32 +322,43 @@ class TestMutationAPIs:
 
     def test_eval_generate(self, client: TestClient):
         with patch("retrieve.eval.generate.generate_eval_set", return_value=42):
-            r = client.post("/api/eval/generate", json={
-                "corpus": "corpus",
-                "version": "v-test",
-                "mode": "sample",
-            })
+            r = client.post(
+                "/api/eval/generate",
+                json={
+                    "corpus": "corpus",
+                    "version": "v-test",
+                    "mode": "sample",
+                },
+            )
         assert r.status_code == 200
         assert r.json()["eval_set_id"] == 42
 
-    @pytest.mark.skip(reason="eval_curate API route commented out — deferred until curation UI is built")
+    @pytest.mark.skip(
+        reason="eval_curate API route commented out — deferred until curation UI is built"
+    )
     def test_eval_curate(self, client: TestClient, seeded_db: RetrieveDB):
         with patch("retrieve.eval.curate.regenerate_eval_set", return_value=99):
-            r = client.post("/api/eval/curate", json={
-                "source_version": "v-test",
-                "new_version": "v-test-curated",
-                "steering": {"more": ["cross_document"]},
-            })
+            r = client.post(
+                "/api/eval/curate",
+                json={
+                    "source_version": "v-test",
+                    "new_version": "v-test-curated",
+                    "steering": {"more": ["cross_document"]},
+                },
+            )
         assert r.status_code == 200
         assert r.json()["eval_set_id"] == 99
 
     def test_export_csv(self, client: TestClient, seeded_db: RetrieveDB, tmp_path: Path):
         output = str(tmp_path / "export.csv")
         with patch("retrieve.eval.io_csv.export_eval_set_to_csv", return_value=2):
-            r = client.post("/api/eval/export-csv", json={
-                "eval_set": "v-test",
-                "output": output,
-            })
+            r = client.post(
+                "/api/eval/export-csv",
+                json={
+                    "eval_set": "v-test",
+                    "output": output,
+                },
+            )
         assert r.status_code == 200
         assert r.json()["rows"] == 2
 
@@ -331,10 +366,13 @@ class TestMutationAPIs:
         csv_file = tmp_path / "import.csv"
         csv_file.write_text("dummy", encoding="utf-8")
         with patch("retrieve.eval.io_csv.import_eval_set_from_csv", return_value=(10, 5)):
-            r = client.post("/api/eval/import-csv", json={
-                "input": str(csv_file),
-                "version": "v-imported",
-            })
+            r = client.post(
+                "/api/eval/import-csv",
+                json={
+                    "input": str(csv_file),
+                    "version": "v-imported",
+                },
+            )
         assert r.status_code == 200
         assert r.json()["imported"] == 5
 
@@ -358,10 +396,13 @@ class TestJobSystem:
         # Test 1: HTTP API shape — job starts and returns an operation_id
         mock_stats = CorpusStats(doc_count=3, avg_doc_length=800.0, cross_ref_density=1.0)
         with patch("retrieve.ingest.run_ingest", return_value=mock_stats):
-            r = client.post("/api/ui/job/start", json={
-                "kind": "ingest",
-                "args": {"source": "http://example.com"},
-            })
+            r = client.post(
+                "/api/ui/job/start",
+                json={
+                    "kind": "ingest",
+                    "args": {"source": "http://example.com"},
+                },
+            )
         assert r.status_code == 200
         data = r.json()
         assert "job_id" in data
@@ -374,7 +415,9 @@ class TestJobSystem:
 
         mock_stats = CorpusStats(doc_count=3, avg_doc_length=800.0, cross_ref_density=1.0)
         with patch("retrieve.ingest.run_ingest", return_value=mock_stats):
-            result = _run_job_sync("ingest", {"source": "http://example.com"}, tmp_config, "test-op-1")
+            result = _run_job_sync(
+                "ingest", {"source": "http://example.com"}, tmp_config, "test-op-1"
+            )
 
         assert result["doc_count"] == 3
 
@@ -395,10 +438,13 @@ class TestJobSystem:
     def test_job_error_handling(self, client: TestClient):
         """Verify the job start endpoint works even when the job will fail."""
         with patch("retrieve.ingest.run_ingest", side_effect=RuntimeError("boom")):
-            r = client.post("/api/ui/job/start", json={
-                "kind": "ingest",
-                "args": {},
-            })
+            r = client.post(
+                "/api/ui/job/start",
+                json={
+                    "kind": "ingest",
+                    "args": {},
+                },
+            )
         assert r.status_code == 200
         job_id = r.json()["job_id"]
 
@@ -422,7 +468,8 @@ class TestEventBus:
     def test_events_flow_through_bus(self):
         """Verify that emit_progress inside an operation() delivers events to subscribers."""
         import asyncio
-        from retrieve.observability import EventBus, operation, emit_progress
+
+        from retrieve.observability import EventBus, emit_progress, operation
 
         bus = EventBus()
         events_received = []
@@ -436,10 +483,12 @@ class TestEventBus:
 
             # Temporarily patch the global bus
             import retrieve.observability as obs
+
             original_bus = obs._bus
             obs._bus = bus
 
             try:
+
                 def _worker():
                     with operation("test.op", source="test", operation_id=op_id):
                         emit_progress("step 1", stage="test")

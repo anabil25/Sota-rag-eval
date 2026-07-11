@@ -1,6 +1,7 @@
 """Tests for registry/architectures.py and registry/models.py."""
 
 import pytest
+
 from retrieve.registry.architectures import ARCHITECTURES, Architecture, get_architecture
 from retrieve.registry.models import EMBEDDING_MODELS, RERANKER_MODELS
 
@@ -8,9 +9,15 @@ from retrieve.registry.models import EMBEDDING_MODELS, RERANKER_MODELS
 class TestArchitectureRegistry:
     def test_all_architectures_present(self):
         expected = [
-            "keyword", "single-vector", "hybrid", "hybrid-reranker",
-            "hybrid-llm-enriched", "multi-vector", "agentic-kb",
-            "graphrag", "lightrag",
+            "keyword",
+            "single-vector",
+            "hybrid",
+            "hybrid-reranker",
+            "hybrid-llm-enriched",
+            "multi-vector",
+            "agentic-kb",
+            "graphrag",
+            "lightrag",
         ]
         for name in expected:
             assert name in ARCHITECTURES, f"Missing architecture: {name}"

@@ -1,17 +1,19 @@
 """Tests for eval/curate.py — curation, steering, and regeneration."""
 
 import json
-import tempfile
 import os
+import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import AsyncMock, patch
+
 import pytest
+
 from retrieve.config import RetrieveConfig
 from retrieve.db import RetrieveDB
 from retrieve.eval.curate import (
-    show_eval_set_summary,
-    regenerate_eval_set,
     _build_steering_prompt,
+    regenerate_eval_set,
+    show_eval_set_summary,
 )
 
 
@@ -137,10 +139,18 @@ class TestRegenerateEvalSet:
     @patch("retrieve.eval.curate._generate_steered_questions", new_callable=AsyncMock)
     def test_regenerate_add_more(self, mock_gen, seeded_db):
         mock_gen.return_value = [
-            {"question": "New cross-doc Q?", "category": "cross_document",
-             "ground_truth_chunk_ids": ["100::0"], "source_doc_id": "100"},
-            {"question": "Another cross Q?", "category": "cross_document",
-             "ground_truth_chunk_ids": ["100::1"], "source_doc_id": "100"},
+            {
+                "question": "New cross-doc Q?",
+                "category": "cross_document",
+                "ground_truth_chunk_ids": ["100::0"],
+                "source_doc_id": "100",
+            },
+            {
+                "question": "Another cross Q?",
+                "category": "cross_document",
+                "ground_truth_chunk_ids": ["100::1"],
+                "source_doc_id": "100",
+            },
         ]
         tmpdir, db_path, corpus_dir = seeded_db
         cfg = RetrieveConfig()

@@ -1,4 +1,7 @@
-"""PDF ingestion plugin — extracts text per page, splits by heading structure, converts to Markdown."""
+"""PDF ingestion plugin.
+
+Extracts text per page, splits by heading structure, and converts it to Markdown.
+"""
 
 from __future__ import annotations
 
@@ -53,8 +56,7 @@ class PdfPlugin(IngestPlugin):
             import pdfplumber
         except ImportError:
             raise ImportError(
-                "pdfplumber is required for PDF ingestion.\n"
-                "Install it: pip install pdfplumber"
+                "pdfplumber is required for PDF ingestion.\nInstall it: pip install pdfplumber"
             )
 
         try:
@@ -150,7 +152,9 @@ class PdfPlugin(IngestPlugin):
         Looks for patterns like "Section 101-3", "Policy 205", "see 100-8".
         """
         refs: set[str] = set()
-        for m in re.finditer(r"(?:section|policy|see|refer to)\s+(\d+(?:-\d+)?)", text, re.IGNORECASE):
+        for m in re.finditer(
+            r"(?:section|policy|see|refer to)\s+(\d+(?:-\d+)?)", text, re.IGNORECASE
+        ):
             refs.add(m.group(1))
         return sorted(refs)
 

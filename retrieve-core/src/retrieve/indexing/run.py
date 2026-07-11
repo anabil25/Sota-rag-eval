@@ -1,7 +1,8 @@
 """Indexing orchestrator — uploads corpus and creates search indexes.
 
-Skills reference: skills/azure-blob-storage.md, skills/azure-ai-search.md,
-    skills/azure-indexer-pipeline.md
+References: docs/reference/skills/azure-blob-storage.md,
+    docs/reference/skills/azure-ai-search.md, and
+    docs/reference/skills/azure-indexer-pipeline.md
 """
 
 from __future__ import annotations
@@ -69,8 +70,7 @@ def index_corpus(cfg: RetrieveConfig, *, dry_run: bool = False):
 
         if not provisioned:
             console.print(
-                "[red]No provisioned architectures found. "
-                "Run 'retrieve provision' first.[/red]"
+                "[red]No provisioned architectures found. Run 'retrieve provision' first.[/red]"
             )
             return
 
@@ -147,6 +147,23 @@ def index_corpus(cfg: RetrieveConfig, *, dry_run: bool = False):
                             "custom_embedding_header_name", ""
                         )
                         or os.environ.get("RETRIEVE_CUSTOM_EMBEDDING_HEADER", "api-key"),
+                        graphrag_run_scope=str(arch_config.get("graphrag_run_scope", "sample")),
+                        graphrag_max_documents=(
+                            int(arch_config.get("graphrag_max_documents", 50))
+                            if arch_config.get("graphrag_max_documents", 50) is not None
+                            else None
+                        ),
+                        graphrag_chunk_size=(
+                            int(arch_config["graphrag_chunk_size"])
+                            if arch_config.get("graphrag_chunk_size")
+                            else None
+                        ),
+                        graphrag_chunk_overlap=(
+                            int(arch_config["graphrag_chunk_overlap"])
+                            if arch_config.get("graphrag_chunk_overlap") not in (None, "")
+                            else None
+                        ),
+                        lightrag_max_documents=int(arch_config.get("lightrag_max_documents", 50)),
                     )
                     if isinstance(index_result, dict) and index_result.get("cloud_index_status"):
                         arch_config.update(index_result)
@@ -171,7 +188,8 @@ def index_corpus(cfg: RetrieveConfig, *, dry_run: bool = False):
                     raise
             emit_progress(
                 f"Created index for {arch['name']}",
-                stage="index.create", architecture=arch["name"],
+                stage="index.create",
+                architecture=arch["name"],
             )
 
         # 3. Wait for indexers — with retry for role propagation
@@ -210,8 +228,10 @@ def index_corpus(cfg: RetrieveConfig, *, dry_run: bool = False):
                 emit_progress(
                     f"Indexer '{indexer_name}': {result['status']} — "
                     f"{result['item_count']} items, {result['failed_count']} failed",
-                    stage="index.wait_indexer", architecture=arch["name"],
-                    item_count=result["item_count"], failed_count=result["failed_count"],
+                    stage="index.wait_indexer",
+                    architecture=arch["name"],
+                    item_count=result["item_count"],
+                    failed_count=result["failed_count"],
                 )
 
                 # Retry logic for AI-dependent architectures with total failure.
@@ -229,13 +249,14 @@ def index_corpus(cfg: RetrieveConfig, *, dry_run: bool = False):
                         try:
                             from azure.identity import DefaultAzureCredential
                             from azure.search.documents.indexes import SearchIndexClient
+
                             _cred = DefaultAzureCredential()
                             _idx_client = SearchIndexClient(endpoint, _cred)
                             _stats = _idx_client.get_index_statistics(stats_index_name)
                             _doc_count = (
-                                _stats.get('document_count', 0)
+                                _stats.get("document_count", 0)
                                 if isinstance(_stats, dict)
-                                else getattr(_stats, 'document_count', 0)
+                                else getattr(_stats, "document_count", 0)
                             )
                             if _doc_count == 0:
                                 console.print(
@@ -247,14 +268,16 @@ def index_corpus(cfg: RetrieveConfig, *, dry_run: bool = False):
                             pass
 
                 if needs_retry:
-                    sample_msgs = " ".join(
-                        e.get("message", "") for e in result.get("errors", [])
-                    )
+                    sample_msgs = " ".join(e.get("message", "") for e in result.get("errors", []))
                     is_permission_error = any(
                         tok in sample_msgs.lower()
                         for tok in (
-                            "unauthorized", "403", "forbidden", "access denied",
-                            "authentication", "permission",
+                            "unauthorized",
+                            "403",
+                            "forbidden",
+                            "access denied",
+                            "authentication",
+                            "permission",
                         )
                     )
                     if not is_permission_error and result.get("errors"):
@@ -271,7 +294,8 @@ def index_corpus(cfg: RetrieveConfig, *, dry_run: bool = False):
                             )
                             emit_progress(
                                 f"Retry {retry + 2}/6 for {arch['name']} indexer",
-                                stage="index.retry", architecture=arch["name"],
+                                stage="index.retry",
+                                architecture=arch["name"],
                                 retry_attempt=retry + 2,
                             )
                             time.sleep(60)
@@ -289,9 +313,9 @@ def index_corpus(cfg: RetrieveConfig, *, dry_run: bool = False):
                             try:
                                 _stats = _idx_client.get_index_statistics(stats_index_name)
                                 _doc_count = (
-                                    _stats.get('document_count', 0)
+                                    _stats.get("document_count", 0)
                                     if isinstance(_stats, dict)
-                                    else getattr(_stats, 'document_count', 0)
+                                    else getattr(_stats, "document_count", 0)
                                 )
                                 if _doc_count > 0:
                                     console.print(
@@ -309,7 +333,8 @@ def index_corpus(cfg: RetrieveConfig, *, dry_run: bool = False):
                             failed_architecture_ids.add(int(arch["id"]))
                             emit_error(
                                 f"Indexer '{indexer_name}' still failing after 6 attempts",
-                                stage="index.retry", architecture=arch["name"],
+                                stage="index.retry",
+                                architecture=arch["name"],
                             )
 
                 if result.get("status") != "success" or result.get("failed_count", 0) > 0:

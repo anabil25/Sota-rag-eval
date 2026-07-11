@@ -1,4 +1,4 @@
-﻿"""Search index builder per Azure AI Search, indexer pipeline, and Foundry guidance.
+"""Search index builder per Azure AI Search, indexer pipeline, and Foundry guidance.
 
 Auth: DefaultAzureCredential for all operations  no admin keys.
 Data source: ResourceId connection string (managed identity, no storage keys).
@@ -95,9 +95,18 @@ def _search_rest_get(
 def _get_storage_resource_id(resource_group: str, storage_account: str) -> str:
     """Get the full ARM resource ID for a storage account via az CLI."""
     cmd = [
-        "az", "storage", "account", "show",
-        "-g", resource_group, "-n", storage_account,
-        "--query", "id", "-o", "tsv",
+        "az",
+        "storage",
+        "account",
+        "show",
+        "-g",
+        resource_group,
+        "-n",
+        storage_account,
+        "--query",
+        "id",
+        "-o",
+        "tsv",
     ]
     result = subprocess.run(cmd, capture_output=True, text=True, shell=IS_WINDOWS)
     if result.returncode != 0:
@@ -130,6 +139,11 @@ def create_index_for_architecture(
     custom_embedding_key: str = "",
     custom_embedding_dimensions: int = 0,
     custom_embedding_header_name: str = "api-key",
+    graphrag_run_scope: str = "sample",
+    graphrag_max_documents: int | None = 50,
+    graphrag_chunk_size: int | None = None,
+    graphrag_chunk_overlap: int | None = None,
+    lightrag_max_documents: int = 50,
 ):
     """Create the appropriate search index for a given architecture.
 
@@ -154,18 +168,29 @@ def create_index_for_architecture(
         )
     elif arch_name in ("single-vector", "hybrid"):
         _create_hybrid_index(
-            indexer_client, index_client, index_name,
-            ai_services_endpoint, embedding_model,
-            storage_resource_id, container, semantic_config=False,
+            indexer_client,
+            index_client,
+            index_name,
+            ai_services_endpoint,
+            embedding_model,
+            storage_resource_id,
+            container,
+            semantic_config=False,
         )
     elif arch_name in ("hybrid-reranker", "hybrid-llm-enriched"):
         _create_hybrid_index(
-            indexer_client, index_client, index_name,
-            ai_services_endpoint, embedding_model,
-            storage_resource_id, container, semantic_config=True,
+            indexer_client,
+            index_client,
+            index_name,
+            ai_services_endpoint,
+            embedding_model,
+            storage_resource_id,
+            container,
+            semantic_config=True,
         )
     elif arch_name == "multi-vector":
         from retrieve.indexing.advanced import create_multivector_index
+
         create_multivector_index(
             endpoint=endpoint,
             index_name=index_name,
@@ -187,11 +212,17 @@ def create_index_for_architecture(
         # First ensure the underlying index exists.
         base_index = f"{index_name}-base"
         _create_hybrid_index(
-            indexer_client, index_client, base_index,
-            ai_services_endpoint, embedding_model,
-            storage_resource_id, container, semantic_config=True,
+            indexer_client,
+            index_client,
+            base_index,
+            ai_services_endpoint,
+            embedding_model,
+            storage_resource_id,
+            container,
+            semantic_config=True,
         )
         from retrieve.indexing.advanced import create_agentic_kb
+
         create_agentic_kb(
             endpoint=endpoint,
             index_name=base_index,
@@ -201,11 +232,10 @@ def create_index_for_architecture(
         )
     elif arch_name == "graphrag":
         if not corpus_dir:
-            console.print(
-                "  [yellow]graphrag: corpus_dir required for GraphRAG indexing[/yellow]"
-            )
+            console.print("  [yellow]graphrag: corpus_dir required for GraphRAG indexing[/yellow]")
             return
         from retrieve.indexing.advanced import run_graphrag_indexing
+
         return run_graphrag_indexing(
             corpus_dir=corpus_dir,
             storage_account=storage_account,
@@ -219,20 +249,24 @@ def create_index_for_architecture(
             subscription_id=subscription_id,
             embedding_model=embedding_model,
             llm_model=llm_model,
+            run_scope=graphrag_run_scope,
+            max_documents=graphrag_max_documents,
+            chunk_size=graphrag_chunk_size,
+            chunk_overlap=graphrag_chunk_overlap,
         )
     elif arch_name == "lightrag":
         if not corpus_dir:
-            console.print(
-                "  [yellow]lightrag: corpus_dir required for LightRAG indexing[/yellow]"
-            )
+            console.print("  [yellow]lightrag: corpus_dir required for LightRAG indexing[/yellow]")
             return
         from retrieve.indexing.advanced import run_lightrag_indexing
+
         return run_lightrag_indexing(
             corpus_dir=corpus_dir,
             ai_services_endpoint=ai_services_endpoint,
             container_app_endpoint=container_app_endpoint,
             embedding_model=embedding_model,
             llm_model=llm_model,
+            max_documents=lightrag_max_documents,
         )
     else:
         console.print(f"  [yellow]{arch_name}: index builder not yet implemented[/yellow]")
@@ -302,9 +336,14 @@ def _create_keyword_index(
         },
         field_mappings=[
             # doc_id = filename without extension — generalizable document identifier
-            {"sourceFieldName": "metadata_storage_name", "targetFieldName": "doc_id",
-             "mappingFunction": {"name": "extractTokenAtPosition",
-                                 "parameters": {"delimiter": ".", "position": 0}}},
+            {
+                "sourceFieldName": "metadata_storage_name",
+                "targetFieldName": "doc_id",
+                "mappingFunction": {
+                    "name": "extractTokenAtPosition",
+                    "parameters": {"delimiter": ".", "position": 0},
+                },
+            },
         ],
     )
     indexer_client.create_or_update_indexer(indexer)
@@ -318,7 +357,9 @@ def _create_keyword_index(
     console.print("  [green]keyword[/green] index + indexer created and running")
     emit_progress(
         f"Keyword index '{index_name}' created and running",
-        stage="search_index.create", architecture="keyword", index_name=index_name,
+        stage="search_index.create",
+        architecture="keyword",
+        index_name=index_name,
     )
 
 
@@ -351,8 +392,13 @@ def _create_hybrid_index(
     # Same guardrail applies here: large text fields should stay searchable-only unless
     # they are pre-chunked into smaller units that won't exceed the 32 KB term limit.
     fields = [
-        SearchField(name="id", type=SearchFieldDataType.String, key=True, filterable=True,
-                    analyzer_name="keyword"),
+        SearchField(
+            name="id",
+            type=SearchFieldDataType.String,
+            key=True,
+            filterable=True,
+            analyzer_name="keyword",
+        ),
         SearchField(name="parent_id", type=SearchFieldDataType.String, filterable=True),
         SearchField(name="content", type=SearchFieldDataType.String, searchable=True),
         SearchField(
@@ -361,10 +407,14 @@ def _create_hybrid_index(
             searchable=True,
             filterable=True,
         ),
-        SearchField(name="doc_id", type=SearchFieldDataType.String,
-                    filterable=True, searchable=True, sortable=True),
-        SearchField(name="metadata_storage_name", type=SearchFieldDataType.String,
-                    filterable=True),
+        SearchField(
+            name="doc_id",
+            type=SearchFieldDataType.String,
+            filterable=True,
+            searchable=True,
+            sortable=True,
+        ),
+        SearchField(name="metadata_storage_name", type=SearchFieldDataType.String, filterable=True),
         SearchField(
             name="content_vector",
             type=SearchFieldDataType.Collection(SearchFieldDataType.Single),
@@ -380,9 +430,9 @@ def _create_hybrid_index(
             HnswAlgorithmConfiguration(
                 name="hnsw-config",
                 parameters=HnswParameters(
-                    m=8,               # default 4; higher m → better recall at slight memory cost
+                    m=8,  # default 4; higher m → better recall at slight memory cost
                     ef_construction=800,  # default 400; better index quality at build time
-                    ef_search=500,     # default 500; controls recall vs speed at query time
+                    ef_search=500,  # default 500; controls recall vs speed at query time
                     metric="cosine",
                 ),
             )
@@ -507,7 +557,9 @@ def _create_hybrid_index(
     console.print(f"  [green]{label}[/green] index + skillset + indexer created and running")
     emit_progress(
         f"{label} index '{index_name}' created and running",
-        stage="search_index.create", architecture=label, index_name=index_name,
+        stage="search_index.create",
+        architecture=label,
+        index_name=index_name,
     )
 
 
@@ -534,8 +586,7 @@ def wait_for_indexer(endpoint: str, indexer_name: str, timeout: int = 1800) -> d
                 failed = int(last.get("failedItemCount") or last.get("itemsFailed") or 0)
                 count = int(last.get("itemCount") or last.get("itemsProcessed") or 0)
                 console.print(
-                    f"  Indexer '{indexer_name}': {last_status} - "
-                    f"{count} docs, {failed} failed"
+                    f"  Indexer '{indexer_name}': {last_status} - {count} docs, {failed} failed"
                 )
                 # With oneToMany parsing, item_count reflects the number of
                 # sub-documents (heading sections), not source blobs.
@@ -549,13 +600,9 @@ def wait_for_indexer(endpoint: str, indexer_name: str, timeout: int = 1800) -> d
                             credential,
                         )
                         doc_count = int(
-                            stats.get("documentCount")
-                            or stats.get("document_count")
-                            or 0
+                            stats.get("documentCount") or stats.get("document_count") or 0
                         )
-                        console.print(
-                            f"  (oneToMany parsed — {doc_count} docs in index)"
-                        )
+                        console.print(f"  (oneToMany parsed — {doc_count} docs in index)")
                     except Exception:
                         pass  # stats check is informational only
 
@@ -564,10 +611,12 @@ def wait_for_indexer(endpoint: str, indexer_name: str, timeout: int = 1800) -> d
                 errors = last.get("errors") or []
                 if errors:
                     for err in errors[:3]:
-                        sample_errors.append({
-                            "key": err.get("key", ""),
-                            "message": err.get("errorMessage") or err.get("message") or "",
-                        })
+                        sample_errors.append(
+                            {
+                                "key": err.get("key", ""),
+                                "message": err.get("errorMessage") or err.get("message") or "",
+                            }
+                        )
                     console.print(f"  [red]Sample errors (first {len(sample_errors)}):[/red]")
                     for e in sample_errors:
                         console.print(f"    [{e['key']}] {e['message']}")

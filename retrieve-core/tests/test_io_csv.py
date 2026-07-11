@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import csv
-import json
 import os
 import tempfile
 
@@ -33,6 +32,7 @@ def tmp_dir():
 
 # ── helpers ───────────────────────────────────────────────────────────
 
+
 def _seed_eval_set(db: RetrieveDB, version: str = "v1", n: int = 3) -> int:
     eid = db.create_eval_set(version, notes="seed")
     for i in range(n):
@@ -53,6 +53,7 @@ def _seed_eval_set(db: RetrieveDB, version: str = "v1", n: int = 3) -> int:
 
 # ── column contract ───────────────────────────────────────────────────
 
+
 class TestCSVColumns:
     def test_lineage_columns_present(self):
         assert "csv_source_file" in CSV_COLUMNS
@@ -61,12 +62,20 @@ class TestCSVColumns:
         assert "csv_imported_at" in CSV_COLUMNS
 
     def test_core_columns_present(self):
-        for col in ["question_text", "answer_text", "category", "question_type",
-                    "persona", "intent_family", "status"]:
+        for col in [
+            "question_text",
+            "answer_text",
+            "category",
+            "question_type",
+            "persona",
+            "intent_family",
+            "status",
+        ]:
             assert col in CSV_COLUMNS
 
 
 # ── export ────────────────────────────────────────────────────────────
+
 
 class TestExport:
     def test_export_row_count(self, db, tmp_dir):
@@ -135,6 +144,7 @@ class TestExport:
 
 # ── import ────────────────────────────────────────────────────────────
 
+
 class TestImport:
     def _write_csv(self, path: str, rows: list[dict]) -> None:
         with open(path, "w", newline="", encoding="utf-8") as f:
@@ -147,12 +157,25 @@ class TestImport:
 
     def test_import_fresh(self, db, tmp_dir):
         csv_path = os.path.join(tmp_dir, "import.csv")
-        self._write_csv(csv_path, [
-            {"question_text": "Q1?", "answer_text": "A1", "category": "direct_lookup",
-             "ground_truth_chunk_ids": '["doc::0"]', "status": "active"},
-            {"question_text": "Q2?", "answer_text": "A2", "category": "process_procedure",
-             "ground_truth_chunk_ids": '["doc::1"]', "status": "active"},
-        ])
+        self._write_csv(
+            csv_path,
+            [
+                {
+                    "question_text": "Q1?",
+                    "answer_text": "A1",
+                    "category": "direct_lookup",
+                    "ground_truth_chunk_ids": '["doc::0"]',
+                    "status": "active",
+                },
+                {
+                    "question_text": "Q2?",
+                    "answer_text": "A2",
+                    "category": "process_procedure",
+                    "ground_truth_chunk_ids": '["doc::1"]',
+                    "status": "active",
+                },
+            ],
+        )
         eid, count = import_eval_set_from_csv(db, csv_path, "v-import", fresh=True)
         assert count == 2
         qs = db.get_questions(eid)
@@ -160,10 +183,18 @@ class TestImport:
 
     def test_import_records_source_file(self, db, tmp_dir):
         csv_path = os.path.join(tmp_dir, "questions.csv")
-        self._write_csv(csv_path, [
-            {"question_text": "Q?", "answer_text": "A", "category": "direct_lookup",
-             "ground_truth_chunk_ids": '["doc::0"]', "status": "active"},
-        ])
+        self._write_csv(
+            csv_path,
+            [
+                {
+                    "question_text": "Q?",
+                    "answer_text": "A",
+                    "category": "direct_lookup",
+                    "ground_truth_chunk_ids": '["doc::0"]',
+                    "status": "active",
+                },
+            ],
+        )
         eid, _ = import_eval_set_from_csv(db, csv_path, "v-lineage", fresh=True)
         q = db.get_questions(eid)[0]
         meta = q["metadata"]
@@ -171,11 +202,14 @@ class TestImport:
 
     def test_import_records_row_number(self, db, tmp_dir):
         csv_path = os.path.join(tmp_dir, "rows.csv")
-        self._write_csv(csv_path, [
-            {"question_text": "Row1?", "ground_truth_chunk_ids": "[]"},
-            {"question_text": "Row2?", "ground_truth_chunk_ids": "[]"},
-            {"question_text": "Row3?", "ground_truth_chunk_ids": "[]"},
-        ])
+        self._write_csv(
+            csv_path,
+            [
+                {"question_text": "Row1?", "ground_truth_chunk_ids": "[]"},
+                {"question_text": "Row2?", "ground_truth_chunk_ids": "[]"},
+                {"question_text": "Row3?", "ground_truth_chunk_ids": "[]"},
+            ],
+        )
         eid, _ = import_eval_set_from_csv(db, csv_path, "v-rows", fresh=True)
         qs = db.get_questions(eid)
         row_nums = {q["question_text"]: q["metadata"]["csv_source_row"] for q in qs}
@@ -185,9 +219,12 @@ class TestImport:
 
     def test_import_records_timestamp(self, db, tmp_dir):
         csv_path = os.path.join(tmp_dir, "ts.csv")
-        self._write_csv(csv_path, [
-            {"question_text": "Stamped?", "ground_truth_chunk_ids": "[]"},
-        ])
+        self._write_csv(
+            csv_path,
+            [
+                {"question_text": "Stamped?", "ground_truth_chunk_ids": "[]"},
+            ],
+        )
         eid, _ = import_eval_set_from_csv(db, csv_path, "v-ts", fresh=True)
         q = db.get_questions(eid)[0]
         ts = q["metadata"]["csv_imported_at"]
@@ -196,15 +233,18 @@ class TestImport:
     def test_import_chains_prior_lineage(self, db, tmp_dir):
         """A row that already has csv_source_file should record that as csv_origin_file."""
         csv_path = os.path.join(tmp_dir, "chain.csv")
-        self._write_csv(csv_path, [
-            {
-                "question_text": "Chain?",
-                "ground_truth_chunk_ids": "[]",
-                "csv_source_file": "first.csv",
-                "csv_source_row": "5",
-                "csv_eval_set_id": "1",
-            },
-        ])
+        self._write_csv(
+            csv_path,
+            [
+                {
+                    "question_text": "Chain?",
+                    "ground_truth_chunk_ids": "[]",
+                    "csv_source_file": "first.csv",
+                    "csv_source_row": "5",
+                    "csv_eval_set_id": "1",
+                },
+            ],
+        )
         eid, _ = import_eval_set_from_csv(db, csv_path, "v-chain", fresh=True)
         q = db.get_questions(eid)[0]
         meta = q["metadata"]
@@ -216,19 +256,33 @@ class TestImport:
 
     def test_import_deduplication(self, db, tmp_dir):
         csv_path = os.path.join(tmp_dir, "dup.csv")
-        self._write_csv(csv_path, [
-            {"question_text": "Same Q?", "answer_text": "Same A", "ground_truth_chunk_ids": "[]"},
-            {"question_text": "Same Q?", "answer_text": "Same A", "ground_truth_chunk_ids": "[]"},
-        ])
+        self._write_csv(
+            csv_path,
+            [
+                {
+                    "question_text": "Same Q?",
+                    "answer_text": "Same A",
+                    "ground_truth_chunk_ids": "[]",
+                },
+                {
+                    "question_text": "Same Q?",
+                    "answer_text": "Same A",
+                    "ground_truth_chunk_ids": "[]",
+                },
+            ],
+        )
         _, count = import_eval_set_from_csv(db, csv_path, "v-dup", fresh=True)
         assert count == 1
 
     def test_import_extend_preserves_base_questions(self, db, tmp_dir):
         base_eid = _seed_eval_set(db, "base", n=2)
         csv_path = os.path.join(tmp_dir, "extend.csv")
-        self._write_csv(csv_path, [
-            {"question_text": "New Q?", "answer_text": "New A", "ground_truth_chunk_ids": "[]"},
-        ])
+        self._write_csv(
+            csv_path,
+            [
+                {"question_text": "New Q?", "answer_text": "New A", "ground_truth_chunk_ids": "[]"},
+            ],
+        )
         eid, imported = import_eval_set_from_csv(
             db, csv_path, "v-ext", base_eval_set_id=base_eid, fresh=False
         )
@@ -243,15 +297,19 @@ class TestImport:
 
     def test_import_skips_blank_question_rows(self, db, tmp_dir):
         csv_path = os.path.join(tmp_dir, "blank.csv")
-        self._write_csv(csv_path, [
-            {"question_text": "", "ground_truth_chunk_ids": "[]"},
-            {"question_text": "Valid?", "ground_truth_chunk_ids": "[]"},
-        ])
+        self._write_csv(
+            csv_path,
+            [
+                {"question_text": "", "ground_truth_chunk_ids": "[]"},
+                {"question_text": "Valid?", "ground_truth_chunk_ids": "[]"},
+            ],
+        )
         _, count = import_eval_set_from_csv(db, csv_path, "v-blank", fresh=True)
         assert count == 1
 
 
 # ── round-trip ────────────────────────────────────────────────────────
+
 
 class TestRoundTrip:
     def test_export_import_preserves_question_text(self, db, tmp_dir):

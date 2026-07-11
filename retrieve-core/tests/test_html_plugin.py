@@ -1,7 +1,7 @@
 """Tests for ingest/html_plugin.py — HTML ingestion with mocked HTTP."""
 
-from unittest.mock import patch, MagicMock
-import pytest
+from unittest.mock import MagicMock, patch
+
 from retrieve.ingest.html_plugin import HtmlPlugin
 from retrieve.ingest.plugin import DiscoveredPage, FetchedPage
 
@@ -10,15 +10,15 @@ class TestHtmlPluginDiscover:
     @patch.object(HtmlPlugin, "_get")
     def test_discover_parses_toc(self, mock_get):
         """Simulates TOC JS discovery."""
-        toc_js = '''(function() { var toc = [
+        toc_js = """(function() { var toc = [
             {"name": "100 General", "url": "100/100_general.htm"},
             {"name": "100-1 Prudent", "url": "100/100-1_prudent.htm"},
             {"name": "Child Section", "key": "toc_child"}
-        ]; window.rh.model.publish(rh.consts("KEY_TEMP_DATA"), toc); })();'''
+        ]; window.rh.model.publish(rh.consts("KEY_TEMP_DATA"), toc); })();"""
 
-        child_js = '''(function() { var toc = [
+        child_js = """(function() { var toc = [
             {"name": "101 Applications", "url": "101/101_apps.htm"}
-        ]; })();'''
+        ]; })();"""
 
         def side_effect(url):
             resp = MagicMock()
@@ -93,8 +93,11 @@ class TestHtmlPluginConvert:
     def test_convert_empty_body(self):
         plugin = HtmlPlugin()
         fetched = FetchedPage(
-            href="empty.htm", title="Empty", parent="",
-            raw_content="<html></html>", source_url="",
+            href="empty.htm",
+            title="Empty",
+            parent="",
+            raw_content="<html></html>",
+            source_url="",
         )
         assert plugin.convert(fetched) is None
 
@@ -114,10 +117,10 @@ class TestHtmlPluginDerivePolicy:
 class TestHtmlPluginParserHelpers:
     def test_extract_cross_references(self):
         plugin = HtmlPlugin()
-        html = '''<a href="100-4_civil.htm">link</a>
+        html = """<a href="100-4_civil.htm">link</a>
                   <a href="http://external.com">ext</a>
                   <a href="#anchor">anchor</a>
-                  <a href="101-2_forms.htm#section">forms</a>'''
+                  <a href="101-2_forms.htm#section">forms</a>"""
         refs = plugin._extract_cross_references(html)
         assert "100-4" in refs
         assert "101-2" in refs

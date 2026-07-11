@@ -38,11 +38,12 @@ class TestSchema:
         assert "run_results" in names
         assert "architectures" in names
         assert "operation_jobs" in names
+        assert "operation_events" in names
         assert "schema_version" in names
 
     def test_schema_version(self, db):
         row = db.conn.execute("SELECT MAX(version) as v FROM schema_version").fetchone()
-        assert row["v"] == 3
+        assert row["v"] == 4
 
     def test_foreign_keys_enabled(self, db):
         row = db.conn.execute("PRAGMA foreign_keys").fetchone()
@@ -233,6 +234,23 @@ class TestOperationJobs:
         ).fetchone()
         check.close()
         assert operation_jobs is None
+
+
+class TestOperationEvents:
+    def test_append_and_replay_after_sequence(self, db):
+        first = db.append_operation_event(
+            "operation-1",
+            {"operation_id": "operation-1", "message": "first"},
+        )
+        second = db.append_operation_event(
+            "operation-1",
+            {"operation_id": "operation-1", "message": "second"},
+        )
+
+        replay = db.list_operation_events("operation-1", after_sequence=first)
+
+        assert [event["message"] for event in replay] == ["second"]
+        assert replay[0]["event_sequence"] == second
 
 
 class TestRuns:

@@ -200,9 +200,7 @@ def test_localhost_query_reads_successful_blob_run(mock_load_config, mock_query,
     )
     fingerprint = manifest["corpus_fingerprint"]
     mock_load_config.return_value = object()
-    mock_query.side_effect = AsyncMock(
-        return_value=SimpleNamespace(document_ids=("100-3",))
-    )
+    mock_query.side_effect = AsyncMock(return_value=SimpleNamespace(document_ids=("100-3",)))
 
     document_ids, latency_ms = query_graphrag(
         query="What is confidential?",
@@ -331,9 +329,7 @@ def test_successful_run_config_is_boundary_validated(
         f"{prefix}/settings.yaml": yaml.safe_dump(settings).encode("utf-8"),
     }
     container = mock_blob_service.return_value.get_container_client.return_value
-    container.download_blob.side_effect = lambda name: SimpleNamespace(
-        readall=lambda: blobs[name]
-    )
+    container.download_blob.side_effect = lambda name: SimpleNamespace(readall=lambda: blobs[name])
     monkeypatch.setenv("SEARCH_ENDPOINT", "https://test.search.windows.net")
 
     config = _load_successful_run_config(

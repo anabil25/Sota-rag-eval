@@ -1,13 +1,12 @@
 """Tests for eval/chunks.py — corpus loading and chunking."""
 
 import tempfile
-import os
 from pathlib import Path
-import pytest
+
 from retrieve.eval.chunks import (
-    parse_frontmatter,
     chunk_by_heading,
     load_corpus_chunks,
+    parse_frontmatter,
 )
 
 
@@ -86,8 +85,7 @@ class TestLoadCorpusChunks:
             p2 = Path(tmpdir) / "101" / "101_applications.md"
             p2.parent.mkdir()
             p2.write_text(
-                '---\ndoc_id: "101"\ntitle: "Applications"\n---\n\n'
-                "Application process info.",
+                '---\ndoc_id: "101"\ntitle: "Applications"\n---\n\nApplication process info.',
                 encoding="utf-8",
             )
 
@@ -111,6 +109,8 @@ class TestLoadCorpusChunks:
             assert chunks[0].metadata["parent"] == "Root"
             assert chunks[0].metadata["source_url"] == "http://example.com"
             assert chunks[0].metadata["cross_references"] == ["200", "201"]
+            assert chunks[0].doc_id == "test"
+            assert chunks[0].chunk_id == "test::0"
 
     def test_empty_directory(self):
         with tempfile.TemporaryDirectory() as tmpdir:

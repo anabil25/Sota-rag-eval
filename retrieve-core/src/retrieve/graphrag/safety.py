@@ -52,6 +52,4 @@ def validate_graphrag_artifact_prefix(output_prefix: str) -> None:
     """Prevent a running job from mutating the promoted current-index alias."""
     normalized = output_prefix.strip().strip("/").lower()
     if normalized == "indexes/current":
-        raise ValueError(
-            "GraphRAG jobs must write to an immutable run prefix, not indexes/current"
-        )
+        raise ValueError("GraphRAG jobs must write to an immutable run prefix, not indexes/current")

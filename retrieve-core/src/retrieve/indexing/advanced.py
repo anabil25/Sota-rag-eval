@@ -21,11 +21,12 @@ import subprocess
 import sys
 import uuid
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
 import requests
-from azure.identity import DefaultAzureCredential
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from azure.search.documents.indexes import SearchIndexClient, SearchIndexerClient
 from azure.search.documents.indexes.models import (
     HnswAlgorithmConfiguration,
@@ -53,13 +54,13 @@ from azure.search.documents.indexes.models import (
 from rich.console import Console
 
 from retrieve.backoff import BackoffPolicy, call_with_backoff, is_retryable_http_response
-from retrieve.graphrag.safety import GraphRagRunScope, validate_graphrag_run_scope
 from retrieve.graphrag.query import (
     execute_graphrag_query,
     load_successful_graphrag_run_config,
 )
+from retrieve.graphrag.safety import GraphRagRunScope, validate_graphrag_run_scope
 from retrieve.graphrag.settings import build_graphrag_settings, validate_graphrag_settings
-from retrieve.ingest.manifest import load_corpus_manifest
+from retrieve.ingest.manifest import build_document_id_aliases, load_corpus_manifest
 from retrieve.observability import emit_progress
 from retrieve.registry.models import EMBEDDING_MODELS
 
@@ -163,28 +164,32 @@ def deploy_foundry_catalog_model(
     # Ensure ml extension is installed
     subprocess.run(
         ["az", "extension", "add", "-n", "ml", "--yes"],
-        capture_output=True, text=True, shell=IS_WINDOWS,
+        capture_output=True,
+        text=True,
+        shell=IS_WINDOWS,
     )
 
     # Set defaults
     subprocess.run(
-        ["az", "configure", "--defaults",
-         f"workspace={project_name}", f"group={resource_group}"],
-        capture_output=True, text=True, shell=IS_WINDOWS,
+        ["az", "configure", "--defaults", f"workspace={project_name}", f"group={resource_group}"],
+        capture_output=True,
+        text=True,
+        shell=IS_WINDOWS,
     )
 
     # 1. Create marketplace subscription
     sub_yaml = Path(tempfile.gettempdir()) / "retrieve-model-subscribe.yaml"
     sub_yaml.write_text(
-        f"name: {endpoint_name}-subscription\n"
-        f"model_id: {model_id}\n",
+        f"name: {endpoint_name}-subscription\nmodel_id: {model_id}\n",
         encoding="utf-8",
     )
 
     console.print(f"  Creating marketplace subscription for {model_id}...")
     result = subprocess.run(
         ["az", "ml", "marketplace-subscription", "create", "--file", str(sub_yaml)],
-        capture_output=True, text=True, shell=IS_WINDOWS,
+        capture_output=True,
+        text=True,
+        shell=IS_WINDOWS,
     )
     if result.returncode != 0 and "already exists" not in result.stderr.lower():
         log.warning("Marketplace subscription creation warning: %s", result.stderr.strip())
@@ -192,33 +197,56 @@ def deploy_foundry_catalog_model(
     # 2. Create serverless endpoint
     ep_yaml = Path(tempfile.gettempdir()) / "retrieve-model-endpoint.yaml"
     ep_yaml.write_text(
-        f"name: {endpoint_name}\n"
-        f"model_id: {model_id}\n",
+        f"name: {endpoint_name}\nmodel_id: {model_id}\n",
         encoding="utf-8",
     )
 
     console.print(f"  Creating serverless endpoint '{endpoint_name}'...")
     result = subprocess.run(
         ["az", "ml", "serverless-endpoint", "create", "--file", str(ep_yaml)],
-        capture_output=True, text=True, shell=IS_WINDOWS,
+        capture_output=True,
+        text=True,
+        shell=IS_WINDOWS,
     )
     if result.returncode != 0 and "already exists" not in result.stderr.lower():
         raise RuntimeError(f"Failed to create serverless endpoint: {result.stderr.strip()}")
 
     # 3. Get endpoint URI
     uri_result = subprocess.run(
-        ["az", "ml", "serverless-endpoint", "show",
-         "--name", endpoint_name, "--query", "scoring_uri", "-o", "tsv"],
-        capture_output=True, text=True, shell=IS_WINDOWS,
+        [
+            "az",
+            "ml",
+            "serverless-endpoint",
+            "show",
+            "--name",
+            endpoint_name,
+            "--query",
+            "scoring_uri",
+            "-o",
+            "tsv",
+        ],
+        capture_output=True,
+        text=True,
+        shell=IS_WINDOWS,
     )
     uri = uri_result.stdout.strip() if uri_result.returncode == 0 else ""
 
     # 4. Get endpoint key. Cohere model catalog integration doesn't support
     # token authentication in Azure AI Search, so the skill/vectorizer need a key.
     key_result = subprocess.run(
-        ["az", "ml", "serverless-endpoint", "get-credentials",
-         "--name", endpoint_name, "-o", "json"],
-        capture_output=True, text=True, shell=IS_WINDOWS,
+        [
+            "az",
+            "ml",
+            "serverless-endpoint",
+            "get-credentials",
+            "--name",
+            endpoint_name,
+            "-o",
+            "json",
+        ],
+        capture_output=True,
+        text=True,
+        shell=IS_WINDOWS,
     )
     key = ""
     if key_result.returncode == 0:
@@ -241,7 +269,9 @@ def deploy_foundry_catalog_model(
     console.print(f"  [green]Endpoint '{endpoint_name}' ready: {uri}[/green]")
     emit_progress(
         f"Foundry model deployed: {model_name}",
-        stage="index.deploy_model", model_name=model_name, uri=uri,
+        stage="index.deploy_model",
+        model_name=model_name,
+        uri=uri,
     )
 
     return {"uri": uri, "key": key, "model_name": model_name}
@@ -250,9 +280,18 @@ def deploy_foundry_catalog_model(
 def _get_storage_resource_id(resource_group: str, storage_account: str) -> str:
     """Get the full ARM resource ID for a storage account via az CLI."""
     cmd = [
-        "az", "storage", "account", "show",
-        "-g", resource_group, "-n", storage_account,
-        "--query", "id", "-o", "tsv",
+        "az",
+        "storage",
+        "account",
+        "show",
+        "-g",
+        resource_group,
+        "-n",
+        storage_account,
+        "--query",
+        "id",
+        "-o",
+        "tsv",
     ]
     result = subprocess.run(cmd, capture_output=True, text=True, shell=IS_WINDOWS)
     if result.returncode != 0:
@@ -327,8 +366,13 @@ def create_multivector_index(
 
     # Index with multiple vector fields
     fields = [
-        SearchField(name="id", type=SearchFieldDataType.String, key=True,
-                    filterable=True, analyzer_name="keyword"),
+        SearchField(
+            name="id",
+            type=SearchFieldDataType.String,
+            key=True,
+            filterable=True,
+            analyzer_name="keyword",
+        ),
         SearchField(name="parent_id", type=SearchFieldDataType.String, filterable=True),
         SearchField(name="content", type=SearchFieldDataType.String, searchable=True),
         SearchField(
@@ -337,8 +381,13 @@ def create_multivector_index(
             searchable=True,
             filterable=True,
         ),
-        SearchField(name="doc_id", type=SearchFieldDataType.String,
-                    filterable=True, searchable=True, sortable=True),
+        SearchField(
+            name="doc_id",
+            type=SearchFieldDataType.String,
+            filterable=True,
+            searchable=True,
+            sortable=True,
+        ),
         SearchField(name="metadata_storage_name", type=SearchFieldDataType.String, filterable=True),
         # Dense vector from AzureOpenAI or Foundry catalog model
         SearchField(
@@ -378,8 +427,7 @@ def create_multivector_index(
         else:
             vectorizer_name = "custom-web-api-vectorizer"
             headers = (
-                {custom_embedding_header_name: custom_embedding_key}
-                if custom_embedding_key else {}
+                {custom_embedding_header_name: custom_embedding_key} if custom_embedding_key else {}
             )
             vectorizer = {
                 "name": vectorizer_name,
@@ -500,8 +548,7 @@ def create_multivector_index(
         vector_mapping_source = "/document/chunks/*/aml_vector_data/float/0"
     elif custom_embedding_uri:
         headers = (
-            {custom_embedding_header_name: custom_embedding_key}
-            if custom_embedding_key else {}
+            {custom_embedding_header_name: custom_embedding_key} if custom_embedding_key else {}
         )
         skills_list = [
             SplitSkill(
@@ -624,7 +671,9 @@ def create_multivector_index(
     console.print("  [green]multi-vector[/green] index + skillset + indexer created and running")
     emit_progress(
         f"multi-vector index '{index_name}' created",
-        stage="search_index.create", architecture="multi-vector", index_name=index_name,
+        stage="search_index.create",
+        architecture="multi-vector",
+        index_name=index_name,
     )
 
 
@@ -715,7 +764,9 @@ def create_agentic_kb(
     console.print(f"  [green]Knowledge base '{kb_name}' created[/green]")
     emit_progress(
         f"agentic-kb '{kb_name}' created",
-        stage="search_index.create", architecture="agentic-kb", kb_name=kb_name,
+        stage="search_index.create",
+        architecture="agentic-kb",
+        kb_name=kb_name,
     )
 
     return {"kb_name": kb_name, "ks_name": ks_name}
@@ -766,6 +817,7 @@ def query_agentic_kb(
     )
 
     import time as _time
+
     start = _time.perf_counter()
     try:
         result = kb_client.retrieve(retrieval_request=request)
@@ -780,7 +832,8 @@ def query_agentic_kb(
                         text = getattr(content_item, "text", "")
                         # Extract ref_ids from response text
                         import re
-                        refs = re.findall(r'\[ref_id:(\d+)\]', text)
+
+                        refs = re.findall(r"\[ref_id:(\d+)\]", text)
                         chunk_ids.extend(refs)
                 # Extract from references if available
                 if hasattr(result, "references") and result.references:
@@ -853,6 +906,8 @@ def run_graphrag_indexing(
     method: str = "fast",
     run_scope: GraphRagRunScope = "sample",
     max_documents: int | None = 50,
+    chunk_size: int | None = None,
+    chunk_overlap: int | None = None,
 ):
     """Run GraphRAG indexing pipeline on the corpus.
 
@@ -880,6 +935,8 @@ def run_graphrag_indexing(
             f"GRAPHRAG_METHOD={method}",
             f"GRAPHRAG_RUN_SCOPE={run_scope}",
             f"GRAPHRAG_MAX_DOCUMENTS={max_documents or ''}",
+            f"GRAPHRAG_CHUNK_SIZE={chunk_size or ''}",
+            f"GRAPHRAG_CHUNK_OVERLAP={chunk_overlap if chunk_overlap is not None else ''}",
         ]
         command = [
             "az",
@@ -929,6 +986,8 @@ def run_graphrag_indexing(
             "corpus_fingerprint": corpus_fingerprint,
             "graph_worker_run_scope": run_scope,
             "graph_worker_max_documents": max_documents,
+            "graph_worker_chunk_size": chunk_size,
+            "graph_worker_chunk_overlap": chunk_overlap,
             "graph_worker_estimate": estimate,
         }
 
@@ -944,6 +1003,8 @@ def run_graphrag_indexing(
                 "method": method,
                 "run_scope": run_scope,
                 "max_documents": max_documents,
+                "chunk_size": chunk_size,
+                "chunk_overlap": chunk_overlap,
                 "corpus_fingerprint": corpus_fingerprint,
                 "ai_services_endpoint": ai_services_endpoint,
                 "search_endpoint": search_endpoint,
@@ -974,12 +1035,12 @@ def run_graphrag_indexing(
             "cloud_index_status": "started",
             "graph_worker_job_id": job_id,
             "graph_worker_status_url": status_url,
-            "graph_worker_artifact_prefix": (
-                f"runs/{corpus_fingerprint}/{job_id}"
-            ),
+            "graph_worker_artifact_prefix": (f"runs/{corpus_fingerprint}/{job_id}"),
             "corpus_fingerprint": corpus_fingerprint,
             "graph_worker_run_scope": run_scope,
             "graph_worker_max_documents": max_documents,
+            "graph_worker_chunk_size": chunk_size,
+            "graph_worker_chunk_overlap": chunk_overlap,
             "graph_worker_estimate": estimate,
         }
 
@@ -1029,10 +1090,10 @@ def run_graphrag_indexing(
         llm_model=llm_model,
         embedding_model=embedding_model,
         method=method,
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
         storage_account_blob_url=(
-            f"https://{storage_account}.blob.core.windows.net"
-            if storage_account
-            else ""
+            f"https://{storage_account}.blob.core.windows.net" if storage_account else ""
         ),
         storage_container="graphrag",
         run_prefix=f"runs/{corpus_fingerprint}/{local_run_id}",
@@ -1060,9 +1121,7 @@ def run_graphrag_indexing(
     results = asyncio.run(build_index(config=config, method=method))
     failures = [result for result in results if result.error is not None]
     if failures:
-        details = "; ".join(
-            f"{result.workflow}: {result.error}" for result in failures
-        )
+        details = "; ".join(f"{result.workflow}: {result.error}" for result in failures)
         raise RuntimeError(f"GraphRAG workflows failed: {details}")
 
     console.print("  [green]GraphRAG indexing complete[/green]")
@@ -1085,6 +1144,7 @@ def query_graphrag(
 ) -> tuple[list[str], float]:
     """Query GraphRAG and return canonical document IDs plus latency."""
     import time as _time
+
     start = _time.perf_counter()
 
     if function_endpoint:
@@ -1176,6 +1236,7 @@ def run_lightrag_indexing(
     embedding_model: str = "text-embedding-3-large",
     llm_model: str = "gpt-4.1",
     working_dir: str = ".lightrag",
+    max_documents: int = 50,
 ):
     """Run LightRAG indexing on the corpus.
 
@@ -1185,7 +1246,12 @@ def run_lightrag_indexing(
     from pathlib import Path
 
     corpus_path = Path(corpus_dir)
-    md_files = list(corpus_path.glob("**/*.md"))
+    corpus_manifest = load_corpus_manifest(corpus_path)
+    manifest_documents = list(corpus_manifest["documents"])
+    if max_documents <= 0:
+        raise ValueError("LightRAG indexing requires a positive document cap")
+    manifest_documents = manifest_documents[:max_documents]
+    md_files = [corpus_path / str(entry["relative_path"]) for entry in manifest_documents]
 
     if container_app_endpoint:
         unique_documents: list[tuple[str, str]] = []
@@ -1196,7 +1262,7 @@ def run_lightrag_indexing(
             if content.startswith("---"):
                 end = content.find("---", 3)
                 if end > 0:
-                    content = content[end + 3:].strip()
+                    content = content[end + 3 :].strip()
             content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
             if content_hash in seen_hashes:
                 duplicate_count += 1
@@ -1223,7 +1289,7 @@ def run_lightrag_indexing(
         batch_size = 50
         track_ids: list[str] = []
         for start in range(0, len(unique_documents), batch_size):
-            batch = unique_documents[start:start + batch_size]
+            batch = unique_documents[start : start + batch_size]
             texts = [content for content, _source in batch]
             sources = [source for _content, source in batch]
             response = call_with_backoff(
@@ -1252,11 +1318,12 @@ def run_lightrag_indexing(
             console.print(f"  Sent {completed}/{len(unique_documents)} documents to LightRAG cloud")
             emit_progress(
                 f"LightRAG cloud insert {completed}/{len(unique_documents)}",
-                stage="index.lightrag", completed=completed, total=len(unique_documents),
+                stage="index.lightrag",
+                completed=completed,
+                total=len(unique_documents),
             )
         console.print(
-            f"  [green]LightRAG cloud indexing requested "
-            f"({len(track_ids)} batches)[/green]"
+            f"  [green]LightRAG cloud indexing requested ({len(track_ids)} batches)[/green]"
         )
         estimate = (
             "10-60 minutes after batches are accepted; "
@@ -1277,7 +1344,6 @@ def run_lightrag_indexing(
 
     try:
         from lightrag import LightRAG
-        from lightrag.llm.azure_openai import azure_openai_complete, azure_openai_embedding
     except ImportError:
         console.print(
             "lightrag-hku not installed. Run: pip install 'retrieve[lightrag]'",
@@ -1286,55 +1352,122 @@ def run_lightrag_indexing(
         )
         return
 
-    import asyncio
-
     work_path = Path(working_dir)
     work_path.mkdir(parents=True, exist_ok=True)
 
     console.print("  [cyan]lightrag[/cyan]: initializing with Azure OpenAI...")
 
-    # Initialize LightRAG with Azure OpenAI
-    rag = LightRAG(
+    rag = _create_lightrag(
+        LightRAG,
         working_dir=str(work_path),
-        llm_model_func=azure_openai_complete,
-        llm_model_name=llm_model,
-        llm_model_kwargs={
-            "api_base": ai_services_endpoint,
-            "api_version": "2025-04-01-preview",
-        },
-        embedding_func=azure_openai_embedding,
-        embedding_model_name=embedding_model,
-        embedding_model_kwargs={
-            "api_base": ai_services_endpoint,
-            "api_version": "2025-04-01-preview",
-        },
+        ai_services_endpoint=ai_services_endpoint,
+        llm_model=llm_model,
+        embedding_model=embedding_model,
     )
 
     # Read and insert all corpus documents
     console.print(f"  Inserting {len(md_files)} documents into LightRAG...")
 
-    for i, md_file in enumerate(md_files):
-        content = md_file.read_text(encoding="utf-8")
-        # Skip YAML frontmatter
-        if content.startswith("---"):
-            end = content.find("---", 3)
-            if end > 0:
-                content = content[end + 3:].strip()
-
+    async def insert_documents() -> None:
+        failures: list[str] = []
+        await rag.initialize_storages()
         try:
-            asyncio.run(rag.ainsert(content))
-        except Exception as e:
-            log.warning("Failed to insert %s: %s", md_file.name, e)
-
-        if (i + 1) % 10 == 0:
-            console.print(f"  Inserted {i + 1}/{len(md_files)} documents")
-            emit_progress(
-                f"LightRAG insert {i + 1}/{len(md_files)}",
-                stage="index.lightrag", completed=i + 1, total=len(md_files),
+            for index, (entry, md_file) in enumerate(
+                zip(manifest_documents, md_files, strict=True),
+                start=1,
+            ):
+                content = md_file.read_text(encoding="utf-8")
+                if content.startswith("---"):
+                    end = content.find("---", 3)
+                    if end > 0:
+                        content = content[end + 3 :].strip()
+                try:
+                    await rag.ainsert(
+                        content,
+                        ids=str(entry["document_id"]),
+                        file_paths=str(entry["relative_path"]),
+                    )
+                except Exception as exc:
+                    failures.append(f"{entry['relative_path']}: {exc}")
+                if index % 10 == 0 or index == len(md_files):
+                    emit_progress(
+                        f"LightRAG insert {index}/{len(md_files)}",
+                        stage="index.lightrag",
+                        completed=index,
+                        total=len(md_files),
+                    )
+        finally:
+            await rag.finalize_storages()
+        if failures:
+            raise RuntimeError(
+                f"LightRAG failed to index {len(failures)} document(s): " + "; ".join(failures[:5])
             )
+
+    asyncio.run(insert_documents())
 
     console.print(f"  [green]LightRAG indexing complete ({len(md_files)} documents)[/green]")
     emit_progress("LightRAG indexing complete", stage="index.lightrag")
+
+
+def _create_lightrag(
+    light_rag_type,
+    *,
+    working_dir: str,
+    ai_services_endpoint: str,
+    llm_model: str,
+    embedding_model: str,
+):
+    from lightrag.llm.azure_openai import azure_openai_embed
+    from lightrag.llm.openai import azure_openai_complete_if_cache
+    from lightrag.utils import EmbeddingFunc
+
+    endpoint = ai_services_endpoint.rstrip("/")
+    if not endpoint:
+        raise ValueError("LightRAG requires an Azure AI Services endpoint")
+    token_provider = get_bearer_token_provider(
+        DefaultAzureCredential(exclude_interactive_browser_credential=True),
+        "https://cognitiveservices.azure.com/.default",
+    )
+    client_configs = {"azure_ad_token_provider": token_provider}
+    api_version = "2024-10-21"
+    dimensions = _embedding_dimensions(embedding_model)
+
+    async def complete(prompt, system_prompt=None, history_messages=None, **kwargs):
+        return await azure_openai_complete_if_cache(
+            model=llm_model,
+            prompt=prompt,
+            system_prompt=system_prompt,
+            history_messages=history_messages or [],
+            base_url=endpoint,
+            api_version=api_version,
+            client_configs=client_configs,
+            **kwargs,
+        )
+
+    async def embed(texts, context="document", **_kwargs):
+        return await azure_openai_embed.func(
+            texts=texts,
+            model=embedding_model,
+            base_url=endpoint,
+            embedding_dim=dimensions,
+            client_configs=client_configs,
+            api_version=api_version,
+            context=context,
+        )
+
+    embedding_func = EmbeddingFunc(
+        embedding_dim=dimensions,
+        max_token_size=8_192,
+        model_name=embedding_model,
+        supports_asymmetric=True,
+        func=embed,
+    )
+    return light_rag_type(
+        working_dir=working_dir,
+        llm_model_func=complete,
+        llm_model_name=llm_model,
+        embedding_func=embedding_func,
+    )
 
 
 def query_lightrag(
@@ -1343,6 +1476,9 @@ def query_lightrag(
     working_dir: str = ".lightrag",
     ai_services_endpoint: str = "",
     container_app_endpoint: str = "",
+    corpus_dir: str = "corpus",
+    embedding_model: str = "text-embedding-3-large",
+    llm_model: str = "gpt-4.1",
 ) -> tuple[list[str], float]:
     """Query a LightRAG index.
 
@@ -1351,11 +1487,13 @@ def query_lightrag(
     Returns (chunk_ids, latency_ms).
     """
     import time as _time
+
     start = _time.perf_counter()
 
     # If container app endpoint is available, use it
     if container_app_endpoint:
         import requests
+
         try:
             resp = requests.post(
                 f"{container_app_endpoint}/query",
@@ -1365,30 +1503,52 @@ def query_lightrag(
             resp.raise_for_status()
             data = resp.json()
             latency_ms = (_time.perf_counter() - start) * 1000
-            return data.get("chunk_ids", data.get("response", "").split("\n")[:10]), latency_ms
-        except Exception as e:
-            log.warning("LightRAG remote query failed: %s", e)
-            latency_ms = (_time.perf_counter() - start) * 1000
-            return [], latency_ms
+            document_ids = data.get("document_ids")
+            if not isinstance(document_ids, list):
+                raise RuntimeError("LightRAG endpoint returned invalid structured evidence")
+            return [str(document_id) for document_id in document_ids], latency_ms
+        except Exception as exc:
+            raise RuntimeError(f"LightRAG remote query failed: {exc}") from exc
 
     # Local query
     try:
         from lightrag import LightRAG, QueryParam
-        from lightrag.llm.azure_openai import azure_openai_complete, azure_openai_embedding
 
-        rag = LightRAG(
+        rag = _create_lightrag(
+            LightRAG,
             working_dir=working_dir,
-            llm_model_func=azure_openai_complete,
-            embedding_func=azure_openai_embedding,
+            ai_services_endpoint=ai_services_endpoint,
+            llm_model=llm_model,
+            embedding_model=embedding_model,
         )
 
-        import asyncio
-        result = asyncio.run(rag.aquery(query, param=QueryParam(mode=mode)))
+        async def query_data():
+            await rag.initialize_storages()
+            try:
+                return await rag.aquery_data(
+                    query,
+                    param=QueryParam(mode=mode, include_references=True),
+                )
+            finally:
+                await rag.finalize_storages()
+
+        result = asyncio.run(query_data())
+        if not isinstance(result, dict) or result.get("status") != "success":
+            raise RuntimeError("LightRAG query did not return a successful structured result")
+        aliases = build_document_id_aliases(load_corpus_manifest(corpus_dir))
+        evidence = list((result.get("data") or {}).get("chunks") or [])
+        if not evidence:
+            evidence = list((result.get("data") or {}).get("references") or [])
+        document_ids: list[str] = []
+        for item in evidence:
+            if not isinstance(item, dict):
+                continue
+            file_path = str(item.get("file_path") or "").replace("\\", "/")
+            candidates = [file_path, str(Path(file_path).with_suffix("")), Path(file_path).stem]
+            document_id = next((aliases[value] for value in candidates if value in aliases), "")
+            if document_id and document_id not in document_ids:
+                document_ids.append(document_id)
         latency_ms = (_time.perf_counter() - start) * 1000
-        # Extract doc references from response
-        chunk_ids = [line[:100] for line in str(result).split("\n") if line.strip()][:10]
-        return chunk_ids, latency_ms
-    except Exception as e:
-        latency_ms = (_time.perf_counter() - start) * 1000
-        log.warning("LightRAG local query failed: %s", e)
-        return [], latency_ms
+        return document_ids, latency_ms
+    except Exception as exc:
+        raise RuntimeError(f"LightRAG local query failed: {exc}") from exc

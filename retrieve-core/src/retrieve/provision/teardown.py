@@ -1,16 +1,14 @@
 """Teardown orchestrator — tears down unselected Azure resources.
 
-Skills reference: skills/azure-bicep-iac.md (teardown patterns)
+Reference: docs/reference/skills/azure-bicep-iac.md (app-level teardown patterns)
 See Retrieve.md Phase 6.
 """
 
 from __future__ import annotations
 
-import json
 import logging
 import subprocess
 import sys
-from typing import Any
 
 from rich.console import Console
 from rich.table import Table
@@ -26,9 +24,7 @@ IS_WINDOWS = sys.platform == "win32"
 
 
 def _az_cmd(args: list[str]) -> subprocess.CompletedProcess:
-    return subprocess.run(
-        ["az"] + args, capture_output=True, text=True, shell=IS_WINDOWS
-    )
+    return subprocess.run(["az"] + args, capture_output=True, text=True, shell=IS_WINDOWS)
 
 
 def teardown(
@@ -60,7 +56,9 @@ def teardown(
         to_teardown = [a for a in all_archs if a["name"] not in keep_set]
 
         if not to_teardown:
-            console.print("[green]Nothing to tear down — all architectures are in the keep list.[/green]")
+            console.print(
+                "[green]Nothing to tear down — all architectures are in the keep list.[/green]"
+            )
             return
 
         # Show what will happen
@@ -88,12 +86,15 @@ def teardown(
                         _delete_search_resources(endpoint, index_name)
                         emit_progress(
                             f"Removed search resources for {arch['name']}",
-                            stage="teardown.delete", architecture=arch["name"],
+                            stage="teardown.delete",
+                            architecture=arch["name"],
                         )
                     except Exception as exc:
                         emit_error(
                             f"Failed to delete search resources for {arch['name']}",
-                            exc, stage="teardown.delete", architecture=arch["name"],
+                            exc,
+                            stage="teardown.delete",
+                            architecture=arch["name"],
                         )
 
             # Update status
@@ -115,7 +116,9 @@ def teardown(
         console.print("\n[bold green]Teardown complete![/bold green]\n")
         emit_progress(
             f"Teardown complete: kept {len(to_keep)}, removed {len(to_teardown)}",
-            stage="teardown.summary", kept=len(to_keep), removed=len(to_teardown),
+            stage="teardown.summary",
+            kept=len(to_keep),
+            removed=len(to_teardown),
         )
         if to_keep:
             console.print("[bold]Active architectures:[/bold]")
@@ -157,7 +160,7 @@ def _delete_search_resources(endpoint: str, index_name: str):
             else:
                 log.warning("Failed to delete %s: %s", name, e)
 
-    console.print(f"    [dim]Search resources removed[/dim]")
+    console.print("    [dim]Search resources removed[/dim]")
 
 
 def delete_resource_group(cfg: RetrieveConfig):

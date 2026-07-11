@@ -1,13 +1,15 @@
 """Tests for eval/metrics.py — retrieval metric calculators."""
 
 import math
+
 import pytest
+
 from retrieve.eval.metrics import (
-    recall_at_k,
+    aggregate_scores,
+    compute_scores,
     mrr_at_k,
     ndcg_at_k,
-    compute_scores,
-    aggregate_scores,
+    recall_at_k,
 )
 
 
@@ -109,10 +111,12 @@ class TestAggregateScores:
         assert agg["mrr_at_10"] == 0.5
 
     def test_multiple_runs(self):
-        agg = aggregate_scores([
-            {"recall_at_5": 1.0, "mrr_at_10": 0.5},
-            {"recall_at_5": 0.0, "mrr_at_10": 1.0},
-        ])
+        agg = aggregate_scores(
+            [
+                {"recall_at_5": 1.0, "mrr_at_10": 0.5},
+                {"recall_at_5": 0.0, "mrr_at_10": 1.0},
+            ]
+        )
         assert agg["recall_at_5"] == pytest.approx(0.5)
         assert agg["mrr_at_10"] == pytest.approx(0.75)
 

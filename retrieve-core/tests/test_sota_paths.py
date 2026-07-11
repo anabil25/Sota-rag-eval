@@ -1,14 +1,13 @@
 """Tests for registry/sota_paths.py — SOTA path registry and recommendations."""
 
-import pytest
+from retrieve.registry.architectures import ARCHITECTURES
 from retrieve.registry.sota_paths import (
     SOTA_PATHS,
-    SOTAPath,
     ComponentToggle,
-    recommend_sota_path,
+    SOTAPath,
     generate_toggle_combinations,
+    recommend_sota_path,
 )
-from retrieve.registry.architectures import ARCHITECTURES
 
 
 class TestSOTAPathRegistry:

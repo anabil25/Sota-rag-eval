@@ -43,9 +43,7 @@ def _collect_model_extras(value: Any, path: str = "config") -> list[str]:
     if isinstance(value, BaseModel):
         extras = [f"{path}.{name}" for name in (value.model_extra or {})]
         for field_name in type(value).model_fields:
-            extras.extend(
-                _collect_model_extras(getattr(value, field_name), f"{path}.{field_name}")
-            )
+            extras.extend(_collect_model_extras(getattr(value, field_name), f"{path}.{field_name}"))
         return extras
     if isinstance(value, dict):
         extras: list[str] = []
@@ -72,9 +70,7 @@ def validate_graphrag_settings(settings: dict[str, Any]) -> Any:
     config = GraphRagConfig.model_validate(settings)
     extras = _collect_model_extras(config)
     if extras:
-        raise ValueError(
-            "Unexpected GraphRAG configuration fields: " + ", ".join(sorted(extras))
-        )
+        raise ValueError("Unexpected GraphRAG configuration fields: " + ", ".join(sorted(extras)))
     return config
 
 
@@ -138,9 +134,7 @@ def build_graphrag_settings(
     if chunk_size is None:
         chunk_size = DEFAULT_FAST_CHUNK_SIZE if is_fast else DEFAULT_STANDARD_CHUNK_SIZE
     if chunk_overlap is None:
-        chunk_overlap = (
-            DEFAULT_FAST_CHUNK_OVERLAP if is_fast else DEFAULT_STANDARD_CHUNK_OVERLAP
-        )
+        chunk_overlap = DEFAULT_FAST_CHUNK_OVERLAP if is_fast else DEFAULT_STANDARD_CHUNK_OVERLAP
     if chunk_size <= 0:
         raise ValueError("GraphRAG chunk size must be positive")
     if chunk_overlap < 0 or chunk_overlap >= chunk_size:

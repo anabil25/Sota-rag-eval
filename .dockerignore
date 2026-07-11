@@ -15,10 +15,7 @@ dist/
 corpus/
 coverage/
 docs/
-evals/
 manual-validation/
-solution-accelerator/
-skills/
 .azure/
 .github/
 .vscode/

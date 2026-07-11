@@ -46,7 +46,11 @@ def show_eval_set_summary(eval_set_version: str = "latest", cfg: RetrieveConfig 
                 console.print("[red]No eval set found.[/red]")
                 return None
 
-        cats = json.loads(es["category_counts"]) if isinstance(es["category_counts"], str) else es["category_counts"]
+        cats = (
+            json.loads(es["category_counts"])
+            if isinstance(es["category_counts"], str)
+            else es["category_counts"]
+        )
 
         console.print(f"\n[bold]Eval Set: {es['version_label']}[/bold]")
         console.print(f"  Total questions: [green]{es['question_count']}[/green]")
@@ -76,7 +80,8 @@ def show_eval_set_summary(eval_set_version: str = "latest", cfg: RetrieveConfig 
         console.print(t)
 
         qt_rows = db.conn.execute(
-            "SELECT question_type, COUNT(*) AS cnt FROM eval_questions WHERE eval_set_id = ? GROUP BY question_type ORDER BY cnt DESC",
+            "SELECT question_type, COUNT(*) AS cnt FROM eval_questions "
+            "WHERE eval_set_id = ? GROUP BY question_type ORDER BY cnt DESC",
             (es["id"],),
         ).fetchall()
         if qt_rows:
@@ -118,7 +123,9 @@ def regenerate_eval_set(
     db = RetrieveDB(cfg.db_path)
     try:
         stored = db.get_generation_preferences("default")
-        merged_steering = dict(stored.get("steering", {})) if isinstance(stored.get("steering", {}), dict) else {}
+        merged_steering = (
+            dict(stored.get("steering", {})) if isinstance(stored.get("steering", {}), dict) else {}
+        )
         merged_steering.update(steering)
         steering = merged_steering
 
@@ -130,9 +137,13 @@ def regenerate_eval_set(
             return -1
 
         source_questions = db.get_questions(source["id"])
-        source_cats = json.loads(source["category_counts"]) if isinstance(source["category_counts"], str) else source["category_counts"]
+        source_cats = (
+            json.loads(source["category_counts"])
+            if isinstance(source["category_counts"], str)
+            else source["category_counts"]
+        )
 
-        console.print(f"\n[bold]Regenerating eval set[/bold]")
+        console.print("\n[bold]Regenerating eval set[/bold]")
         console.print(f"  Source: {source_version} ({source['question_count']} questions)")
         console.print(f"  New version: {new_version}")
 
@@ -163,7 +174,8 @@ def regenerate_eval_set(
         console.print(f"  Keeping {len(kept_questions)} questions from source")
         emit_progress(
             f"Keeping {len(kept_questions)} questions from source",
-            stage="curate.filter", kept=len(kept_questions),
+            stage="curate.filter",
+            kept=len(kept_questions),
         )
 
         # Generate new questions for "more" and "add" categories via Copilot SDK
@@ -191,7 +203,8 @@ def regenerate_eval_set(
                 new_questions = run_sync(_generate())
             emit_progress(
                 f"Generated {len(new_questions)} new questions",
-                stage="curate.generate", generated=len(new_questions),
+                stage="curate.generate",
+                generated=len(new_questions),
             )
             console.print(f"  Generated {len(new_questions)} new questions")
 
@@ -214,7 +227,11 @@ def regenerate_eval_set(
 
         # Show result
         new_es = db.get_eval_set_by_version(new_version)
-        new_cats = json.loads(new_es["category_counts"]) if isinstance(new_es["category_counts"], str) else new_es["category_counts"]
+        new_cats = (
+            json.loads(new_es["category_counts"])
+            if isinstance(new_es["category_counts"], str)
+            else new_es["category_counts"]
+        )
 
         console.print(f"\n[bold green]New eval set '{new_version}' created[/bold green]")
         console.print(f"  Total questions: {new_es['question_count']}")
@@ -232,7 +249,12 @@ def regenerate_eval_set(
             delta = after - before
             delta_str = f"{delta:+d}" if delta != 0 else "—"
             style = "green" if delta > 0 else ("red" if delta < 0 else "")
-            t.add_row(cat, str(before), str(after), f"[{style}]{delta_str}[/{style}]" if style else delta_str)
+            t.add_row(
+                cat,
+                str(before),
+                str(after),
+                f"[{style}]{delta_str}[/{style}]" if style else delta_str,
+            )
 
         console.print(t)
 
@@ -302,6 +324,7 @@ async def _generate_steered_questions(
     all_questions: list[dict[str, Any]] = []
     # Sample a subset of chunks for targeted generation
     import random
+
     sample_size = min(len(chunks), 20)
     sampled = random.sample(chunks, sample_size)
 

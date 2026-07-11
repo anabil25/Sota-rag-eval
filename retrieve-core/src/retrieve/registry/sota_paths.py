@@ -10,7 +10,7 @@ ingestion (doc count, cross-ref density, avg doc length).
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class ComponentToggle(BaseModel):
