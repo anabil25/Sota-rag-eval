@@ -75,6 +75,39 @@ def test_apply_ui_selections_parses_explicit_architecture_string(tmp_config: Ret
     assert tmp_config.architectures == ["keyword", "hybrid"]
 
 
+def test_persist_ui_options_updates_selected_architecture(tmp_config: RetrieveConfig):
+    from retrieve.web.app import _persist_ui_embedding_config
+
+    tmp_config.architectures = ["graphrag"]
+    db = RetrieveDB(tmp_config.db_path)
+    db.register_architecture("graphrag", {"resource_token": "token"})
+    db.upsert_generation_preferences(
+        {
+            "selected_embedding": "text-embedding-3-large",
+            "selected_vectorizer": "azure_openai",
+            "architecture_options": {
+                "graphrag": {
+                    "graphrag_chunk_size": "100",
+                    "graphrag_chunk_overlap": "20",
+                    "graphrag_query_mode": "local",
+                }
+            },
+        },
+        "ui_session",
+    )
+    db.close()
+
+    _persist_ui_embedding_config(tmp_config)
+
+    db = RetrieveDB(tmp_config.db_path)
+    architecture = db.get_architecture("graphrag")
+    db.close()
+    assert architecture is not None
+    assert architecture["config"]["embedding_model"] == "text-embedding-3-large"
+    assert architecture["config"]["graphrag_chunk_size"] == "100"
+    assert architecture["config"]["graphrag_chunk_overlap"] == "20"
+
+
 @pytest.fixture()
 def seeded_db(tmp_config: RetrieveConfig) -> RetrieveDB:
     """Create a DB with an eval set + questions for endpoints that need them."""

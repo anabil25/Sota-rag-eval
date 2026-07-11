@@ -1,7 +1,8 @@
 # Retrieve Azure Modernization Deployment Plan
 
-**Status:** Validated — Deployment Awaiting Explicit Approval  
+**Status:** Validated and Authorized — Deployment Execution Pending  
 **Approved by:** User (“Start implementation”, 2026-07-10)  
+**Live deployment authorized by:** User (“actually deploy and test live”, 2026-07-11)  
 **Mode:** Modernize existing application in a parallel Azure environment  
 **Deployment path:** Azure Developer CLI (`azd`) + subscription-scoped modular Bicep  
 **Current live environment:** protected existing resource group — preserve; no destructive changes during implementation

@@ -24,7 +24,7 @@ jobs:
           cache-dependency-path: retrieve-core/pyproject.toml
 
       - name: Install Python dependencies
-        run: python -m pip install -e "./retrieve-core[dev]"
+        run: python -m pip install -e "./retrieve-core[dev,graphrag,lightrag]"
 
       - name: Lint Python
         working-directory: retrieve-core

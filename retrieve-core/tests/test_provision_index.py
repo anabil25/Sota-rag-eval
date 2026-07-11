@@ -363,6 +363,8 @@ class TestGraphRAGSafety:
             graph_job_name="azgrjtest",
             resource_group="rg-test",
             subscription_id="sub-test",
+            chunk_size=100,
+            chunk_overlap=20,
         )
 
         fingerprint = manifest["corpus_fingerprint"]
@@ -376,9 +378,13 @@ class TestGraphRAGSafety:
         assert f"GRAPH_OUTPUT_PREFIX=runs/{fingerprint}/job123" in command
         assert "GRAPHRAG_RUN_SCOPE=sample" in command
         assert "GRAPHRAG_MAX_DOCUMENTS=50" in command
+        assert "GRAPHRAG_CHUNK_SIZE=100" in command
+        assert "GRAPHRAG_CHUNK_OVERLAP=20" in command
         assert result["graph_job_execution_name"] == "graph-job-abc"
         assert result["graph_worker_artifact_prefix"] == (f"runs/{fingerprint}/job123")
         assert result["graph_worker_status_blob"] == "jobs/job123/status.json"
+        assert result["graph_worker_chunk_size"] == 100
+        assert result["graph_worker_chunk_overlap"] == 20
 
     def test_local_indexing_uses_public_api_not_cli(self, monkeypatch, tmp_path):
         from types import SimpleNamespace

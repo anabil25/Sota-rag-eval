@@ -6,13 +6,13 @@ Retrieve is an end-to-end tool for comparing Azure AI Search architectures (keyw
 
 ## Prerequisites
 
-| Tool                   | Install                                                         | Required For                         |
-| ---------------------- | --------------------------------------------------------------- | ------------------------------------ |
-| **Node.js** 22         | [nodejs.org](https://nodejs.org)                                | SvelteKit frontend                   |
-| **Python** ≥ 3.11      | [python.org](https://python.org)                                | Backend/CLI                          |
-| **Azure CLI**          | `winget install Microsoft.AzureCLI` / `brew install azure-cli`  | Provisioning, indexing               |
-| **Azure Developer CLI** | `winget install Microsoft.Azd` / `brew install azd`            | Infrastructure lifecycle            |
-| **GitHub Copilot CLI** | `winget install GitHub.CopilotCLI` / `brew install copilot-cli` | Eval generation, miss classification |
+| Tool                    | Install                                                         | Required For                         |
+| ----------------------- | --------------------------------------------------------------- | ------------------------------------ |
+| **Node.js** 22          | [nodejs.org](https://nodejs.org)                                | SvelteKit frontend                   |
+| **Python** ≥ 3.11       | [python.org](https://python.org)                                | Backend/CLI                          |
+| **Azure CLI**           | `winget install Microsoft.AzureCLI` / `brew install azure-cli`  | Provisioning, indexing               |
+| **Azure Developer CLI** | `winget install Microsoft.Azd` / `brew install azd`             | Infrastructure lifecycle             |
+| **GitHub Copilot CLI**  | `winget install GitHub.CopilotCLI` / `brew install copilot-cli` | Eval generation, miss classification |
 
 ### Sign In
 
@@ -162,9 +162,9 @@ azd provision --preview --no-prompt
 | `retrieve eval import-csv` | Import eval questions from CSV                            |
 | `retrieve eval run`        | Run eval set against provisioned architectures            |
 | `retrieve eval compare`    | Compare evaluation runs side-by-side                      |
-| `retrieve provision`       | Capacity-check and provision via azd/Bicep                 |
+| `retrieve provision`       | Capacity-check and provision via azd/Bicep                |
 | `retrieve index`           | Upload corpus and build search indexes                    |
-| `retrieve teardown`        | Remove unselected architecture data/indexes                |
+| `retrieve teardown`        | Remove unselected architecture data/indexes               |
 | `retrieve validate`        | Validate Bicep templates and configuration                |
 | `retrieve info`            | Show architecture and model registries                    |
 | `retrieve ui`              | Launch web UI (primary interface)                         |

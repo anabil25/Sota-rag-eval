@@ -1,8 +1,8 @@
 # Plan 4 — Critical Bug and Security Pass
 
-**Status:** In progress
+**Status:** Local P0/P1 pass complete; disposable live canary pending
 **Priority:** P0
-**Last updated:** 2026-07-10
+**Last updated:** 2026-07-11
 
 ## Goal
 
@@ -40,8 +40,23 @@ Run an adversarial, evidence-based audit across the complete Step 1–7 workflow
 	weakening production gates.
 - [x] Full Python result: 343 passed, 2 platform/optional skips; changed files pass Ruff
 	and editor diagnostics.
-- [ ] Authentication/authorization, durable jobs, mutual exclusion, atomic config,
-	reconciliation, and remaining security work are still release blockers.
+- [x] Authentication/authorization, durable jobs, admission/idempotency, mutual
+	exclusion, atomic config, reconciliation, canonical evidence, and durable event
+	replay are implemented and tested.
+
+## Current completion checkpoint — 2026-07-11
+
+- [x] Mutation authentication/role enforcement and loopback-only local mode.
+- [x] Durable jobs, idempotency, request hashing, one active environment mutation, restart interruption handling, and redaction.
+- [x] Durable bounded SSE event journal with sequence IDs and `Last-Event-ID` replay.
+- [x] FastAPI single-writer state ownership, WAL, schema-version rejection, locked atomic YAML replacement, and azd output synchronization.
+- [x] Canonical manifest aliases unify Search, GraphRAG, LightRAG, and historical eval IDs.
+- [x] Evaluation failures mark only the affected run failed and never publish partial success.
+- [x] LightRAG 1.5 API compatibility, managed identity, explicit storage lifecycle, bounded sample indexing, failure propagation, and structured evidence.
+- [x] Removed the unused unauthenticated OpenAI proxy and all non-deployed application images.
+- [x] Pinned CI actions/Bicep; full Ruff, frontend gates, root Bicep, and non-root GraphRAG image are CI contracts.
+- [ ] Run the complete workflow against the disposable Azure environment, including RBAC propagation, Search/index/query failures, graph restart/timeout evidence, and cleanup.
+- [ ] Publish final P0/P1 disposition and residual-risk recommendation after the live sample/canary.
 
 ## Phase 0 — Evidence and safe boundaries
 

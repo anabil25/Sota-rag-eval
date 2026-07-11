@@ -1,8 +1,8 @@
 # Plan 1 — Repair GraphRAG End to End
 
-**Status:** In progress
+**Status:** Local implementation complete; live sample and canary pending
 **Priority:** P0
-**Last updated:** 2026-07-10
+**Last updated:** 2026-07-11
 
 ## Goal
 
@@ -31,8 +31,23 @@ Replace the failed experimental GraphRAG path with a pinned, schema-validated Gr
 - [x] Generated settings use recognized retry/rate-limit fields, normalized edge
 	weights, and 40th-percentile edge pruning, then parse through `GraphRagConfig`.
 - [x] A recursive Pydantic-extra check rejects settings GraphRAG would silently ignore.
-- [ ] Corpus manifest/mirror, representative chunk benchmark, persistent native
-	storage, callbacks, public API execution, and query/evidence integration remain.
+- [x] Corpus manifest/mirror, persistent native storage, callbacks, public API
+	execution, reconciliation, and structured query/evidence integration are implemented.
+	The representative chunk benchmark remains a live rollout gate.
+
+## Current completion checkpoint — 2026-07-11
+
+- [x] Canonical manifest, stable source/content/GraphRAG IDs, tamper detection, and exact file-set validation.
+- [x] Manifest-owned Blob mirror with unmanaged-file blocking, manifest-last commit, and exact dry-run-plan admission before deletion.
+- [x] GraphRAG 3.1 Blob output/cache/reporting, Azure AI Search vectors, public `build_index()`, workflow callbacks, heartbeat, and immutable run prefixes.
+- [x] Manual Container Apps Job launch with per-execution corpus, scope, cap, chunk-size, and overlap controls.
+- [x] Reconciliation requires Azure execution and durable Blob status agreement; hard timeout/failure overrides stale progress.
+- [x] Localhost queries load only successful immutable Blob runs and return canonical document IDs/citations.
+- [x] Evaluation consumes the persisted endpoint/artifact/fingerprint/storage contract.
+- [x] Full-corpus execution remains default-denied; sample and canary caps are enforced.
+- [ ] Live 50-document runs for chunk sizes 100, 300, and 600, followed by query/eval comparison.
+- [ ] Live canary with throttle, cost, quality, and duration thresholds.
+- [ ] Full run only if every automated sample/canary gate passes.
 
 ## Phase 1 — Canonical corpus
 

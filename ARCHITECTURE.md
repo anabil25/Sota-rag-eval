@@ -30,16 +30,16 @@ SvelteKit and FastAPI are not deployed by the current azd contract. Azure contai
 
 ## Ownership
 
-| Boundary | Owner |
-|---|---|
-| Browser routes and local reads | SvelteKit |
-| Operational writes and long-running jobs | FastAPI |
-| Durable workflow, eval, architecture, and event state | SQLite |
-| Corpus identity and exact file set | Canonical manifest |
-| ARM resources, identity, RBAC, diagnostics | Root modular Bicep |
-| Environment orchestration and outputs | azd |
-| Region/capacity assessment and fallback | `retrieve.provision.azd` |
-| Image publication and corpus synchronization | Thin postprovision hook |
+| Boundary                                              | Owner                    |
+| ----------------------------------------------------- | ------------------------ |
+| Browser routes and local reads                        | SvelteKit                |
+| Operational writes and long-running jobs              | FastAPI                  |
+| Durable workflow, eval, architecture, and event state | SQLite                   |
+| Corpus identity and exact file set                    | Canonical manifest       |
+| ARM resources, identity, RBAC, diagnostics            | Root modular Bicep       |
+| Environment orchestration and outputs                 | azd                      |
+| Region/capacity assessment and fallback               | `retrieve.provision.azd` |
+| Image publication and corpus synchronization          | Thin postprovision hook  |
 
 ## State contracts
 

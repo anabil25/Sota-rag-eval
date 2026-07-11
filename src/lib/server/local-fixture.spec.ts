@@ -3,7 +3,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { closeDb, updateUiSession } from './db';
+import { closeDb } from './db';
 import {
 	operationAuthHeaders,
 	startJob,
@@ -27,10 +27,7 @@ import {
 	getStatus,
 	selectedArchitectureNames
 } from './services/status-service';
-import {
-	getUiSession,
-	updateUiSession as updateSessionService
-} from './services/workflow-session-service';
+import { getUiSession } from './services/workflow-session-service';
 
 describe('local server services with real SQLite/filesystem fixtures', () => {
 	let tempDir: string;
@@ -38,6 +35,27 @@ describe('local server services with real SQLite/filesystem fixtures', () => {
 	let previousConfigPath: string | undefined;
 	let previousResourceGroup: string | undefined;
 	let previousLocation: string | undefined;
+
+	function updateUiSession(patch: Record<string, unknown>): void {
+		const database = new DatabaseSync(process.env.PRIVATE_RETRIEVE_DB_PATH!);
+		try {
+			const row = database
+				.prepare("SELECT preferences FROM generation_preferences WHERE scope_key = 'ui_session'")
+				.get() as { preferences?: string } | undefined;
+			const current = row?.preferences ? JSON.parse(row.preferences) : {};
+			database
+				.prepare(
+					`INSERT INTO generation_preferences (scope_key, preferences, updated_at)
+					 VALUES ('ui_session', ?, ?)
+					 ON CONFLICT(scope_key) DO UPDATE SET
+					 preferences = excluded.preferences, updated_at = excluded.updated_at`
+				)
+				.run(JSON.stringify({ ...current, ...patch }), new Date().toISOString());
+		} finally {
+			database.close();
+			closeDb();
+		}
+	}
 
 	beforeEach(() => {
 		previousDbPath = process.env.PRIVATE_RETRIEVE_DB_PATH;
@@ -124,7 +142,8 @@ eval:
 		expect(getStatus().eval_set?.version_label).toBe('v-fixture');
 		expect(getCorpusFiles().files).toEqual([{ name: 'a.md', size: 3 }]);
 		expect(getUiSession().selected_architectures).toEqual(['keyword', 'hybrid']);
-		expect(updateSessionService({ winners: ['hybrid'] }).session.winners).toEqual(['hybrid']);
+		updateUiSession({ winners: ['hybrid'] });
+		expect(getUiSession().winners).toEqual(['hybrid']);
 		expect(getArchitectureStatus().map((row) => row.name)).toEqual(['keyword', 'hybrid']);
 		updateUiSession({ provision_done: false });
 		expect(getArchitectureStatus()).toEqual([]);

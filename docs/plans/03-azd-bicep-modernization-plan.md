@@ -1,6 +1,6 @@
 # Plan 3 — Rebuild Azure Deployment as an azd Accelerator
 
-**Status:** Validated; deployment blocked pending explicit approval
+**Status:** Validated and authorized; live deployment pending execution
 **Priority:** P0/P1
 **Last updated:** 2026-07-11
 
@@ -124,8 +124,10 @@ Replace Python-driven split-brain provisioning with one deterministic `azd` prov
 - [x] Rebuild Bicep and inspect the emitted ARM resource types after the infrastructure-only pivot.
 - [x] Rerun focused frontend/API tests and full local validation.
 - [x] Run `azd provision --preview` and subscription-scope ARM validation against a new environment only.
-- [ ] Obtain explicit approval before provisioning the validated isolated environment.
+- [x] Obtain explicit approval before provisioning the validated isolated environment.
 - [ ] Run an approved GraphRAG sample before any canary or full-corpus execution.
+
+Deployment authorization was provided on 2026-07-11 with instructions to continue through live provisioning and debugging without another approval pause. Capacity-only regional fallback may purge failed isolated attempts; protected environments remain excluded.
 
 ## Local validation evidence — 2026-07-11
 

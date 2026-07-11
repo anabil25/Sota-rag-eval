@@ -1,8 +1,8 @@
 # Plan 2 — Clean and Normalize the Repository
 
-**Status:** Planned
+**Status:** Implemented; final clean-tree and live-operation evidence pending
 **Priority:** P1
-**Last updated:** 2026-07-10
+**Last updated:** 2026-07-11
 
 ## Goal
 
@@ -10,7 +10,7 @@ Create a maintainable monorepo with explicit source, generated, runtime, fixture
 
 ## Phase 0 — Safe baseline
 
-1. Restore or establish the authoritative version-control root. This workspace currently lacks `.git`; do not run history rewrites here.
+1. Use the established repository root and preserve the initial commit as the rollback source; do not rewrite history.
 2. Inventory every path with size, count, owner/source, runtime references, secret-scan result, and proposed disposition.
 3. Hash all removal candidates and store the manifest outside cleanup targets.
 4. Capture baseline Python, Svelte, Playwright, Docker, Bicep, and docs checks with known failures noted.
@@ -96,3 +96,15 @@ Create a maintainable monorepo with explicit source, generated, runtime, fixture
 - Copied upstream repositories are removed with provenance retained.
 - Documentation has clear current/archive status and one source of truth.
 - Cleanup introduces no functional regression and is reversible until final approval.
+
+## Current completion checkpoint — 2026-07-11
+
+- [x] Removed copied upstream repositories (about 400 MiB) after pinning package replacements and recording aggregate hashes/provenance.
+- [x] Removed tracked GraphRAG cache, duplicate corpora, eval/manual-validation outputs, live-result files, and local runtime configs; canonical local corpus remains ignored for deployment.
+- [x] Relocated skills, Search API reference, Azure capacity research, Svelte conventions, and archived UI plan under `docs/`.
+- [x] Removed obsolete combined/web/API/proxy images and retained one non-root GraphRAG Job image.
+- [x] Removed legacy Python ARM polling, random naming, nested/compiled Bicep, and their obsolete tests after azd parity.
+- [x] Added root architecture, contribution, operations, upstream-dependency, and cleanup evidence docs.
+- [x] Full Ruff and frontend formatting/lint pass; copied/generated path references are removed from active code.
+- [ ] Repeat complete offline/build/image/generated-path/secret/vulnerability gates on the final tree.
+- [ ] Record live deployment and cleanup evidence, then mark the plan complete.

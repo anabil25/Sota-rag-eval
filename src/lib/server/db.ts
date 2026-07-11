@@ -1,8 +1,7 @@
 /**
  * Native TypeScript port of the read-side SQLite data layer (`retrieve-core`'s
- * `db.py`). Backed by Node's built-in `node:sqlite`, it reads (and, for the UI
- * session, writes) the same `retrieve.db` file the Python engine uses, so the
- * two processes stay consistent. Only the pure-DB queries are ported here — the
+ * `db.py`). Backed by Node's built-in `node:sqlite`, it reads the same
+ * `retrieve.db` file the Python engine owns. Only pure read queries are ported — the
  * Azure/OpenAI/config-coupled endpoints still live in the Python backend.
  *
  * Serialization is kept byte-for-byte faithful to the Python contracts:
@@ -11,6 +10,7 @@
  * on the list endpoint).
  */
 import { DatabaseSync } from 'node:sqlite';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import type {
 	CategoryScore,
@@ -34,14 +34,28 @@ function resolveDbPath(): string {
 	return path.isAbsolute(configured) ? configured : path.resolve(process.cwd(), configured);
 }
 
-/** Lazily open (and cache) a connection to the real `retrieve.db`. */
-function db(): DatabaseSync {
+/** Lazily open (and cache) a read-only connection to Python-owned state. */
+function db(): DatabaseSync | null {
 	const target = resolveDbPath();
 	if (cachedDb && cachedPath === target) return cachedDb;
 	if (cachedDb) cachedDb.close();
-	cachedDb = new DatabaseSync(target);
+	cachedDb = null;
 	cachedPath = target;
+	if (!existsSync(target)) return null;
+	cachedDb = new DatabaseSync(target, { readOnly: true });
 	return cachedDb;
+}
+
+function dbWithTables(...tableNames: string[]): DatabaseSync | null {
+	const database = db();
+	if (!database) return null;
+	for (const tableName of tableNames) {
+		const row = database
+			.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?")
+			.get(tableName);
+		if (!row) return null;
+	}
+	return database;
 }
 
 /** Close the cached connection (used by tests). */
@@ -70,12 +84,16 @@ function asNumber(value: unknown): number {
 
 /** `SELECT * FROM eval_sets ORDER BY id DESC` — raw rows (matches `/api/eval-sets`). */
 export function getEvalSets(): EvalSet[] {
-	const rows = db().prepare('SELECT * FROM eval_sets ORDER BY id DESC').all() as Row[];
+	const database = dbWithTables('eval_sets');
+	if (!database) return [];
+	const rows = database.prepare('SELECT * FROM eval_sets ORDER BY id DESC').all() as Row[];
 	return rows as unknown as EvalSet[];
 }
 
 export function getLatestEvalSet(): EvalSet | null {
-	const row = db().prepare('SELECT * FROM eval_sets ORDER BY id DESC LIMIT 1').get() as
+	const database = dbWithTables('eval_sets');
+	if (!database) return null;
+	const row = database.prepare('SELECT * FROM eval_sets ORDER BY id DESC LIMIT 1').get() as
 		| Row
 		| undefined;
 	return (row as unknown as EvalSet) ?? null;
@@ -90,7 +108,9 @@ function questionRow(r: Row): EvalQuestion & Row {
 }
 
 export function getQuestions(evalSetId: number): (EvalQuestion & Row)[] {
-	const rows = db()
+	const database = dbWithTables('eval_questions');
+	if (!database) return [];
+	const rows = database
 		.prepare('SELECT * FROM eval_questions WHERE eval_set_id = ? ORDER BY id')
 		.all(evalSetId) as Row[];
 	return rows.map(questionRow);
@@ -98,7 +118,9 @@ export function getQuestions(evalSetId: number): (EvalQuestion & Row)[] {
 
 /** `/api/eval-sets/{id}/summary` — parsed category_counts + per-category examples. */
 export function getEvalSummary(evalSetId: number): EvalSummary | null {
-	const row = db().prepare('SELECT * FROM eval_sets WHERE id = ?').get(evalSetId) as
+	const database = dbWithTables('eval_sets');
+	if (!database) return null;
+	const row = database.prepare('SELECT * FROM eval_sets WHERE id = ?').get(evalSetId) as
 		| Row
 		| undefined;
 	if (!row) return null;
@@ -133,6 +155,8 @@ export function browseQuestions(
 	evalSetId: number,
 	filters: QuestionFilters = {}
 ): EvalQuestionBrowseResult {
+	const database = dbWithTables('eval_questions');
+	if (!database) return { total: 0, items: [] };
 	const where = ['eval_set_id = ?'];
 	const params: (string | number)[] = [evalSetId];
 	for (const { key, column } of QUESTION_FILTERS) {
@@ -146,11 +170,11 @@ export function browseQuestions(
 
 	const limit = filters.limit ?? 100;
 	const offset = filters.offset ?? 0;
-	const items = db()
+	const items = database
 		.prepare(`SELECT * FROM eval_questions WHERE ${whereSql} ORDER BY id LIMIT ? OFFSET ?`)
 		.all(...params, limit, offset) as Row[];
 
-	const countRow = db()
+	const countRow = database
 		.prepare(`SELECT COUNT(*) AS cnt FROM eval_questions WHERE ${whereSql}`)
 		.get(...params) as Row;
 
@@ -172,7 +196,9 @@ function runRow(r: Row): RunSummary & Row {
 
 /** Latest completed run per architecture name (matches `get_all_completed_runs`). */
 export function getAllCompletedRuns(): (RunSummary & Row)[] {
-	const rows = db()
+	const database = dbWithTables('runs', 'eval_sets');
+	if (!database) return [];
+	const rows = database
 		.prepare(
 			`SELECT r.*, es.version_label AS eval_set_version
 			   FROM runs r
@@ -189,7 +215,9 @@ export function getAllCompletedRuns(): (RunSummary & Row)[] {
 }
 
 export function getRun(runId: number): (RunSummary & Row) | null {
-	const row = db().prepare('SELECT * FROM runs WHERE id = ?').get(runId) as Row | undefined;
+	const database = dbWithTables('runs');
+	if (!database) return null;
+	const row = database.prepare('SELECT * FROM runs WHERE id = ?').get(runId) as Row | undefined;
 	return row ? runRow(row) : null;
 }
 
@@ -203,7 +231,9 @@ function resultRow(r: Row): RunResult & Row {
 }
 
 export function getResultsForRun(runId: number): (RunResult & Row)[] {
-	const rows = db()
+	const database = dbWithTables('run_results', 'eval_questions');
+	if (!database) return [];
+	const rows = database
 		.prepare(
 			`SELECT rr.*, eq.question_text, eq.category, eq.ground_truth_chunk_ids
 			   FROM run_results rr
@@ -216,7 +246,9 @@ export function getResultsForRun(runId: number): (RunResult & Row)[] {
 }
 
 export function getFailuresForRun(runId: number): (RunResult & Row)[] {
-	const rows = db()
+	const database = dbWithTables('run_results', 'eval_questions');
+	if (!database) return [];
+	const rows = database
 		.prepare(
 			`SELECT rr.*, eq.question_text, eq.category, eq.ground_truth_chunk_ids
 			   FROM run_results rr
@@ -239,7 +271,9 @@ export function getFailuresForRun(runId: number): (RunResult & Row)[] {
 
 /** Average scores per question category for a run (matches `get_per_category_scores`). */
 export function getPerCategoryScores(runId: number): Record<string, Record<string, number>> {
-	const rows = db()
+	const database = dbWithTables('run_results', 'eval_questions');
+	if (!database) return {};
+	const rows = database
 		.prepare(
 			`SELECT eq.category, rr.scores
 			   FROM run_results rr
@@ -298,7 +332,9 @@ export function getRunDetail(runId: number): RunDetail | null {
 // ── UI session (generation_preferences scope) ────────────────────────
 
 export function getGenerationPreferences(scopeKey = 'default'): Record<string, unknown> {
-	const row = db()
+	const database = dbWithTables('generation_preferences');
+	if (!database) return {};
+	const row = database
 		.prepare('SELECT preferences FROM generation_preferences WHERE scope_key = ?')
 		.get(scopeKey) as Row | undefined;
 	if (!row) return {};
@@ -340,7 +376,9 @@ export interface ArchitectureRecord extends Row {
 
 /** Latest architecture row for a name, with JSON columns parsed (matches `get_architecture`). */
 export function getArchitecture(name: string): ArchitectureRecord | null {
-	const row = db()
+	const database = dbWithTables('architectures');
+	if (!database) return null;
+	const row = database
 		.prepare('SELECT * FROM architectures WHERE name = ? ORDER BY id DESC LIMIT 1')
 		.get(name) as Row | undefined;
 	if (!row) return null;
@@ -349,23 +387,4 @@ export function getArchitecture(name: string): ArchitectureRecord | null {
 		config: parseJson<Record<string, unknown>>(row.config, {}),
 		resources_provisioned: parseJson<Record<string, unknown>>(row.resources_provisioned, {})
 	} as ArchitectureRecord;
-}
-
-/**
- * Shallow-merge `patch` into the persisted UI session and save it — mirrors the
- * Python `POST /api/ui/session` (`current.update(body)`), so the SvelteKit
- * server owns this state without a backend round-trip.
- */
-export function updateUiSession(patch: Partial<UiSession>): UiSession {
-	const current = getGenerationPreferences('ui_session');
-	const merged = { ...current, ...patch };
-	db()
-		.prepare(
-			`INSERT INTO generation_preferences (scope_key, preferences, updated_at)
-			 VALUES (?, ?, ?)
-			 ON CONFLICT(scope_key)
-			 DO UPDATE SET preferences = excluded.preferences, updated_at = excluded.updated_at`
-		)
-		.run('ui_session', JSON.stringify(merged), new Date().toISOString());
-	return normalizeUiSession(merged);
 }
