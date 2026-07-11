@@ -807,6 +807,7 @@ def query_agentic_kb(
         from azure.search.documents.knowledgebases.models import (
             KnowledgeBaseRetrievalRequest,
             KnowledgeRetrievalSemanticIntent,
+            SearchIndexKnowledgeSourceParams,
         )
     except ModuleNotFoundError as exc:
         raise RuntimeError(
@@ -819,10 +820,18 @@ def query_agentic_kb(
         credential=credential,
     )
 
+    base_index_name = kb_name if kb_name.endswith("-base") else f"{kb_name}-base"
     request = KnowledgeBaseRetrievalRequest(
         intents=[
             KnowledgeRetrievalSemanticIntent(
                 search=query,
+            )
+        ],
+        knowledge_source_params=[
+            SearchIndexKnowledgeSourceParams(
+                knowledge_source_name=f"{base_index_name}-ks",
+                include_references=True,
+                include_reference_source_data=True,
             )
         ],
     )
@@ -837,10 +846,6 @@ def query_agentic_kb(
         if not references:
             raise RuntimeError("Knowledge Base returned no structured references")
 
-        from azure.search.documents import SearchClient
-
-        index_name = kb_name if kb_name.endswith("-base") else f"{kb_name}-base"
-        search_client = SearchClient(endpoint, index_name, credential)
         document_ids: list[str] = []
         for reference in references:
             reference_data = (
@@ -849,20 +854,11 @@ def query_agentic_kb(
             source_data = reference_data.get("source_data") or {}
             if hasattr(source_data, "as_dict"):
                 source_data = source_data.as_dict()
-            doc_id = source_data.get("doc_id") if isinstance(source_data, dict) else ""
-            if not doc_id:
-                doc_key = str(reference_data.get("doc_key") or "")
-                if not doc_key:
-                    continue
-                document = search_client.get_document(
-                    key=doc_key,
-                    selected_fields=["doc_id", "metadata_storage_name", "title"],
-                )
-                doc_id = (
-                    document.get("doc_id")
-                    or document.get("metadata_storage_name")
-                    or document.get("title")
-                )
+            doc_id = (
+                source_data.get("doc_id") or source_data.get("title")
+                if isinstance(source_data, dict)
+                else ""
+            )
             normalized = str(doc_id or "")
             if normalized and normalized not in document_ids:
                 document_ids.append(normalized)
