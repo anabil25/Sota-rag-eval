@@ -15,16 +15,16 @@ param runtimePrincipalId string
 @description('Optional deploying principal object ID')
 param deployerPrincipalId string = ''
 
-@allowed([
-  'Enabled'
-  'Disabled'
-])
-@description('Storage public network access')
-param publicNetworkAccess string = 'Enabled'
+@description('Virtual network resource ID')
+param virtualNetworkId string
+
+@description('Subnet resource ID used by private endpoints')
+param privateEndpointsSubnetId string
 
 var blobContributorRoleId = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
 var corpusContainerName = 'corpus'
 var graphContainerName = 'graphrag'
+var blobPrivateDnsZoneName = 'privatelink.blob.${environment().suffixes.storage}'
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: storageAccountName
@@ -40,12 +40,69 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
     allowSharedKeyAccess: false
     defaultToOAuthAuthentication: true
     minimumTlsVersion: 'TLS1_2'
-    publicNetworkAccess: publicNetworkAccess
+    publicNetworkAccess: 'Disabled'
     supportsHttpsTrafficOnly: true
     networkAcls: {
-      bypass: 'AzureServices'
-      defaultAction: publicNetworkAccess == 'Enabled' ? 'Allow' : 'Deny'
+      bypass: 'None'
+      defaultAction: 'Deny'
     }
+  }
+}
+
+resource blobPrivateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' = {
+  name: blobPrivateDnsZoneName
+  location: 'global'
+  tags: tags
+}
+
+resource blobPrivateDnsLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01' = {
+  parent: blobPrivateDnsZone
+  name: 'retrieve-vnet'
+  location: 'global'
+  tags: tags
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: {
+      id: virtualNetworkId
+    }
+  }
+}
+
+resource blobPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = {
+  name: '${storageAccountName}-blob-pe'
+  location: location
+  tags: tags
+  properties: {
+    subnet: {
+      id: privateEndpointsSubnetId
+    }
+    privateLinkServiceConnections: [
+      {
+        name: 'blob'
+        properties: {
+          groupIds: [
+            'blob'
+          ]
+          privateLinkServiceId: storageAccount.id
+          requestMessage: 'Retrieve Container Apps access to canonical corpus and graph artifacts.'
+        }
+      }
+    ]
+  }
+}
+
+resource blobPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-05-01' = {
+  parent: blobPrivateEndpoint
+  name: 'default'
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: 'blob'
+        properties: {
+          privateDnsZoneId: blobPrivateDnsZone.id
+        }
+      }
+    ]
   }
 }
 

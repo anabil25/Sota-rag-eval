@@ -26,7 +26,7 @@ test('read-only flow inventory uses real SvelteKit data surfaces', async ({ page
 
 	await audit.goto(page, '/settings');
 	await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
-	await expect(page.getByText('Retrieve Config')).toBeVisible();
+	await expect(page.getByRole('heading', { level: 2, name: 'Workflow defaults' })).toBeVisible();
 
 	await audit.goto(page, '/pricing');
 	await expect(page.getByRole('heading', { level: 1, name: 'Pricing' })).toBeVisible();

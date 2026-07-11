@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -13,7 +15,7 @@ CORE_SRC = REPO_ROOT / "retrieve-core" / "src"
 if str(CORE_SRC) not in sys.path:
     sys.path.insert(0, str(CORE_SRC))
 
-from retrieve.indexing.blob_upload import BlobMirrorPlan, upload_corpus  # noqa: E402
+from retrieve.cli_process import resolve_cli_command  # noqa: E402
 from retrieve.config import load_config  # noqa: E402
 from retrieve.config_io import atomic_update_yaml  # noqa: E402
 from retrieve.db import RetrieveDB  # noqa: E402
@@ -21,6 +23,7 @@ from retrieve.ingest.manifest import (  # noqa: E402
     MANIFEST_FILENAME,
     load_corpus_manifest,
 )
+from retrieve.indexing.container_job import start_container_job  # noqa: E402
 
 
 def required(name: str) -> str:
@@ -31,10 +34,265 @@ def required(name: str) -> str:
 
 
 def set_azd_value(name: str, value: str) -> None:
-    subprocess.run(["azd", "env", "set", name, value], check=True)
+    subprocess.run(resolve_cli_command(["azd", "env", "set", name, value]), check=True)
 
 
-def upload_canonical_corpus() -> None:
+def _truthy(name: str) -> bool:
+    return os.environ.get(name, "").strip().lower() in {"1", "true", "yes"}
+
+
+def graph_image_tag() -> str:
+    """Return a deterministic tag for the exact GraphRAG job build inputs."""
+    core = REPO_ROOT / "retrieve-core"
+    inputs = [
+        REPO_ROOT / ".dockerignore",
+        core / "Dockerfile.graphrag-job",
+        core / "pyproject.toml",
+    ]
+    inputs.extend(sorted((core / "src").rglob("*")))
+    inputs.extend(sorted((REPO_ROOT / "corpus").rglob("*")))
+    digest = hashlib.sha256()
+    for path in inputs:
+        if not path.is_file():
+            continue
+        digest.update(path.relative_to(REPO_ROOT).as_posix().encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    return digest.hexdigest()[:16]
+
+
+def _authorization_failure(output: str) -> bool:
+    normalized = output.lower()
+    return any(
+        marker in normalized
+        for marker in (
+            "authorizationfailed",
+            "authorization failure",
+            "does not have authorization",
+            "forbidden",
+            "status code: 403",
+        )
+    )
+
+
+def _run_with_auth_retry(
+    command: list[str],
+    operation: str,
+    *,
+    delays: tuple[int, ...] = (10, 20, 30, 60, 60),
+) -> subprocess.CompletedProcess[str]:
+    for attempt in range(len(delays) + 1):
+        result = subprocess.run(
+            resolve_cli_command(command),
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            return result
+        details = "\n".join(part for part in (result.stdout, result.stderr) if part)
+        if attempt >= len(delays) or not _authorization_failure(details):
+            raise RuntimeError(f"{operation} failed: {details.strip()}")
+        delay = delays[attempt]
+        print(
+            f"[postprovision] {operation} authorization is not propagated; "
+            f"retrying in {delay}s ({attempt + 1}/{len(delays)})."
+        )
+        time.sleep(delay)
+    raise RuntimeError(f"{operation} failed after authorization retries")
+
+
+def _json_command(command: list[str], operation: str) -> dict | list:
+    result = _run_with_auth_retry(command, operation)
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"{operation} returned invalid JSON") from exc
+
+
+def publish_graph_image() -> None:
+    if _truthy("RETRIEVE_SKIP_GRAPH_IMAGE_BUILD"):
+        print("[postprovision] skipping GraphRAG image build by request")
+        return
+    registry = required("AZURE_CONTAINER_REGISTRY_NAME")
+    registry_endpoint = required("AZURE_CONTAINER_REGISTRY_ENDPOINT")
+    resource_group = required("AZURE_RESOURCE_GROUP")
+    job_name = required("AZURE_GRAPHRAG_JOB_NAME")
+    image = f"retrieve-graphrag:{graph_image_tag()}"
+    _run_with_auth_retry(
+        [
+            "az",
+            "acr",
+            "build",
+            "--registry",
+            registry,
+            "--image",
+            image,
+            "--file",
+            str(REPO_ROOT / "retrieve-core" / "Dockerfile.graphrag-job"),
+            "--no-logs",
+            str(REPO_ROOT),
+        ],
+        "GraphRAG ACR build",
+    )
+    full_image = f"{registry_endpoint}/{image}"
+    _run_with_auth_retry(
+        [
+            "az",
+            "containerapp",
+            "job",
+            "update",
+            "--resource-group",
+            resource_group,
+            "--name",
+            job_name,
+            "--image",
+            full_image,
+            "--output",
+            "none",
+        ],
+        "GraphRAG job image update",
+    )
+    set_azd_value("RETRIEVE_GRAPHRAG_IMAGE", full_image)
+    print(f"[postprovision] published {full_image}")
+
+
+def approve_search_storage_private_link(
+    *,
+    delays: tuple[int, ...] = (5, 10, 10, 15, 20, 30, 30, 30),
+) -> None:
+    resource_group = required("AZURE_RESOURCE_GROUP")
+    subscription_id = required("AZURE_SUBSCRIPTION_ID")
+    search_service = required("AZURE_SEARCH_SERVICE_NAME")
+    storage_account = required("AZURE_STORAGE_ACCOUNT_NAME")
+    shared_link_name = "storage-blob"
+
+    for attempt in range(len(delays) + 1):
+        shared_link = _json_command(
+            [
+                "az",
+                "search",
+                "shared-private-link-resource",
+                "show",
+                "--name",
+                shared_link_name,
+                "--service-name",
+                search_service,
+                "--resource-group",
+                resource_group,
+                "--subscription",
+                subscription_id,
+                "--output",
+                "json",
+                "--only-show-errors",
+            ],
+            "Search shared private link inspection",
+        )
+        properties = shared_link.get("properties", {}) if isinstance(shared_link, dict) else {}
+        status = str(properties.get("status", "")).lower()
+        provisioning_state = str(properties.get("provisioningState", "")).lower()
+        if status == "approved":
+            print("[postprovision] Search private Blob connection is approved")
+            return
+        if status in {"rejected", "disconnected"} or provisioning_state == "failed":
+            raise RuntimeError(
+                f"Search private Blob connection failed ({status or provisioning_state})"
+            )
+
+        connections = _json_command(
+            [
+                "az",
+                "network",
+                "private-endpoint-connection",
+                "list",
+                "--name",
+                storage_account,
+                "--resource-group",
+                resource_group,
+                "--type",
+                "Microsoft.Storage/storageAccounts",
+                "--subscription",
+                subscription_id,
+                "--output",
+                "json",
+                "--only-show-errors",
+            ],
+            "Storage private endpoint connection inspection",
+        )
+        pending = [
+            connection
+            for connection in connections
+            if isinstance(connection, dict)
+            and str(
+                (connection.get("properties", {}).get("privateLinkServiceConnectionState", {}))
+                .get("status", "")
+            ).lower()
+            == "pending"
+        ]
+        if len(pending) > 1:
+            raise RuntimeError("Multiple pending Storage private endpoints require manual review")
+        if pending:
+            connection_id = str(pending[0].get("id", ""))
+            if not connection_id:
+                raise RuntimeError("Pending Storage private endpoint has no resource ID")
+            _run_with_auth_retry(
+                [
+                    "az",
+                    "network",
+                    "private-endpoint-connection",
+                    "approve",
+                    "--id",
+                    connection_id,
+                    "--description",
+                    "Approved for Retrieve Search private corpus indexing.",
+                    "--subscription",
+                    subscription_id,
+                    "--output",
+                    "none",
+                    "--only-show-errors",
+                ],
+                "Search Storage private endpoint approval",
+            )
+
+        if attempt < len(delays):
+            time.sleep(delays[attempt])
+
+    raise RuntimeError("Search private Blob connection did not become approved")
+
+
+def _job_logs(job_name: str, execution_name: str) -> str:
+    result = subprocess.run(
+        resolve_cli_command(
+            [
+                "az",
+                "containerapp",
+                "job",
+                "logs",
+                "show",
+                "--name",
+                job_name,
+                "--resource-group",
+                required("AZURE_RESOURCE_GROUP"),
+                "--execution",
+                execution_name,
+                "--container",
+                "graphrag",
+                "--tail",
+                "100",
+                "--subscription",
+                required("AZURE_SUBSCRIPTION_ID"),
+            ]
+        ),
+        capture_output=True,
+        text=True,
+    )
+    return "\n".join(part.strip() for part in (result.stdout, result.stderr) if part.strip())
+
+
+def upload_canonical_corpus(
+    *,
+    delays: tuple[int, ...] = tuple(10 for _ in range(60)),
+) -> None:
     corpus_dir = Path(os.environ.get("RETRIEVE_CORPUS_DIR", REPO_ROOT / "corpus"))
     if not (corpus_dir / MANIFEST_FILENAME).is_file():
         print(
@@ -44,34 +302,71 @@ def upload_canonical_corpus() -> None:
         return
 
     manifest = load_corpus_manifest(corpus_dir)
-    plan = upload_corpus(
-        str(corpus_dir),
-        required("AZURE_STORAGE_ACCOUNT_NAME"),
-        required("AZURE_STORAGE_CORPUS_CONTAINER"),
-        dry_run=True,
+    resource_group = required("AZURE_RESOURCE_GROUP")
+    subscription_id = required("AZURE_SUBSCRIPTION_ID")
+    job_name = required("AZURE_GRAPHRAG_JOB_NAME")
+    execution_name = start_container_job(
+        job_name=job_name,
+        resource_group=resource_group,
+        subscription_id=subscription_id,
+        environment=[
+            "GRAPH_WORKER_MODE=seed",
+            "BUNDLED_CORPUS_DIR=/app/corpus",
+        ],
     )
-    if not isinstance(plan, BlobMirrorPlan):
-        raise RuntimeError("Corpus mirror dry run did not return a plan")
-    if plan.corpus_fingerprint != manifest["corpus_fingerprint"]:
-        raise RuntimeError("Corpus mirror plan fingerprint does not match the manifest")
-    if plan.unmanaged:
-        raise RuntimeError(
-            "Corpus mirror is blocked by unmanaged remote Markdown: "
-            + ", ".join(plan.unmanaged[:5])
+
+    terminal_states = {
+        "succeeded",
+        "failed",
+        "cancelled",
+        "canceled",
+        "stopped",
+        "timedout",
+    }
+    state = ""
+    details = ""
+    for attempt in range(len(delays) + 1):
+        execution = _json_command(
+            [
+                "az",
+                "containerapp",
+                "job",
+                "execution",
+                "show",
+                "--resource-group",
+                resource_group,
+                "--name",
+                job_name,
+                "--job-execution-name",
+                execution_name,
+                "--subscription",
+                subscription_id,
+                "--output",
+                "json",
+                "--only-show-errors",
+            ],
+            "Azure-side corpus seed status",
         )
-    count = upload_corpus(
-        str(corpus_dir),
-        required("AZURE_STORAGE_ACCOUNT_NAME"),
-        required("AZURE_STORAGE_CORPUS_CONTAINER"),
-        expected_plan=plan,
-    )
-    if not isinstance(count, int) or count != manifest["document_count"]:
+        properties = execution.get("properties", {}) if isinstance(execution, dict) else {}
+        state = str(properties.get("status") or execution.get("status") or "").lower()
+        details = str(properties.get("statusDetails") or "")
+        if state in terminal_states:
+            break
+        if attempt < len(delays):
+            time.sleep(delays[attempt])
+    if state != "succeeded":
+        logs = _job_logs(job_name, execution_name)
         raise RuntimeError(
-            "Corpus synchronization count did not match the canonical manifest"
+            f"Azure-side corpus seed ended as {state or 'unknown'}: {details}\n{logs}".strip()
         )
+
+    count = int(manifest["document_count"])
     fingerprint = str(manifest["corpus_fingerprint"])
     set_azd_value("RETRIEVE_CORPUS_FINGERPRINT", fingerprint)
-    print(f"[postprovision] synchronized {count} documents ({fingerprint[:12]}).")
+    print(
+        f"[postprovision] synchronized {count} documents through private Blob "
+        f"({fingerprint[:12]})."
+    )
 
 
 def _output_contract() -> dict[str, str]:
@@ -201,6 +496,8 @@ def sync_local_runtime_contract() -> None:
 
 def main() -> None:
     print("[postprovision] starting data-plane setup")
+    publish_graph_image()
+    approve_search_storage_private_link()
     upload_canonical_corpus()
     sync_local_runtime_contract()
     print("[postprovision] complete")

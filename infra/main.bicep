@@ -47,13 +47,6 @@ param embeddingModelCapacity int = 100
 @description('Azure AI Search SKU.')
 param searchSku string = 'basic'
 
-@allowed([
-  'Enabled'
-  'Disabled'
-])
-@description('Storage public network access. Disable after private postprovision execution is available.')
-param storagePublicNetworkAccess string = 'Enabled'
-
 var resourceToken = toLower(uniqueString(subscription().id, location, environmentName))
 var resourceTags = {
   'azd-env-name': environmentName
@@ -87,6 +80,15 @@ module identity './modules/identity.bicep' = {
   }
 }
 
+module network './modules/network.bicep' = {
+  scope: resourceGroup
+  params: {
+    location: location
+    tags: resourceTags
+    virtualNetworkName: 'azvnet${resourceToken}'
+  }
+}
+
 module registry './modules/registry.bicep' = {
   scope: resourceGroup
   params: {
@@ -106,7 +108,8 @@ module storage './modules/storage.bicep' = {
     storageAccountName: 'azst${resourceToken}'
     runtimePrincipalId: identity.outputs.principalId
     deployerPrincipalId: principalId
-    publicNetworkAccess: storagePublicNetworkAccess
+    virtualNetworkId: network.outputs.virtualNetworkId
+    privateEndpointsSubnetId: network.outputs.privateEndpointsSubnetId
   }
 }
 
@@ -147,6 +150,7 @@ module containerApps './modules/container-apps.bicep' = {
     environmentName: 'azcae${resourceToken}'
     graphJobName: 'azgrj${resourceToken}'
     managedIdentityResourceId: identity.outputs.resourceId
+    infrastructureSubnetId: network.outputs.containerAppsSubnetId
     registryServer: registry.outputs.loginServer
     logAnalyticsCustomerId: monitoring.outputs.logAnalyticsCustomerId
     logAnalyticsSharedKey: monitoring.outputs.logAnalyticsSharedKey

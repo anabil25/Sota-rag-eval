@@ -92,6 +92,75 @@ def _search_rest_get(
     return response.json()
 
 
+def _search_rest_put(
+    endpoint: str,
+    path: str,
+    payload: dict,
+    credential: DefaultAzureCredential,
+    timeout: tuple[int, int] = (10, 60),
+) -> None:
+    separator = "&" if "?" in path else "?"
+    url = f"{endpoint.rstrip('/')}/{path.lstrip('/')}{separator}api-version={SEARCH_API_VERSION}"
+    response = requests.put(
+        url,
+        headers=_search_rest_headers(credential),
+        json=payload,
+        timeout=timeout,
+    )
+    response.raise_for_status()
+
+
+def _create_private_indexer(
+    endpoint: str,
+    credential: DefaultAzureCredential,
+    indexer: SearchIndexer,
+) -> None:
+    payload = build_private_indexer_payload(indexer)
+    _search_rest_put(
+        endpoint,
+        f"indexers/{quote(indexer.name, safe='')}",
+        payload,
+        credential,
+    )
+
+
+def _serialize_search_value(value):
+    if isinstance(value, dict):
+        return {key: _serialize_search_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_serialize_search_value(item) for item in value]
+    if hasattr(value, "serialize"):
+        return value.serialize()
+    return value
+
+
+def build_private_indexer_payload(indexer: SearchIndexer) -> dict:
+    payload = {
+        "name": indexer.name,
+        "dataSourceName": indexer.data_source_name,
+        "targetIndexName": indexer.target_index_name,
+        "disabled": indexer.is_disabled,
+        "executionEnvironment": "private",
+    }
+    optional = {
+        "description": indexer.description,
+        "skillsetName": indexer.skillset_name,
+        "schedule": indexer.schedule,
+        "parameters": indexer.parameters,
+        "fieldMappings": indexer.field_mappings,
+        "outputFieldMappings": indexer.output_field_mappings,
+        "encryptionKey": indexer.encryption_key,
+    }
+    payload.update(
+        {
+            key: _serialize_search_value(value)
+            for key, value in optional.items()
+            if value is not None
+        }
+    )
+    return payload
+
+
 def _get_storage_resource_id(resource_group: str, storage_account: str) -> str:
     """Get the full ARM resource ID for a storage account via az CLI."""
     cmd = [
@@ -162,6 +231,8 @@ def create_index_for_architecture(
         _create_keyword_index(
             indexer_client,
             index_client,
+            endpoint,
+            credential,
             index_name,
             storage_resource_id,
             container,
@@ -170,6 +241,8 @@ def create_index_for_architecture(
         _create_hybrid_index(
             indexer_client,
             index_client,
+            endpoint,
+            credential,
             index_name,
             ai_services_endpoint,
             embedding_model,
@@ -181,6 +254,8 @@ def create_index_for_architecture(
         _create_hybrid_index(
             indexer_client,
             index_client,
+            endpoint,
+            credential,
             index_name,
             ai_services_endpoint,
             embedding_model,
@@ -214,6 +289,8 @@ def create_index_for_architecture(
         _create_hybrid_index(
             indexer_client,
             index_client,
+            endpoint,
+            credential,
             base_index,
             ai_services_endpoint,
             embedding_model,
@@ -275,6 +352,8 @@ def create_index_for_architecture(
 def _create_keyword_index(
     indexer_client: SearchIndexerClient,
     index_client: SearchIndexClient,
+    endpoint: str,
+    credential: DefaultAzureCredential,
     index_name: str,
     storage_resource_id: str,
     container: str,
@@ -346,7 +425,7 @@ def _create_keyword_index(
             },
         ],
     )
-    indexer_client.create_or_update_indexer(indexer)
+    _create_private_indexer(endpoint, credential, indexer)
     try:
         indexer_client.run_indexer(f"{index_name}-indexer")
     except Exception as e:
@@ -366,6 +445,8 @@ def _create_keyword_index(
 def _create_hybrid_index(
     indexer_client: SearchIndexerClient,
     index_client: SearchIndexClient,
+    endpoint: str,
+    credential: DefaultAzureCredential,
     index_name: str,
     ai_services_endpoint: str,
     embedding_model: str,
@@ -546,7 +627,7 @@ def _create_hybrid_index(
             },
         },
     )
-    indexer_client.create_or_update_indexer(indexer)
+    _create_private_indexer(endpoint, credential, indexer)
     try:
         indexer_client.run_indexer(f"{index_name}-indexer")
     except Exception as e:

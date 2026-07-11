@@ -23,6 +23,7 @@ from retrieve.ingest.plugin import (
 from retrieve.ingest.run import (
     compute_stats,
     get_plugin,
+    run_ingest,
     save_doc,
     validate_source_output_paths,
 )
@@ -313,6 +314,28 @@ class TestCorpusManifest:
 
         with pytest.raises(ValueError, match="hash mismatch"):
             load_corpus_manifest(tmp_path)
+
+    def test_markdown_relative_paths_make_duplicate_policy_labels_unique(self, tmp_path):
+        source = tmp_path / "source"
+        output = tmp_path / "output"
+        for relative in ("602/602-1_a.md", "602/602-1_b.md"):
+            path = source / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(
+                '---\npolicy_id: "602-1"\ntitle: "Eligibility"\n---\n\nBody',
+                encoding="utf-8",
+            )
+
+        stats = run_ingest(str(source), "markdown", str(output), delay=0)
+        manifest = load_corpus_manifest(output)
+
+        assert stats.doc_count == 2
+        assert {entry["document_id"] for entry in manifest["documents"]} == {
+            "602/602-1_a",
+            "602/602-1_b",
+        }
+        assert (output / "602" / "602-1_a.md").is_file()
+        assert (output / "602" / "602-1_b.md").is_file()
 
 
 class TestComputeStats:

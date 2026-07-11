@@ -5,6 +5,13 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+from pathlib import Path
+
+CORE_SRC = Path(__file__).resolve().parents[1] / "retrieve-core" / "src"
+if str(CORE_SRC) not in sys.path:
+    sys.path.insert(0, str(CORE_SRC))
+
+from retrieve.cli_process import resolve_cli_command  # noqa: E402
 
 REGIONS = (
     "northcentralus",
@@ -24,7 +31,7 @@ PROTECTED_RESOURCE_GROUPS = {
 
 def _azd(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["azd", *args],
+        resolve_cli_command(["azd", *args]),
         check=check,
         capture_output=True,
         text=True,

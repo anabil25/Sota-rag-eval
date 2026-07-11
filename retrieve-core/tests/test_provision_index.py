@@ -331,8 +331,8 @@ class TestGraphRAGSafety:
         assert result["graph_worker_max_documents"] == 50
 
     @patch("retrieve.indexing.advanced.uuid.uuid4")
-    @patch("retrieve.indexing.advanced.subprocess.run")
-    def test_container_job_launch_is_bound_to_immutable_run(self, mock_run, mock_uuid, tmp_path):
+    @patch("retrieve.indexing.advanced.start_container_job")
+    def test_container_job_launch_is_bound_to_immutable_run(self, mock_start, mock_uuid, tmp_path):
         from types import SimpleNamespace
 
         from retrieve.indexing.advanced import run_graphrag_indexing
@@ -353,7 +353,7 @@ class TestGraphRAGSafety:
             [build_manifest_entry(doc, output, tmp_path)],
         )
         mock_uuid.return_value = SimpleNamespace(hex="job123")
-        mock_run.return_value = SimpleNamespace(stdout="graph-job-abc\n")
+        mock_start.return_value = "graph-job-abc"
 
         result = run_graphrag_indexing(
             corpus_dir=str(tmp_path),
@@ -368,18 +368,18 @@ class TestGraphRAGSafety:
         )
 
         fingerprint = manifest["corpus_fingerprint"]
-        command = mock_run.call_args.args[0]
-        assert command[:5] == ["az", "containerapp", "job", "start", "--name"]
-        assert "azgrjtest" in command
-        assert "rg-test" in command
-        assert "--subscription" in command
-        assert "GRAPH_WORKER_JOB_ID=job123" in command
-        assert f"CORPUS_FINGERPRINT={fingerprint}" in command
-        assert f"GRAPH_OUTPUT_PREFIX=runs/{fingerprint}/job123" in command
-        assert "GRAPHRAG_RUN_SCOPE=sample" in command
-        assert "GRAPHRAG_MAX_DOCUMENTS=50" in command
-        assert "GRAPHRAG_CHUNK_SIZE=100" in command
-        assert "GRAPHRAG_CHUNK_OVERLAP=20" in command
+        environment = mock_start.call_args.kwargs["environment"]
+        assert mock_start.call_args.kwargs["job_name"] == "azgrjtest"
+        assert mock_start.call_args.kwargs["resource_group"] == "rg-test"
+        assert mock_start.call_args.kwargs["subscription_id"] == "sub-test"
+        assert "GRAPH_WORKER_MODE=index" in environment
+        assert "GRAPH_WORKER_JOB_ID=job123" in environment
+        assert f"CORPUS_FINGERPRINT={fingerprint}" in environment
+        assert f"GRAPH_OUTPUT_PREFIX=runs/{fingerprint}/job123" in environment
+        assert "GRAPHRAG_RUN_SCOPE=sample" in environment
+        assert "GRAPHRAG_MAX_DOCUMENTS=50" in environment
+        assert "GRAPHRAG_CHUNK_SIZE=100" in environment
+        assert "GRAPHRAG_CHUNK_OVERLAP=20" in environment
         assert result["graph_job_execution_name"] == "graph-job-abc"
         assert result["graph_worker_artifact_prefix"] == (f"runs/{fingerprint}/job123")
         assert result["graph_worker_status_blob"] == "jobs/job123/status.json"
@@ -624,10 +624,13 @@ class TestIndexOrchestrator:
 
 
 class TestSearchIndexBuilder:
+    @patch("retrieve.indexing.search_index._search_rest_put")
     @patch("retrieve.indexing.search_index.SearchIndexerClient")
     @patch("retrieve.indexing.search_index.SearchIndexClient")
     @patch("retrieve.indexing.search_index.DefaultAzureCredential")
-    def test_create_keyword_index(self, mock_cred, mock_idx_client, mock_idxr_client):
+    def test_create_keyword_index(
+        self, mock_cred, mock_idx_client, mock_idxr_client, mock_rest_put
+    ):
         from retrieve.indexing.search_index import create_index_for_architecture
 
         create_index_for_architecture(
@@ -636,12 +639,16 @@ class TestSearchIndexBuilder:
         # Should have created: data source, index, indexer + run
         mock_idxr_client.return_value.create_or_update_data_source_connection.assert_called_once()
         mock_idx_client.return_value.create_or_update_index.assert_called_once()
-        mock_idxr_client.return_value.create_or_update_indexer.assert_called_once()
+        indexer_payload = mock_rest_put.call_args.args[2]
+        assert indexer_payload["executionEnvironment"] == "private"
 
+    @patch("retrieve.indexing.search_index._search_rest_put")
     @patch("retrieve.indexing.search_index.SearchIndexerClient")
     @patch("retrieve.indexing.search_index.SearchIndexClient")
     @patch("retrieve.indexing.search_index.DefaultAzureCredential")
-    def test_create_hybrid_index(self, mock_cred, mock_idx_client, mock_idxr_client):
+    def test_create_hybrid_index(
+        self, mock_cred, mock_idx_client, mock_idxr_client, mock_rest_put
+    ):
         from retrieve.indexing.search_index import create_index_for_architecture
 
         create_index_for_architecture(
@@ -656,12 +663,16 @@ class TestSearchIndexBuilder:
         mock_idxr_client.return_value.create_or_update_data_source_connection.assert_called_once()
         mock_idxr_client.return_value.create_or_update_skillset.assert_called_once()
         mock_idx_client.return_value.create_or_update_index.assert_called_once()
-        mock_idxr_client.return_value.create_or_update_indexer.assert_called_once()
+        indexer_payload = mock_rest_put.call_args.args[2]
+        assert indexer_payload["executionEnvironment"] == "private"
 
+    @patch("retrieve.indexing.search_index._search_rest_put")
     @patch("retrieve.indexing.search_index.SearchIndexerClient")
     @patch("retrieve.indexing.search_index.SearchIndexClient")
     @patch("retrieve.indexing.search_index.DefaultAzureCredential")
-    def test_create_hybrid_reranker_index(self, mock_cred, mock_idx_client, mock_idxr_client):
+    def test_create_hybrid_reranker_index(
+        self, mock_cred, mock_idx_client, mock_idxr_client, mock_rest_put
+    ):
         from retrieve.indexing.search_index import create_index_for_architecture
 
         create_index_for_architecture(
@@ -674,7 +685,8 @@ class TestSearchIndexBuilder:
         )
         # Same as hybrid but with semantic config
         mock_idx_client.return_value.create_or_update_index.assert_called_once()
-        mock_idxr_client.return_value.create_or_update_indexer.assert_called_once()
+        indexer_payload = mock_rest_put.call_args.args[2]
+        assert indexer_payload["executionEnvironment"] == "private"
 
     def test_unimplemented_architecture(self):
         from retrieve.indexing.search_index import create_index_for_architecture
@@ -702,7 +714,7 @@ class TestSearchIndexBuilder:
                 cohere_key="secret-key",
             )
 
-        assert mock_put.call_count == 2
+        assert mock_put.call_count == 3
         index_payload = mock_put.call_args_list[0].args[2]
         assert index_payload["fields"][-1]["dimensions"] == 1024
         vectorizer = index_payload["vectorSearch"]["vectorizers"][0]
@@ -719,8 +731,11 @@ class TestSearchIndexBuilder:
         mapping = skillset_payload["indexProjections"]["selectors"][0]["mappings"][1]
         assert mapping["source"] == "/document/chunks/*/aml_vector_data/float/0"
 
+        indexer_payload = mock_put.call_args_list[2].args[2]
+        assert indexer_payload["executionEnvironment"] == "private"
+
         mock_indexer_client.return_value.create_or_update_skillset.assert_not_called()
-        mock_indexer_client.return_value.create_or_update_indexer.assert_called_once()
+        mock_indexer_client.return_value.create_or_update_indexer.assert_not_called()
 
     def test_foundry_cohere_multivector_requires_key(self):
         from retrieve.indexing.advanced import create_multivector_index
@@ -753,7 +768,7 @@ class TestSearchIndexBuilder:
                 custom_embedding_header_name="x-api-key",
             )
 
-        assert mock_put.call_count == 2
+        assert mock_put.call_count == 3
         index_payload = mock_put.call_args_list[0].args[2]
         assert index_payload["fields"][-1]["dimensions"] == 1024
         vectorizer = index_payload["vectorSearch"]["vectorizers"][0]
@@ -771,8 +786,11 @@ class TestSearchIndexBuilder:
         mapping = skillset_payload["indexProjections"]["selectors"][0]["mappings"][1]
         assert mapping["source"] == "/document/chunks/*/content_vector"
 
+        indexer_payload = mock_put.call_args_list[2].args[2]
+        assert indexer_payload["executionEnvironment"] == "private"
+
         mock_indexer_client.return_value.create_or_update_skillset.assert_not_called()
-        mock_indexer_client.return_value.create_or_update_indexer.assert_called_once()
+        mock_indexer_client.return_value.create_or_update_indexer.assert_not_called()
 
     def test_custom_web_api_multivector_requires_known_dimensions(self):
         from retrieve.indexing.advanced import create_multivector_index

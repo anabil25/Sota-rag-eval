@@ -1,4 +1,5 @@
 node_modules/
+.git/
 build/
 .svelte-kit/
 __pycache__/
@@ -12,7 +13,6 @@ test-results/
 .lightrag/
 *.egg-info/
 dist/
-corpus/
 coverage/
 docs/
 manual-validation/

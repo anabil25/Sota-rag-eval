@@ -13,6 +13,9 @@ param graphJobName string
 @description('User-assigned managed identity resource ID')
 param managedIdentityResourceId string
 
+@description('Container Apps infrastructure subnet resource ID')
+param infrastructureSubnetId string
+
 @description('Azure Container Registry login server')
 param registryServer string
 
@@ -60,6 +63,10 @@ resource managedEnvironment 'Microsoft.App/managedEnvironments@2025-07-01' = {
         customerId: logAnalyticsCustomerId
         sharedKey: logAnalyticsSharedKey
       }
+    }
+    vnetConfiguration: {
+      infrastructureSubnetId: infrastructureSubnetId
+      internal: false
     }
     workloadProfiles: [
       {

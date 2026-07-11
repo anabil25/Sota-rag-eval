@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -79,7 +81,7 @@ def test_postprovision_skips_when_manifest_is_absent(monkeypatch, tmp_path, caps
     assert "skipping corpus upload" in capsys.readouterr().out
 
 
-def test_postprovision_uploads_verified_manifest(monkeypatch, tmp_path):
+def test_postprovision_seeds_verified_manifest_in_azure(monkeypatch, tmp_path):
     hook = _load_script("postprovision")
     document = ConvertedDoc(
         policy_id="100",
@@ -94,10 +96,49 @@ def test_postprovision_uploads_verified_manifest(monkeypatch, tmp_path):
         [build_manifest_entry(document, output, tmp_path)],
     )
     monkeypatch.setenv("RETRIEVE_CORPUS_DIR", str(tmp_path))
-    monkeypatch.setenv("AZURE_STORAGE_ACCOUNT_NAME", "teststore")
-    monkeypatch.setenv("AZURE_STORAGE_CORPUS_CONTAINER", "corpus")
-    calls = {}
-    plan = hook.BlobMirrorPlan(
+    monkeypatch.setenv("AZURE_RESOURCE_GROUP", "rg-test")
+    monkeypatch.setenv("AZURE_SUBSCRIPTION_ID", "sub-test")
+    monkeypatch.setenv("AZURE_GRAPHRAG_JOB_NAME", "azgrjtest")
+    commands = []
+    starts = []
+    persisted = {}
+
+    def run(command, operation, **_kwargs):
+        commands.append((command, operation))
+        return SimpleNamespace(stdout=json.dumps({"properties": {"status": "Succeeded"}}))
+
+    def start(**kwargs):
+        starts.append(kwargs)
+        return "seed-execution"
+
+    monkeypatch.setattr(hook, "_run_with_auth_retry", run)
+    monkeypatch.setattr(hook, "start_container_job", start)
+    monkeypatch.setattr(hook, "set_azd_value", persisted.__setitem__)
+
+    hook.upload_canonical_corpus(delays=())
+
+    assert "GRAPH_WORKER_MODE=seed" in starts[0]["environment"]
+    assert starts[0]["subscription_id"] == "sub-test"
+    assert commands[0][1] == "Azure-side corpus seed status"
+    assert persisted["RETRIEVE_CORPUS_FINGERPRINT"] == manifest["corpus_fingerprint"]
+
+
+def test_worker_seed_enforces_manifest_bounded_mirror(monkeypatch, tmp_path):
+    from retrieve.graphrag_worker import run_job
+
+    document = ConvertedDoc(
+        policy_id="100",
+        title="Policy",
+        parent="",
+        source_url="https://example.test/100.htm",
+        markdown="Policy body",
+    )
+    output = save_doc(document, tmp_path)
+    manifest = write_corpus_manifest(
+        tmp_path,
+        [build_manifest_entry(document, output, tmp_path)],
+    )
+    plan = run_job.BlobMirrorPlan(
         corpus_fingerprint=manifest["corpus_fingerprint"],
         document_count=1,
         uploads=("100/100_policy.md",),
@@ -106,22 +147,114 @@ def test_postprovision_uploads_verified_manifest(monkeypatch, tmp_path):
         unmanaged=(),
         remote_manifest_found=False,
     )
+    calls = []
 
-    def upload(corpus, account, container, *, dry_run=False, expected_plan=None):
-        calls.update(corpus=corpus, account=account, container=container)
-        if dry_run:
-            return plan
-        assert expected_plan == plan
-        return 1
+    def upload(*args, **kwargs):
+        calls.append((args, kwargs))
+        return plan if kwargs.get("dry_run") else 1
 
-    monkeypatch.setattr(hook, "upload_corpus", upload)
-    monkeypatch.setattr(hook, "set_azd_value", calls.__setitem__)
+    monkeypatch.setenv("BUNDLED_CORPUS_DIR", str(tmp_path))
+    monkeypatch.setenv("STORAGE_ACCOUNT_NAME", "teststore")
+    monkeypatch.setenv("CORPUS_CONTAINER_NAME", "corpus")
+    monkeypatch.setattr(run_job, "upload_corpus", upload)
 
-    hook.upload_canonical_corpus()
+    result = run_job.seed_canonical_corpus()
 
-    assert calls["account"] == "teststore"
-    assert calls["container"] == "corpus"
-    assert calls["RETRIEVE_CORPUS_FINGERPRINT"] == manifest["corpus_fingerprint"]
+    assert result["state"] == "succeeded"
+    assert result["corpus_fingerprint"] == manifest["corpus_fingerprint"]
+    assert calls[1][1]["expected_plan"] == plan
+
+
+def test_postprovision_approves_search_storage_private_link(monkeypatch):
+    hook = _load_script("postprovision")
+    values = {
+        "AZURE_RESOURCE_GROUP": "rg-test",
+        "AZURE_SUBSCRIPTION_ID": "sub-test",
+        "AZURE_SEARCH_SERVICE_NAME": "azsrtest",
+        "AZURE_STORAGE_ACCOUNT_NAME": "azsttest",
+    }
+    for name, value in values.items():
+        monkeypatch.setenv(name, value)
+    shared_link_reads = 0
+    approvals = []
+
+    def run(command, operation, **_kwargs):
+        nonlocal shared_link_reads
+        if "shared-private-link-resource" in command:
+            shared_link_reads += 1
+            status = "Pending" if shared_link_reads == 1 else "Approved"
+            return SimpleNamespace(
+                stdout=json.dumps(
+                    {"properties": {"provisioningState": "Succeeded", "status": status}}
+                )
+            )
+        if "list" in command:
+            return SimpleNamespace(
+                stdout=json.dumps(
+                    [
+                        {
+                            "id": "/storage/privateEndpointConnections/search",
+                            "properties": {
+                                "privateLinkServiceConnectionState": {"status": "Pending"}
+                            },
+                        }
+                    ]
+                )
+            )
+        approvals.append((command, operation))
+        return SimpleNamespace(stdout="")
+
+    monkeypatch.setattr(hook, "_run_with_auth_retry", run)
+    monkeypatch.setattr(hook.time, "sleep", lambda _delay: None)
+
+    hook.approve_search_storage_private_link(delays=(0,))
+
+    assert approvals[0][1] == "Search Storage private endpoint approval"
+
+
+def test_postprovision_publishes_content_addressed_graph_image(monkeypatch):
+    hook = _load_script("postprovision")
+    values = {
+        "AZURE_CONTAINER_REGISTRY_NAME": "azcrtest",
+        "AZURE_CONTAINER_REGISTRY_ENDPOINT": "azcrtest.azurecr.io",
+        "AZURE_RESOURCE_GROUP": "rg-test",
+        "AZURE_GRAPHRAG_JOB_NAME": "azgrjtest",
+    }
+    for name, value in values.items():
+        monkeypatch.setenv(name, value)
+    calls = []
+    persisted = {}
+    monkeypatch.setattr(hook, "graph_image_tag", lambda: "abc123")
+    monkeypatch.setattr(
+        hook,
+        "_run_with_auth_retry",
+        lambda command, operation: calls.append((command, operation)),
+    )
+    monkeypatch.setattr(hook, "set_azd_value", persisted.__setitem__)
+
+    hook.publish_graph_image()
+
+    assert calls[0][0][:3] == ["az", "acr", "build"]
+    assert "retrieve-graphrag:abc123" in calls[0][0]
+    assert calls[1][0][:4] == ["az", "containerapp", "job", "update"]
+    assert persisted["RETRIEVE_GRAPHRAG_IMAGE"] == ("azcrtest.azurecr.io/retrieve-graphrag:abc123")
+
+
+def test_postprovision_retries_transient_authorization(monkeypatch):
+    hook = _load_script("postprovision")
+    results = iter(
+        [
+            type("Result", (), {"returncode": 1, "stdout": "", "stderr": "AuthorizationFailed"})(),
+            type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})(),
+        ]
+    )
+    sleeps = []
+    monkeypatch.setattr(hook.subprocess, "run", lambda *args, **kwargs: next(results))
+    monkeypatch.setattr(hook.time, "sleep", sleeps.append)
+
+    hook._run_with_auth_retry(["az", "example"], "example", delays=(1,))
+
+    assert sleeps == [1]
 
 
 def test_postprovision_syncs_localhost_contract_and_selected_architectures(monkeypatch, tmp_path):

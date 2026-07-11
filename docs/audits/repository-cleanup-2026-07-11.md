@@ -33,6 +33,16 @@ The aggregate hash is SHA-256 over sorted lines of `<file-sha256><two spaces><wo
 
 The following remain local and ignored: corpus generations, GraphRAG/LightRAG state, SQLite/WAL/SHM, local YAML, logs, coverage, test results, build output, Playwright output, and generated CSV exports.
 
+## Canonical corpus recovery
+
+- Corrupt mixed-generation tree: 3,497 files, 14,560,175 bytes, aggregate SHA-256 `a5f76b356c8ee53e1030966e86b51d914b0550ef01c0e3bef339a8578f38e9c0`.
+- Disposition: moved outside the repository to `retrieve-ui-corpus-quarantine-20260711`.
+- Authoritative candidate: 1,617 pages ingested on 2026-05-09; March and April recursive generations were excluded.
+- Canonical tree: 1,617 Markdown files plus manifest, 8,398,958 bytes, aggregate SHA-256 `6f499ab1849eaeb05adcb362ff00ed794868125f0a67852e69df36e8cd77d0a9` at promotion time.
+- Corpus fingerprint: `4fff6583bdc9113be4052735f8076c8d4ccfb8294eb6a6d4278fdaeb6f6f10a2`.
+- Validation: complete manifest, strict YAML, portable relative source IDs, unique document IDs and basenames, body-hash parity, and zero unmapped references in the active 27-question golden set.
+- SQLite was backed up outside the repository as `retrieve-ui-state-backup-20260711.db` before active-set evidence migration. Historical eval sets were preserved unchanged because they describe older corpus generations.
+
 ## Validation gate
 
 Cleanup is accepted only after frontend lint/check/tests/build, complete Python tests, Bicep lint/build/topology assertions, GraphRAG image build/non-root inspection, reference scans, privacy/secret scans, and generated-path scans pass.

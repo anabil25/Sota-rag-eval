@@ -74,35 +74,38 @@ def validate_source_output_paths(source: str, output_dir: str) -> None:
 
 def save_doc(doc: ConvertedDoc, output_dir: Path) -> Path:
     """Save a ConvertedDoc as a Markdown file with YAML frontmatter."""
-    # Determine subfolder from policy_id (e.g. "101-3" → "101/")
-    parts = doc.policy_id.split("-")
-    subfolder = parts[0] if parts[0].isdigit() else ""
-
-    # Build filename — truncate to avoid Windows 260-char path limit
-    safe_title = doc.title.lower().replace(" ", "_").replace("/", "_")
-    safe_title = "".join(c for c in safe_title if c.isalnum() or c in "_-")
-    # Avoid doubled names when policy_id was derived from the title itself
-    # (e.g. policy_id="addendum_100_a_-_confidentiality" plus a matching title
-    # would otherwise repeat that full identifier in the generated filename).
-    if doc.policy_id and safe_title.startswith(doc.policy_id.lower()):
-        stem = safe_title
-    elif doc.policy_id == safe_title:
-        stem = safe_title
+    relative_path_value = str(doc.metadata.get("relative_path") or "").replace("\\", "/")
+    if relative_path_value:
+        relative_path = Path(relative_path_value)
+        if (
+            relative_path.is_absolute()
+            or ".." in relative_path.parts
+            or relative_path.suffix.lower() != ".md"
+        ):
+            raise ValueError(f"Unsafe Markdown output path: {relative_path_value}")
+        out_path = output_dir / relative_path
     else:
-        stem = f"{doc.policy_id}_{safe_title}" if doc.policy_id else safe_title
-    # Leave room for directory path + .md extension
-    max_stem = 120
-    if len(stem) > max_stem:
-        stem = stem[:max_stem]
-    filename = f"{stem}.md"
+        parts = doc.policy_id.split("-")
+        subfolder = parts[0] if parts[0].isdigit() else ""
+        safe_title = doc.title.lower().replace(" ", "_").replace("/", "_")
+        safe_title = "".join(c for c in safe_title if c.isalnum() or c in "_-")
+        if doc.policy_id and safe_title.startswith(doc.policy_id.lower()):
+            stem = safe_title
+        elif doc.policy_id == safe_title:
+            stem = safe_title
+        else:
+            stem = f"{doc.policy_id}_{safe_title}" if doc.policy_id else safe_title
+        out_path = output_dir / subfolder / f"{stem[:120]}.md"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    out_dir = output_dir / subfolder if subfolder else output_dir
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / filename
+    document_id = str(doc.metadata.get("document_id") or doc.policy_id).strip()
+    if not document_id:
+        raise ValueError("Converted document requires a stable document_id or policy_id")
 
     # Let the YAML serializer quote paths, colons, and embedded quotes safely.
     frontmatter_data: dict[str, object] = {
         "policy_id": doc.policy_id,
+        "document_id": document_id,
         "title": doc.title,
         "parent": doc.parent,
         "source_url": doc.source_url,

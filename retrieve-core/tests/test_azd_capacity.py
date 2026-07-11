@@ -9,6 +9,7 @@ from retrieve.config import RetrieveConfig
 from retrieve.provision.azd import (
     RegionCapacityAssessment,
     RegionUnavailableError,
+    _selected_architectures,
     assess_region_capacity,
     classify_deployment_failure,
     provision_architectures,
@@ -64,6 +65,25 @@ def test_capacity_assessment_rejects_exhausted_search_quota(mock_search):
 )
 def test_deployment_failure_classification(message, expected):
     assert classify_deployment_failure(message) == expected
+
+
+def test_persisted_ui_architectures_override_yaml_defaults(tmp_path):
+    from retrieve.db import RetrieveDB
+
+    config_path = tmp_path / "retrieve.yaml"
+    config_path.write_text("architectures: [hybrid]\n", encoding="utf-8")
+    cfg = RetrieveConfig(db_path="retrieve.db", architectures=["hybrid"])
+    db = RetrieveDB(tmp_path / "retrieve.db")
+    db.upsert_generation_preferences(
+        {"selected_architectures": ["hybrid-reranker", "graphrag"]},
+        "ui_session",
+    )
+    db.close()
+
+    assert _selected_architectures(cfg, config_path) == [
+        "hybrid-reranker",
+        "graphrag",
+    ]
 
 
 @patch("retrieve.provision.azd.load_config")

@@ -1,6 +1,7 @@
 """Tests for durable asynchronous GraphRAG architecture reconciliation."""
 
 import json
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -141,15 +142,15 @@ def test_tampered_status_url_fails_without_request(mock_get, tmp_path):
     db.close()
 
 
-@patch("retrieve.indexing.reconcile._load_job_blob_status")
-@patch("retrieve.indexing.reconcile.subprocess.run")
-def test_container_job_and_durable_status_must_both_succeed(mock_run, mock_blob_status, tmp_path):
+@patch("retrieve.indexing.reconcile._load_container_job_result")
+@patch("retrieve.indexing.reconcile.get_container_job_execution")
+def test_container_job_and_durable_status_must_both_succeed(
+    mock_execution, mock_durable_status, tmp_path
+):
     db = RetrieveDB(tmp_path / "retrieve.db")
     architecture = _job_architecture(db)
-    mock_run.return_value = SimpleNamespace(
-        stdout=json.dumps({"properties": {"status": "Succeeded"}})
-    )
-    mock_blob_status.return_value = {
+    mock_execution.return_value = {"properties": {"status": "Succeeded"}}
+    mock_durable_status.return_value = {
         "job_id": "job123",
         "state": "succeeded",
         "artifact_prefix": f"runs/{'f' * 64}/job123",
@@ -162,30 +163,29 @@ def test_container_job_and_durable_status_must_both_succeed(mock_run, mock_blob_
 
     assert reconciled["status"] == "active"
     assert reconciled["config"]["cloud_index_status"] == "succeeded"
-    command = mock_run.call_args.args[0]
-    assert command[:5] == ["az", "containerapp", "job", "execution", "show"]
-    assert "azgrjtest-abc" in command
+    mock_execution.assert_called_once_with(
+        job_name="azgrjtest",
+        execution_name="azgrjtest-abc",
+        resource_group="rg-test",
+        subscription_id="sub-test",
+    )
     db.close()
 
 
-@patch("retrieve.indexing.reconcile._load_job_blob_status")
-@patch("retrieve.indexing.reconcile.subprocess.run")
+@patch("retrieve.indexing.reconcile._load_container_job_result")
+@patch("retrieve.indexing.reconcile.get_container_job_execution")
 def test_hard_failed_container_job_overrides_stale_running_blob(
-    mock_run, mock_blob_status, tmp_path
+    mock_execution, mock_durable_status, tmp_path
 ):
     db = RetrieveDB(tmp_path / "retrieve.db")
     architecture = _job_architecture(db)
-    mock_run.return_value = SimpleNamespace(
-        stdout=json.dumps(
-            {
-                "properties": {
-                    "status": "Failed",
-                    "statusDetails": "Replica timeout",
-                }
-            }
-        )
-    )
-    mock_blob_status.return_value = {
+    mock_execution.return_value = {
+        "properties": {
+            "status": "Failed",
+            "statusDetails": "Replica timeout",
+        }
+    }
+    mock_durable_status.return_value = {
         "job_id": "job123",
         "state": "running",
         "artifact_prefix": f"runs/{'f' * 64}/job123",
@@ -196,3 +196,73 @@ def test_hard_failed_container_job_overrides_stale_running_blob(
     assert reconciled["status"] == "failed"
     assert reconciled["config"]["cloud_index_error"] == "Replica timeout"
     db.close()
+
+
+@patch("retrieve.indexing.container_job.requests.post")
+@patch("retrieve.indexing.container_job.requests.get")
+@patch("retrieve.indexing.container_job.subprocess.run")
+def test_container_job_control_plane_preserves_template(mock_run, mock_get, mock_post):
+    from retrieve.indexing.container_job import start_container_job
+
+    mock_run.return_value = SimpleNamespace(stdout=json.dumps({"accessToken": "token"}))
+    job_response = MagicMock()
+    job_response.status_code = 200
+    job_response.json.return_value = {
+        "properties": {
+            "template": {
+                "containers": [
+                    {
+                        "name": "graphrag",
+                        "image": "registry/retrieve:tag",
+                        "resources": {"cpu": 2.0, "memory": "8Gi"},
+                        "env": [{"name": "STORAGE_ACCOUNT_NAME", "value": "store"}],
+                    }
+                ],
+                "volumes": None,
+            }
+        }
+    }
+    execution_response = MagicMock()
+    execution_response.status_code = 200
+    execution_response.json.return_value = {"name": "execution-123"}
+    persisted_execution_response = MagicMock()
+    persisted_execution_response.status_code = 200
+    persisted_execution_response.json.return_value = {
+        "name": "execution-123",
+        "properties": {
+            "template": {
+                "containers": [
+                    {
+                        "name": "graphrag",
+                        "env": [
+                            {"name": "STORAGE_ACCOUNT_NAME", "value": "store"},
+                            {"name": "GRAPH_WORKER_MODE", "value": "query"},
+                        ],
+                    }
+                ]
+            }
+        },
+    }
+    mock_get.side_effect = [job_response, persisted_execution_response]
+    mock_post.return_value = execution_response
+
+    execution_name = start_container_job(
+        job_name="azgrjtest",
+        resource_group="rg-test",
+        subscription_id="sub-test",
+        environment=["GRAPH_WORKER_MODE=query"],
+    )
+
+    assert execution_name == "execution-123"
+    command = mock_run.call_args.args[0]
+    assert Path(command[0]).stem.lower() == "az"
+    assert command[1:4] == ["account", "get-access-token", "--resource"]
+    template = mock_post.call_args.kwargs["json"]
+    assert "volumes" not in template
+    assert template["containers"][0]["image"] == "registry/retrieve:tag"
+    assert template["containers"][0]["resources"] == {"cpu": 2.0, "memory": "8Gi"}
+    assert template["containers"][0]["env"] == [
+        {"name": "STORAGE_ACCOUNT_NAME", "value": "store"},
+        {"name": "GRAPH_WORKER_MODE", "value": "query"},
+    ]
+    assert mock_get.call_count == 2

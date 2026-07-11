@@ -14,6 +14,24 @@ from retrieve.ingest.plugin import ConvertedDoc
 from retrieve.ingest.run import save_doc
 
 
+def test_blob_credential_binds_hosted_user_assigned_identity(monkeypatch):
+    import retrieve.indexing.blob_upload as blob_upload
+
+    monkeypatch.setenv("AZURE_CLIENT_ID", "client-123")
+    monkeypatch.setenv("IDENTITY_ENDPOINT", "http://identity.internal")
+    managed = MagicMock()
+    cli = MagicMock()
+    chain = MagicMock()
+    monkeypatch.setattr(blob_upload, "ManagedIdentityCredential", managed)
+    monkeypatch.setattr(blob_upload, "AzureCliCredential", cli)
+    monkeypatch.setattr(blob_upload, "ChainedTokenCredential", chain)
+
+    blob_upload._build_credential()
+
+    managed.assert_called_once_with(client_id="client-123")
+    chain.assert_called_once_with(managed.return_value, cli.return_value)
+
+
 class TestBlobUpload:
     @staticmethod
     def _write_generation(root: Path, docs: list[ConvertedDoc]) -> dict:

@@ -12,7 +12,9 @@ from urllib.parse import urlencode
 
 import requests
 
+from retrieve.cli_process import resolve_cli_command
 from retrieve.config import RetrieveConfig, load_config
+from retrieve.db import RetrieveDB
 from retrieve.observability import emit_progress
 
 REGION_CANDIDATES = (
@@ -84,7 +86,7 @@ def _run(
     env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        command,
+        resolve_cli_command(command),
         cwd=_PROJECT_ROOT,
         env=env,
         check=check,
@@ -306,6 +308,25 @@ def _cleanup_failed_attempt(environment_name: str, subscription_id: str) -> None
         raise RuntimeError(f"Failed to clean isolated regional deployment attempt: {details}")
 
 
+def _selected_architectures(
+    cfg: RetrieveConfig,
+    config_path: str | Path,
+) -> list[str]:
+    config_target = Path(config_path).resolve()
+    db_path = Path(cfg.db_path)
+    if not db_path.is_absolute():
+        db_path = config_target.parent / db_path
+    db = RetrieveDB(db_path)
+    try:
+        session = db.get_generation_preferences("ui_session") or {}
+    finally:
+        db.close()
+    selected = session.get("selected_architectures")
+    if isinstance(selected, list) and selected:
+        return [str(name) for name in selected if str(name).strip()]
+    return list(cfg.architectures)
+
+
 def provision_architectures(
     cfg: RetrieveConfig,
     *,
@@ -326,6 +347,7 @@ def provision_architectures(
     chat_capacity = int(_azd_value("AZURE_OPENAI_CHAT_CAPACITY") or 10)
     embedding_capacity = int(_azd_value("AZURE_OPENAI_EMBEDDING_CAPACITY") or 100)
     config_target = Path(config_path).resolve()
+    cfg.architectures = _selected_architectures(cfg, config_target)
     command_env = os.environ.copy()
     command_env.update(
         {

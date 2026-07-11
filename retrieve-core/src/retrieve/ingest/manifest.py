@@ -72,8 +72,9 @@ def build_manifest_entry(
         raise ValueError(f"Corpus manifest entries must be Markdown files: {relative_path}")
 
     file_bytes = resolved_output.read_bytes()
+    document_id = str(doc.metadata.get("document_id") or doc.policy_id).strip()
     return {
-        "document_id": doc.policy_id or logical_source_id(doc.source_url),
+        "document_id": document_id or logical_source_id(doc.source_url),
         "graphrag_document_id": _graphrag_document_id(file_bytes),
         "source_id": logical_source_id(doc.source_url, doc.policy_id),
         "source_url": normalize_source(doc.source_url),

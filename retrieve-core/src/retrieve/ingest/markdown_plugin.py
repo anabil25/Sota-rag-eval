@@ -83,13 +83,21 @@ class MarkdownPlugin(IngestPlugin):
             m = re.match(r"^(\d+(?:-\d+)?)", stem)
             policy_id = m.group(1) if m else stem
 
+        relative_path = Path(page.href).as_posix()
+        document_id = str(
+            (fm or {}).get("document_id") or Path(relative_path).with_suffix("").as_posix()
+        )
         return ConvertedDoc(
             policy_id=policy_id,
             title=page.title,
             parent=parent,
-            source_url=page.source_url,
+            source_url=relative_path,
             markdown=body,
             cross_references=cross_refs,
+            metadata={
+                "document_id": document_id,
+                "relative_path": relative_path,
+            },
         )
 
     @staticmethod

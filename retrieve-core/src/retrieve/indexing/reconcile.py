@@ -8,16 +8,26 @@ from datetime import UTC, datetime
 from typing import Any
 
 import requests
-from azure.core.exceptions import ResourceNotFoundError
-from azure.storage.blob import BlobServiceClient
 
 from retrieve.db import RetrieveDB
-from retrieve.indexing.blob_upload import _build_credential
+from retrieve.graphrag_worker.protocol import parse_job_result
+from retrieve.indexing.container_job import (
+    container_job_state,
+    get_container_job_execution,
+    get_container_job_logs,
+)
 
 _TERMINAL_FAILURE_STATES = {"failed", "cancelled", "canceled", "timed_out", "timeout"}
 _IN_PROGRESS_STATES = {"queued", "preparing", "running", "started", "indexing"}
 _AZURE_SUCCESS_STATES = {"succeeded", "success", "completed"}
-_AZURE_FAILURE_STATES = {"failed", "cancelled", "canceled", "timedout", "timed_out"}
+_AZURE_FAILURE_STATES = {
+    "failed",
+    "cancelled",
+    "canceled",
+    "stopped",
+    "timedout",
+    "timed_out",
+}
 
 
 def _now() -> str:
@@ -49,28 +59,17 @@ def _expected_status_url(config: dict[str, Any]) -> str:
     return expected
 
 
-def _load_job_blob_status(config: dict[str, Any]) -> dict[str, Any] | None:
-    storage_account = str(config.get("storage_account") or "").strip()
-    container_name = str(config.get("graph_output_container") or "graphrag").strip()
-    status_blob = str(config.get("graph_worker_status_blob") or "").strip().strip("/")
-    if not storage_account or not container_name or not status_blob:
-        raise ValueError(
-            "GraphRAG Container Apps Job reconciliation requires storage and status Blob metadata"
-        )
-    blob_service = BlobServiceClient(
-        account_url=f"https://{storage_account}.blob.core.windows.net",
-        credential=_build_credential(),
+def _load_container_job_result(config: dict[str, Any]) -> dict[str, Any]:
+    logs = get_container_job_logs(
+        job_name=str(config.get("graph_job_name") or ""),
+        execution_name=str(config.get("graph_job_execution_name") or ""),
+        resource_group=str(config.get("resource_group") or ""),
+        subscription_id=str(config.get("subscription_id") or ""),
     )
-    try:
-        payload = (
-            blob_service.get_container_client(container_name).download_blob(status_blob).readall()
-        )
-    except ResourceNotFoundError:
-        return None
-    status = json.loads(bytes(payload).decode("utf-8"))
-    if not isinstance(status, dict):
-        raise ValueError("GraphRAG durable job status must be a JSON object")
-    return status
+    result = parse_job_result(logs)
+    if result.get("kind") != "index" or not isinstance(result.get("status"), dict):
+        raise ValueError("Container Apps Job logs contain no durable GraphRAG index status")
+    return result["status"]
 
 
 def _load_container_job_status(config: dict[str, Any]) -> dict[str, Any]:
@@ -82,45 +81,22 @@ def _load_container_job_status(config: dict[str, Any]) -> dict[str, Any]:
             "GraphRAG Container Apps Job reconciliation requires resource group, "
             "job, and execution names"
         )
-    command = [
-        "az",
-        "containerapp",
-        "job",
-        "execution",
-        "show",
-        "--resource-group",
-        resource_group,
-        "--name",
-        job_name,
-        "--job-execution-name",
-        execution_name,
-        "--output",
-        "json",
-        "--only-show-errors",
-    ]
     subscription_id = str(config.get("subscription_id") or "").strip()
-    if subscription_id:
-        command.extend(["--subscription", subscription_id])
-    result = subprocess.run(
-        command,
-        check=True,
-        capture_output=True,
-        text=True,
+    execution = get_container_job_execution(
+        job_name=job_name,
+        execution_name=execution_name,
+        resource_group=resource_group,
+        subscription_id=subscription_id,
     )
-    execution = json.loads(result.stdout)
-    if not isinstance(execution, dict):
-        raise ValueError("Container Apps Job execution response must be a JSON object")
-    execution_state = (
-        str((execution.get("properties") or {}).get("status") or execution.get("status") or "")
-        .strip()
-        .lower()
-    )
+    execution_state = container_job_state(execution)
     if not execution_state:
         raise ValueError("Container Apps Job execution did not report a status")
 
-    durable_status = _load_job_blob_status(config)
     if execution_state in _AZURE_FAILURE_STATES:
-        status = dict(durable_status or {})
+        try:
+            status = dict(_load_container_job_result(config))
+        except (ValueError, subprocess.CalledProcessError):
+            status = {}
         status.update(
             {
                 "job_id": str(config.get("graph_worker_job_id") or ""),
@@ -134,23 +110,18 @@ def _load_container_job_status(config: dict[str, Any]) -> dict[str, Any]:
         )
         return status
     if execution_state in _AZURE_SUCCESS_STATES:
-        if durable_status is None:
-            raise ValueError("Container Apps Job succeeded without a durable GraphRAG status Blob")
+        durable_status = _load_container_job_result(config)
         if str(durable_status.get("state") or "").lower() != "succeeded":
             raise ValueError(
                 "Container Apps Job completed but durable GraphRAG status is not succeeded"
             )
         return durable_status
 
-    status = dict(durable_status or {})
-    status.update(
-        {
-            "job_id": str(config.get("graph_worker_job_id") or ""),
-            "state": "running",
-            "message": str(status.get("message") or "Container Apps Job is running"),
-        }
-    )
-    return status
+    return {
+        "job_id": str(config.get("graph_worker_job_id") or ""),
+        "state": "running",
+        "message": "Container Apps Job is running",
+    }
 
 
 def _immutable_artifact_prefix(config: dict[str, Any], status: dict[str, Any]) -> str:

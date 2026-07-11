@@ -28,9 +28,6 @@
 		},
 		"searchSku": {
 			"value": "${AZURE_SEARCH_SKU=basic}"
-		},
-		"storagePublicNetworkAccess": {
-			"value": "${AZURE_STORAGE_PUBLIC_NETWORK_ACCESS=Enabled}"
 		}
 	}
 }

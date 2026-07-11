@@ -224,6 +224,116 @@ def test_localhost_query_reads_successful_blob_run(mock_load_config, mock_query,
     mock_query.assert_awaited_once()
 
 
+@patch("retrieve.indexing.advanced.get_container_job_logs")
+@patch("retrieve.indexing.advanced.wait_for_container_job")
+@patch("retrieve.indexing.advanced.start_container_job")
+@patch("retrieve.indexing.advanced.uuid.uuid4")
+def test_localhost_query_uses_private_container_job(
+    mock_uuid,
+    mock_start,
+    mock_wait,
+    mock_logs,
+):
+    from types import SimpleNamespace
+
+    from retrieve.graphrag_worker.protocol import decode_payload, format_job_result
+    from retrieve.indexing.advanced import query_graphrag
+
+    fingerprint = "f" * 64
+    mock_uuid.return_value = SimpleNamespace(hex="request123")
+    mock_start.return_value = "execution-123"
+    mock_logs.return_value = format_job_result(
+        {
+            "kind": "query",
+            "request_id": "request123",
+            "document_ids": ["100-3", "101"],
+            "latency_ms": 12.5,
+        }
+    )
+
+    document_ids, latency_ms = query_graphrag(
+        query="What is confidential?",
+        mode="local",
+        graph_job_name="azgrjtest",
+        resource_group="rg-test",
+        subscription_id="sub-test",
+        artifact_prefix=f"runs/{fingerprint}/job123",
+        corpus_fingerprint=fingerprint,
+    )
+
+    assert document_ids == ["100-3", "101"]
+    assert latency_ms >= 0
+    environment = mock_start.call_args.kwargs["environment"]
+    assert environment[0] == "GRAPH_WORKER_MODE=query"
+    payload = decode_payload(environment[1].split("=", 1)[1])
+    assert payload["request_id"] == "request123"
+    assert payload["query"]["artifact_prefix"] == f"runs/{fingerprint}/job123"
+    mock_wait.assert_called_once()
+
+
+def test_worker_query_returns_compact_structured_evidence(monkeypatch):
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from retrieve.graphrag.query import GraphRagCitation
+    from retrieve.graphrag_worker import run_job
+    from retrieve.graphrag_worker.protocol import encode_payload
+
+    fingerprint = "f" * 64
+    monkeypatch.setenv("STORAGE_ACCOUNT_NAME", "teststore")
+    monkeypatch.setenv("GRAPH_OUTPUT_CONTAINER", "graphrag")
+    monkeypatch.setenv("CORPUS_CONTAINER_NAME", "corpus")
+    monkeypatch.setenv(
+        "GRAPH_QUERY_PAYLOAD",
+        encode_payload(
+            {
+                "request_id": "request123",
+                "query": {
+                    "artifact_prefix": f"runs/{fingerprint}/job123",
+                    "corpus_fingerprint": fingerprint,
+                    "query": "What is confidential?",
+                    "mode": "local",
+                },
+            }
+        ),
+    )
+    monkeypatch.setattr(run_job, "_load_successful_run_config", lambda *args: object())
+    monkeypatch.setattr(
+        run_job,
+        "_load_remote_corpus_manifest",
+        lambda *args: {"corpus_fingerprint": fingerprint, "documents": []},
+    )
+    execute = AsyncMock(
+        return_value=SimpleNamespace(
+            answer="Confidential information is protected.",
+            mode="local",
+            text_unit_ids=("tu-1",),
+            document_ids=("100-3",),
+            citations=(
+                GraphRagCitation(
+                    text_unit_id="tu-1",
+                    document_id="100-3",
+                    graphrag_document_id="a" * 128,
+                    relative_path="100/100-3.md",
+                    source_url="https://example.test/100-3.htm",
+                    text="Confidential information is protected.",
+                ),
+            ),
+            latency_ms=12.5,
+        )
+    )
+    monkeypatch.setattr(run_job, "execute_graphrag_query", execute)
+
+    result = run_job.query_graphrag()
+
+    assert result["kind"] == "query"
+    assert result["request_id"] == "request123"
+    assert result["document_ids"] == ["100-3"]
+    assert result["citations"][0]["text_unit_id"] == "tu-1"
+    assert "text" not in result["citations"][0]
+    execute.assert_awaited_once()
+
+
 @pytest.mark.asyncio
 async def test_internal_query_endpoint_is_default_off(monkeypatch):
     from fastapi import HTTPException

@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
@@ -60,11 +61,13 @@ class BlobMirrorPlan:
 
 
 def _build_credential() -> ChainedTokenCredential:
-    """Prefer Azure CLI identity locally, then managed identity in hosted Azure."""
-    return ChainedTokenCredential(
-        AzureCliCredential(),
-        ManagedIdentityCredential(),
-    )
+    """Use the configured user identity in Azure and Azure CLI locally."""
+    client_id = os.environ.get("AZURE_CLIENT_ID", "").strip() or None
+    managed_identity = ManagedIdentityCredential(client_id=client_id)
+    azure_cli = AzureCliCredential()
+    hosted = bool(os.environ.get("IDENTITY_ENDPOINT") or os.environ.get("MSI_ENDPOINT"))
+    credentials = (managed_identity, azure_cli) if hosted else (azure_cli, managed_identity)
+    return ChainedTokenCredential(*credentials)
 
 
 def _is_auth_error(exc: Exception) -> bool:

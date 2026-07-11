@@ -7,8 +7,9 @@ RUN groupadd --system retrieve && useradd --system --gid retrieve --create-home 
 
 WORKDIR /app
 
-COPY --chown=retrieve:retrieve pyproject.toml ./
-COPY --chown=retrieve:retrieve src ./src
+COPY --chown=retrieve:retrieve retrieve-core/pyproject.toml ./
+COPY --chown=retrieve:retrieve retrieve-core/src ./src
+COPY --chown=retrieve:retrieve corpus ./corpus
 
 RUN pip install --no-cache-dir ".[graphrag]"
 

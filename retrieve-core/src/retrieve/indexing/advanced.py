@@ -60,6 +60,13 @@ from retrieve.graphrag.query import (
 )
 from retrieve.graphrag.safety import GraphRagRunScope, validate_graphrag_run_scope
 from retrieve.graphrag.settings import build_graphrag_settings, validate_graphrag_settings
+from retrieve.graphrag_worker.protocol import encode_payload, parse_job_result
+from retrieve.indexing.container_job import (
+    get_container_job_logs,
+    start_container_job,
+    wait_for_container_job,
+)
+from retrieve.indexing.search_index import build_private_indexer_payload
 from retrieve.ingest.manifest import build_document_id_aliases, load_corpus_manifest
 from retrieve.observability import emit_progress
 from retrieve.registry.models import EMBEDDING_MODELS
@@ -659,7 +666,14 @@ def create_multivector_index(
             },
         },
     )
-    indexer_client.create_or_update_indexer(indexer)
+    indexer_payload = build_private_indexer_payload(indexer)
+    _put_search_resource(
+        endpoint,
+        f"indexers/{quote(indexer.name, safe='')}",
+        indexer_payload,
+        credential,
+        api_version="2024-07-01",
+    )
     try:
         indexer_client.run_indexer(f"{index_name}-indexer")
     except Exception as e:
@@ -929,6 +943,7 @@ def run_graphrag_indexing(
         job_id = uuid.uuid4().hex
         artifact_prefix = f"runs/{corpus_fingerprint}/{job_id}"
         environment_values = [
+            "GRAPH_WORKER_MODE=index",
             f"GRAPH_WORKER_JOB_ID={job_id}",
             f"CORPUS_FINGERPRINT={corpus_fingerprint}",
             f"GRAPH_OUTPUT_PREFIX={artifact_prefix}",
@@ -938,36 +953,12 @@ def run_graphrag_indexing(
             f"GRAPHRAG_CHUNK_SIZE={chunk_size or ''}",
             f"GRAPHRAG_CHUNK_OVERLAP={chunk_overlap if chunk_overlap is not None else ''}",
         ]
-        command = [
-            "az",
-            "containerapp",
-            "job",
-            "start",
-            "--name",
-            graph_job_name,
-            "--resource-group",
-            resource_group,
-            "--container-name",
-            "graphrag",
-            "--env-vars",
-            *environment_values,
-            "--query",
-            "name",
-            "--output",
-            "tsv",
-            "--only-show-errors",
-        ]
-        if subscription_id:
-            command.extend(["--subscription", subscription_id])
-        result = subprocess.run(
-            command,
-            check=True,
-            capture_output=True,
-            text=True,
+        execution_name = start_container_job(
+            job_name=graph_job_name,
+            resource_group=resource_group,
+            subscription_id=subscription_id,
+            environment=environment_values,
         )
-        execution_name = result.stdout.strip()
-        if not execution_name:
-            raise RuntimeError("Container Apps Job did not return an execution name")
         estimate = "20-90 minutes for large corpora; refresh architecture status to check progress"
         emit_progress(
             f"GraphRAG Container Apps Job started ({estimate})",
@@ -1136,6 +1127,9 @@ def query_graphrag(
     ai_services_endpoint: str = "",
     function_endpoint: str = "",
     graph_worker_endpoint: str = "",
+    graph_job_name: str = "",
+    resource_group: str = "",
+    subscription_id: str = "",
     artifact_prefix: str = "",
     corpus_fingerprint: str = "",
     storage_account: str = "",
@@ -1174,6 +1168,66 @@ def query_graphrag(
         document_ids = data.get("document_ids")
         if not isinstance(document_ids, list):
             raise RuntimeError("GraphRAG worker returned invalid structured evidence")
+        latency_ms = (_time.perf_counter() - start) * 1000
+        return [str(document_id) for document_id in document_ids], latency_ms
+
+    if graph_job_name:
+        if not resource_group:
+            raise RuntimeError("GraphRAG Container Apps Job queries require a resource group")
+        if not artifact_prefix or not corpus_fingerprint:
+            raise RuntimeError(
+                "GraphRAG Container Apps Job queries require an immutable artifact prefix "
+                "and corpus fingerprint"
+            )
+        request_id = uuid.uuid4().hex
+        query_payload = encode_payload(
+            {
+                "request_id": request_id,
+                "query": {
+                    "artifact_prefix": artifact_prefix,
+                    "corpus_fingerprint": corpus_fingerprint,
+                    "query": query,
+                    "mode": mode,
+                },
+            }
+        )
+        execution_name = start_container_job(
+            job_name=graph_job_name,
+            resource_group=resource_group,
+            subscription_id=subscription_id,
+            environment=[
+                "GRAPH_WORKER_MODE=query",
+                f"GRAPH_QUERY_PAYLOAD={query_payload}",
+            ],
+        )
+        try:
+            wait_for_container_job(
+                job_name=graph_job_name,
+                execution_name=execution_name,
+                resource_group=resource_group,
+                subscription_id=subscription_id,
+            )
+        except RuntimeError as exc:
+            logs = get_container_job_logs(
+                job_name=graph_job_name,
+                execution_name=execution_name,
+                resource_group=resource_group,
+                subscription_id=subscription_id,
+            )
+            raise RuntimeError(f"{exc}\n{logs}".strip()) from exc
+        result = parse_job_result(
+            get_container_job_logs(
+                job_name=graph_job_name,
+                execution_name=execution_name,
+                resource_group=resource_group,
+                subscription_id=subscription_id,
+            )
+        )
+        if result.get("kind") != "query" or result.get("request_id") != request_id:
+            raise RuntimeError("GraphRAG query execution returned a mismatched result")
+        document_ids = result.get("document_ids")
+        if not isinstance(document_ids, list):
+            raise RuntimeError("GraphRAG query execution returned invalid structured evidence")
         latency_ms = (_time.perf_counter() - start) * 1000
         return [str(document_id) for document_id in document_ids], latency_ms
 

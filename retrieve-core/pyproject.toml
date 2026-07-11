@@ -14,7 +14,7 @@ dependencies = [
     "rich>=13.0",
     "pydantic>=2.0",
     "pyyaml>=6.0",
-    "github-copilot-sdk",
+    "github-copilot-sdk==0.2.0",
     "requests>=2.31",
     "azure-identity>=1.16",
     "azure-storage-blob>=12.20",

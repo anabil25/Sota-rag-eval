@@ -52,6 +52,17 @@ resource searchService 'Microsoft.Search/searchServices@2025-05-01' = {
   }
 }
 
+resource storageBlobSharedPrivateLink 'Microsoft.Search/searchServices/sharedPrivateLinkResources@2025-05-01' = {
+  parent: searchService
+  name: 'storage-blob'
+  properties: {
+    groupId: 'blob'
+    privateLinkResourceId: storageAccount.id
+    requestMessage: 'Retrieve Search indexer access to the private canonical corpus.'
+    resourceRegion: location
+  }
+}
+
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' existing = {
   name: storageAccountName
 }
