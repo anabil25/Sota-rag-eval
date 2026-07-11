@@ -16,7 +16,7 @@ param runtimePrincipalId string
 param deployerPrincipalId string = ''
 
 var acrPullRoleId = '7f951dda-4ed3-4680-a7ca-43fe172d538d'
-var acrPushRoleId = '8311e382-0749-4cb8-b61a-304f252e45ec'
+var acrTasksContributorRoleId = 'fb382eab-e894-4461-af04-94435c366c3f'
 
 resource registry 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' = {
   name: registryName
@@ -46,11 +46,11 @@ resource runtimeAcrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
-resource deployerAcrPush 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(deployerPrincipalId)) {
-  name: guid(registry.id, deployerPrincipalId, acrPushRoleId)
+resource deployerAcrTasksContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(deployerPrincipalId)) {
+  name: guid(registry.id, deployerPrincipalId, acrTasksContributorRoleId)
   scope: registry
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', acrPushRoleId)
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', acrTasksContributorRoleId)
     principalId: deployerPrincipalId
   }
 }

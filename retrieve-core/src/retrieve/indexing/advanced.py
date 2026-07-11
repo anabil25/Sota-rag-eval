@@ -840,6 +840,9 @@ def run_graphrag_indexing(
     cosmos_endpoint: str = "",
     function_endpoint: str = "",
     graph_worker_endpoint: str = "",
+    graph_job_name: str = "",
+    resource_group: str = "",
+    subscription_id: str = "",
     embedding_model: str = "text-embedding-3-large",
     llm_model: str = "gpt-4.1",
     output_dir: str = ".graphrag",
@@ -860,6 +863,70 @@ def run_graphrag_indexing(
     validate_graphrag_run_scope(run_scope, max_documents)
     corpus_manifest = load_corpus_manifest(corpus_dir)
     corpus_fingerprint = str(corpus_manifest["corpus_fingerprint"])
+
+    if graph_job_name:
+        if not resource_group:
+            raise RuntimeError("GraphRAG Container Apps Job requires a resource group")
+        job_id = uuid.uuid4().hex
+        artifact_prefix = f"runs/{corpus_fingerprint}/{job_id}"
+        environment_values = [
+            f"GRAPH_WORKER_JOB_ID={job_id}",
+            f"CORPUS_FINGERPRINT={corpus_fingerprint}",
+            f"GRAPH_OUTPUT_PREFIX={artifact_prefix}",
+            f"GRAPHRAG_METHOD={method}",
+            f"GRAPHRAG_RUN_SCOPE={run_scope}",
+            f"GRAPHRAG_MAX_DOCUMENTS={max_documents or ''}",
+        ]
+        command = [
+            "az",
+            "containerapp",
+            "job",
+            "start",
+            "--name",
+            graph_job_name,
+            "--resource-group",
+            resource_group,
+            "--container-name",
+            "graphrag",
+            "--env-vars",
+            *environment_values,
+            "--query",
+            "name",
+            "--output",
+            "tsv",
+            "--only-show-errors",
+        ]
+        if subscription_id:
+            command.extend(["--subscription", subscription_id])
+        result = subprocess.run(
+            command,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        execution_name = result.stdout.strip()
+        if not execution_name:
+            raise RuntimeError("Container Apps Job did not return an execution name")
+        estimate = "20-90 minutes for large corpora; refresh architecture status to check progress"
+        emit_progress(
+            f"GraphRAG Container Apps Job started ({estimate})",
+            stage="index.graphrag.started",
+            job_id=job_id,
+            execution_name=execution_name,
+            estimated_duration=estimate,
+        )
+        return {
+            "cloud_index_status": "started",
+            "graph_worker_job_id": job_id,
+            "graph_job_name": graph_job_name,
+            "graph_job_execution_name": execution_name,
+            "graph_worker_status_blob": f"jobs/{job_id}/status.json",
+            "graph_worker_artifact_prefix": artifact_prefix,
+            "corpus_fingerprint": corpus_fingerprint,
+            "graph_worker_run_scope": run_scope,
+            "graph_worker_max_documents": max_documents,
+            "graph_worker_estimate": estimate,
+        }
 
     if graph_worker_endpoint:
         console.print("  [cyan]graphrag[/cyan]: requesting cloud container indexing...")

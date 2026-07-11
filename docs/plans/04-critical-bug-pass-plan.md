@@ -47,7 +47,7 @@ Run an adversarial, evidence-based audit across the complete Step 1–7 workflow
 
 1. Create a bug register with severity, evidence, reproduction, owner, regression test, and disposition.
 2. Define P0/P1/P2 criteria.
-3. Use isolated local fixtures and a disposable Azure environment; do not mutate `rg-ret-test2`.
+3. Use isolated local fixtures and a disposable Azure environment; do not mutate the protected live resource group.
 4. Capture baseline checks and known failures.
 
 ## Phase 1 — Authentication, authorization, and cost control

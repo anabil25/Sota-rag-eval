@@ -75,7 +75,7 @@ class PdfPlugin(IngestPlugin):
                 title=page.title,
                 parent=page.parent,
                 raw_content=raw_content,
-                source_url=str(pdf_path.resolve()),
+                source_url=page.href,
             )
         except Exception as e:
             log.error("Failed to read PDF %s: %s", pdf_path, e)

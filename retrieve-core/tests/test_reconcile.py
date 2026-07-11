@@ -1,6 +1,7 @@
 """Tests for durable asynchronous GraphRAG architecture reconciliation."""
 
 import json
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import requests
@@ -34,6 +35,31 @@ def _response(payload: dict) -> MagicMock:
     response = MagicMock()
     response.json.return_value = payload
     return response
+
+
+def _job_architecture(db: RetrieveDB, fingerprint: str = "f" * 64) -> dict:
+    db.register_architecture(
+        "graphrag",
+        {
+            "resource_group": "rg-test",
+            "subscription_id": "sub-test",
+            "storage_account": "teststore",
+            "graph_output_container": "graphrag",
+            "graph_job_name": "azgrjtest",
+            "graph_job_execution_name": "azgrjtest-abc",
+            "graph_worker_job_id": "job123",
+            "graph_worker_status_blob": "jobs/job123/status.json",
+            "graph_worker_artifact_prefix": f"runs/{fingerprint}/job123",
+            "corpus_fingerprint": fingerprint,
+            "cloud_index_status": "started",
+            "graph_worker_run_scope": "sample",
+        },
+    )
+    db.conn.execute("UPDATE architectures SET status = 'indexing'")
+    db.conn.commit()
+    architecture = db.get_architecture("graphrag")
+    assert architecture is not None
+    return architecture
 
 
 @patch("retrieve.indexing.reconcile.requests.get")
@@ -120,4 +146,63 @@ def test_tampered_status_url_fails_without_request(mock_get, tmp_path):
     assert reconciled["status"] == "failed"
     assert "does not match" in reconciled["config"]["graph_worker_reconciliation_error"]
     mock_get.assert_not_called()
+    db.close()
+
+
+@patch("retrieve.indexing.reconcile._load_job_blob_status")
+@patch("retrieve.indexing.reconcile.subprocess.run")
+def test_container_job_and_durable_status_must_both_succeed(
+    mock_run, mock_blob_status, tmp_path
+):
+    db = RetrieveDB(tmp_path / "retrieve.db")
+    architecture = _job_architecture(db)
+    mock_run.return_value = SimpleNamespace(
+        stdout=json.dumps({"properties": {"status": "Succeeded"}})
+    )
+    mock_blob_status.return_value = {
+        "job_id": "job123",
+        "state": "succeeded",
+        "artifact_prefix": f"runs/{'f' * 64}/job123",
+        "corpus_fingerprint": "f" * 64,
+        "run_scope": "sample",
+        "workflow_results": [],
+    }
+
+    reconciled = reconcile_graphrag_architecture(db, architecture)
+
+    assert reconciled["status"] == "active"
+    assert reconciled["config"]["cloud_index_status"] == "succeeded"
+    command = mock_run.call_args.args[0]
+    assert command[:5] == ["az", "containerapp", "job", "execution", "show"]
+    assert "azgrjtest-abc" in command
+    db.close()
+
+
+@patch("retrieve.indexing.reconcile._load_job_blob_status")
+@patch("retrieve.indexing.reconcile.subprocess.run")
+def test_hard_failed_container_job_overrides_stale_running_blob(
+    mock_run, mock_blob_status, tmp_path
+):
+    db = RetrieveDB(tmp_path / "retrieve.db")
+    architecture = _job_architecture(db)
+    mock_run.return_value = SimpleNamespace(
+        stdout=json.dumps(
+            {
+                "properties": {
+                    "status": "Failed",
+                    "statusDetails": "Replica timeout",
+                }
+            }
+        )
+    )
+    mock_blob_status.return_value = {
+        "job_id": "job123",
+        "state": "running",
+        "artifact_prefix": f"runs/{'f' * 64}/job123",
+    }
+
+    reconciled = reconcile_graphrag_architecture(db, architecture)
+
+    assert reconciled["status"] == "failed"
+    assert reconciled["config"]["cloud_index_error"] == "Replica timeout"
     db.close()

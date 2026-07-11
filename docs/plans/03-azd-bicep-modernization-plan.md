@@ -1,6 +1,6 @@
 # Plan 3 — Rebuild Azure Deployment as an azd Accelerator
 
-**Status:** In progress; deployment blocked pending local validation and explicit approval
+**Status:** Validated; deployment blocked pending explicit approval
 **Priority:** P0/P1
 **Last updated:** 2026-07-11
 
@@ -33,7 +33,7 @@ Replace Python-driven split-brain provisioning with one deterministic `azd` prov
 
 1. Use `.azure/deployment-plan.md` as the required source of truth; obtain approval before deployment.
 2. Freeze feature additions to current provisioning code.
-3. Inventory live `rg-ret-test2`; map each resource to keep, migrate, replace, or remove.
+3. Inventory the protected live resource group; map each resource to keep, migrate, replace, or remove.
 4. Define ownership:
    - azd — environment, service deployment, hook order, outputs.
    - Bicep — ARM resources, network, identity, RBAC, security, diagnostics, apps/jobs.
@@ -107,7 +107,7 @@ Replace Python-driven split-brain provisioning with one deterministic `azd` prov
 
 ## Phase 7 — Parallel migration and cutover
 
-1. Deploy a new azd environment beside `rg-ret-test2`.
+1. Deploy a new azd environment beside the protected live resource group.
 2. Copy only approved canonical data; rebuild indexes from manifests.
 3. Validate Steps 1–7 from the local application against the new environment, including auth, status, errors, evidence, and teardown.
 4. Switch the local environment output/configuration only after health/data parity and rollback tests.
@@ -123,7 +123,8 @@ Replace Python-driven split-brain provisioning with one deterministic `azd` prov
 - [x] Hook behavior tests cover region persistence, protected environments, and canonical corpus handling.
 - [x] Rebuild Bicep and inspect the emitted ARM resource types after the infrastructure-only pivot.
 - [x] Rerun focused frontend/API tests and full local validation.
-- [ ] Run `azd provision --preview` or an equivalent what-if against a new environment only.
+- [x] Run `azd provision --preview` and subscription-scope ARM validation against a new environment only.
+- [ ] Obtain explicit approval before provisioning the validated isolated environment.
 - [ ] Run an approved GraphRAG sample before any canary or full-corpus execution.
 
 ## Local validation evidence — 2026-07-11
@@ -137,7 +138,10 @@ Replace Python-driven split-brain provisioning with one deterministic `azd` prov
 - Python: 391 tests passed and 2 platform-capability tests skipped.
 - azd hook regression suite: 5 tests passed.
 - Ruff passed for the Plan 03 hook implementation and tests. Repository-wide Ruff still reports legacy findings in untouched files and remains a separate cleanup gate.
-- No Azure deployment, paid GraphRAG execution, or mutation of `rg-ret-test2` occurred.
+- Official `azure.yaml` schema validation, regional availability, quota checks, assigned-policy review, azd what-if, and subscription-scope ARM validation passed for the isolated validation environment in `northcentralus`.
+- Static RBAC review removed a redundant Search reader assignment and replaced deployer `AcrPush` with Container Registry Tasks Contributor, which grants the quick-build operations used by `az acr build`.
+- Non-mutation proof: the preview succeeded while the isolated validation resource group remained absent.
+- No Azure deployment, paid GraphRAG execution, or mutation of the protected live resource group occurred.
 
 ## Key files
 
@@ -159,4 +163,4 @@ Replace Python-driven split-brain provisioning with one deterministic `azd` prov
 - Managed identities have only required access; local key auth fails.
 - Private service names resolve correctly from workloads.
 - Ephemeral deployment passes local UI/API-to-Azure, Search, and GraphRAG sample/query tests and cleans up fully.
-- Migration has tested rollback and does not mutate `rg-ret-test2` before cutover approval.
+- Migration has tested rollback and does not mutate the protected live resource group before cutover approval.

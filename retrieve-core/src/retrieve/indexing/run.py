@@ -126,6 +126,10 @@ def index_corpus(cfg: RetrieveConfig, *, dry_run: bool = False):
                         cosmos_endpoint=arch_config.get("cosmos_endpoint", ""),
                         function_endpoint=arch_config.get("function_endpoint", ""),
                         graph_worker_endpoint=arch_config.get("graph_worker_endpoint", ""),
+                        graph_job_name=arch_config.get("graph_job_name", ""),
+                        subscription_id=arch_config.get(
+                            "subscription_id", cfg.azure.subscription_id
+                        ),
                         container_app_endpoint=arch_config.get("container_app_endpoint", ""),
                         cohere_uri=arch_config.get("cohere_uri", ""),
                         cohere_model_name=arch_config.get("cohere_model_name", ""),

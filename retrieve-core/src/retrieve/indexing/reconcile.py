@@ -3,15 +3,21 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from datetime import UTC, datetime
 from typing import Any
 
 import requests
+from azure.core.exceptions import ResourceNotFoundError
+from azure.storage.blob import BlobServiceClient
 
 from retrieve.db import RetrieveDB
+from retrieve.indexing.blob_upload import _build_credential
 
 _TERMINAL_FAILURE_STATES = {"failed", "cancelled", "canceled", "timed_out", "timeout"}
 _IN_PROGRESS_STATES = {"queued", "preparing", "running", "started", "indexing"}
+_AZURE_SUCCESS_STATES = {"succeeded", "success", "completed"}
+_AZURE_FAILURE_STATES = {"failed", "cancelled", "canceled", "timedout", "timed_out"}
 
 
 def _now() -> str:
@@ -44,6 +50,113 @@ def _expected_status_url(config: dict[str, Any]) -> str:
     return expected
 
 
+def _load_job_blob_status(config: dict[str, Any]) -> dict[str, Any] | None:
+    storage_account = str(config.get("storage_account") or "").strip()
+    container_name = str(config.get("graph_output_container") or "graphrag").strip()
+    status_blob = str(config.get("graph_worker_status_blob") or "").strip().strip("/")
+    if not storage_account or not container_name or not status_blob:
+        raise ValueError(
+            "GraphRAG Container Apps Job reconciliation requires storage and status Blob metadata"
+        )
+    blob_service = BlobServiceClient(
+        account_url=f"https://{storage_account}.blob.core.windows.net",
+        credential=_build_credential(),
+    )
+    try:
+        payload = (
+            blob_service.get_container_client(container_name)
+            .download_blob(status_blob)
+            .readall()
+        )
+    except ResourceNotFoundError:
+        return None
+    status = json.loads(bytes(payload).decode("utf-8"))
+    if not isinstance(status, dict):
+        raise ValueError("GraphRAG durable job status must be a JSON object")
+    return status
+
+
+def _load_container_job_status(config: dict[str, Any]) -> dict[str, Any]:
+    resource_group = str(config.get("resource_group") or "").strip()
+    job_name = str(config.get("graph_job_name") or "").strip()
+    execution_name = str(config.get("graph_job_execution_name") or "").strip()
+    if not resource_group or not job_name or not execution_name:
+        raise ValueError(
+            "GraphRAG Container Apps Job reconciliation requires resource group, job, and execution names"
+        )
+    command = [
+        "az",
+        "containerapp",
+        "job",
+        "execution",
+        "show",
+        "--resource-group",
+        resource_group,
+        "--name",
+        job_name,
+        "--job-execution-name",
+        execution_name,
+        "--output",
+        "json",
+        "--only-show-errors",
+    ]
+    subscription_id = str(config.get("subscription_id") or "").strip()
+    if subscription_id:
+        command.extend(["--subscription", subscription_id])
+    result = subprocess.run(
+        command,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    execution = json.loads(result.stdout)
+    if not isinstance(execution, dict):
+        raise ValueError("Container Apps Job execution response must be a JSON object")
+    execution_state = str(
+        (execution.get("properties") or {}).get("status")
+        or execution.get("status")
+        or ""
+    ).strip().lower()
+    if not execution_state:
+        raise ValueError("Container Apps Job execution did not report a status")
+
+    durable_status = _load_job_blob_status(config)
+    if execution_state in _AZURE_FAILURE_STATES:
+        status = dict(durable_status or {})
+        status.update(
+            {
+                "job_id": str(config.get("graph_worker_job_id") or ""),
+                "state": "failed",
+                "error": str(
+                    (execution.get("properties") or {}).get("statusDetails")
+                    or status.get("error")
+                    or f"Container Apps Job execution ended as {execution_state}"
+                ),
+            }
+        )
+        return status
+    if execution_state in _AZURE_SUCCESS_STATES:
+        if durable_status is None:
+            raise ValueError(
+                "Container Apps Job succeeded without a durable GraphRAG status Blob"
+            )
+        if str(durable_status.get("state") or "").lower() != "succeeded":
+            raise ValueError(
+                "Container Apps Job completed but durable GraphRAG status is not succeeded"
+            )
+        return durable_status
+
+    status = dict(durable_status or {})
+    status.update(
+        {
+            "job_id": str(config.get("graph_worker_job_id") or ""),
+            "state": "running",
+            "message": str(status.get("message") or "Container Apps Job is running"),
+        }
+    )
+    return status
+
+
 def _immutable_artifact_prefix(config: dict[str, Any], status: dict[str, Any]) -> str:
     fingerprint = str(config.get("corpus_fingerprint") or "").strip()
     job_id = str(config.get("graph_worker_job_id") or "").strip()
@@ -72,10 +185,13 @@ def reconcile_graphrag_architecture(
         return architecture
 
     try:
-        status_url = _expected_status_url(config)
-        response = requests.get(status_url, timeout=timeout)
-        response.raise_for_status()
-        worker_status = response.json()
+        if config.get("graph_job_execution_name"):
+            worker_status = _load_container_job_status(config)
+        else:
+            status_url = _expected_status_url(config)
+            response = requests.get(status_url, timeout=timeout)
+            response.raise_for_status()
+            worker_status = response.json()
         if not isinstance(worker_status, dict):
             raise ValueError("GraphRAG worker status must be a JSON object")
         if str(worker_status.get("job_id") or "") != str(config["graph_worker_job_id"]):
@@ -127,7 +243,13 @@ def reconcile_graphrag_architecture(
             architecture_status = "indexing"
         else:
             raise ValueError(f"Unknown GraphRAG worker state: {state or '<empty>'}")
-    except (requests.RequestException, ValueError) as exc:
+    except (
+        requests.RequestException,
+        subprocess.CalledProcessError,
+        json.JSONDecodeError,
+        UnicodeDecodeError,
+        ValueError,
+    ) as exc:
         config["graph_worker_reconciliation_error"] = str(exc)[:2_000]
         config["graph_worker_last_reconciled_at"] = _now()
         architecture_status = str(architecture.get("status") or "indexing")

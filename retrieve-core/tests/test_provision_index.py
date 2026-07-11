@@ -30,9 +30,9 @@ class TestProvisionNaming:
     def test_candidate_resource_group_names_suffixes_deleting_group(self, mock_suffix):
         from retrieve.provision.naming import candidate_resource_group_names
 
-        assert list(candidate_resource_group_names("rg-ret-test2", max_attempts=2)) == [
-            "rg-ret-test2",
-            "rg-ret-test2-a1b2",
+        assert list(candidate_resource_group_names("rg-protected-live", max_attempts=2)) == [
+            "rg-protected-live",
+            "rg-protected-live-a1b2",
         ]
         assert mock_suffix.called
 
@@ -395,7 +395,7 @@ class TestProvisionOrchestrator:
         mock_az,
         mock_deploy,
     ):
-        mock_rg_names.return_value = iter(["rg-ret-test2", "rg-ret-test2-a1b2"])
+        mock_rg_names.return_value = iter(["rg-protected-live", "rg-protected-live-a1b2"])
         mock_names.return_value = DeploymentNames(
             name_prefix="retrieve",
             storage_account="retrievestore",
@@ -409,7 +409,7 @@ class TestProvisionOrchestrator:
             log_analytics_workspace="retrieve-env-logs",
         )
         mock_az.side_effect = [
-            RuntimeError("ResourceGroupBeingDeleted: rg-ret-test2"),
+            RuntimeError("ResourceGroupBeingDeleted: rg-protected-live"),
             {},
         ]
         mock_deploy.return_value = {
@@ -426,7 +426,7 @@ class TestProvisionOrchestrator:
         tmpdir = tempfile.mkdtemp()
         cfg = RetrieveConfig()
         cfg.db_path = os.path.join(tmpdir, "test.db")
-        cfg.azure.resource_group = "rg-ret-test2"
+        cfg.azure.resource_group = "rg-protected-live"
         cfg.architectures = ["hybrid"]
 
         from retrieve.provision.orchestrator import provision_architectures
@@ -440,12 +440,12 @@ class TestProvisionOrchestrator:
         ):
             provision_architectures(cfg)
 
-        assert cfg.azure.resource_group == "rg-ret-test2-a1b2"
-        assert mock_names.call_args.args[1] == "rg-ret-test2-a1b2"
+        assert cfg.azure.resource_group == "rg-protected-live-a1b2"
+        assert mock_names.call_args.args[1] == "rg-protected-live-a1b2"
         db = RetrieveDB(cfg.db_path)
         assert (
             db.get_architecture("hybrid")["config"]["resource_group"]
-            == "rg-ret-test2-a1b2"
+            == "rg-protected-live-a1b2"
         )
         db.close()
 
@@ -785,6 +785,60 @@ class TestGraphRAGSafety:
         assert result["graph_worker_artifact_prefix"] == f"runs/{fingerprint}/job123"
         assert result["graph_worker_run_scope"] == "sample"
         assert result["graph_worker_max_documents"] == 50
+
+    @patch("retrieve.indexing.advanced.uuid.uuid4")
+    @patch("retrieve.indexing.advanced.subprocess.run")
+    def test_container_job_launch_is_bound_to_immutable_run(
+        self, mock_run, mock_uuid, tmp_path
+    ):
+        from types import SimpleNamespace
+
+        from retrieve.indexing.advanced import run_graphrag_indexing
+        from retrieve.ingest.manifest import build_manifest_entry, write_corpus_manifest
+        from retrieve.ingest.plugin import ConvertedDoc
+        from retrieve.ingest.run import save_doc
+
+        doc = ConvertedDoc(
+            "100",
+            "Policy",
+            "",
+            "https://example.test/100.htm",
+            "Policy body",
+        )
+        output = save_doc(doc, tmp_path)
+        manifest = write_corpus_manifest(
+            tmp_path,
+            [build_manifest_entry(doc, output, tmp_path)],
+        )
+        mock_uuid.return_value = SimpleNamespace(hex="job123")
+        mock_run.return_value = SimpleNamespace(stdout="graph-job-abc\n")
+
+        result = run_graphrag_indexing(
+            corpus_dir=str(tmp_path),
+            ai_services_endpoint="https://test-ai.cognitiveservices.azure.com/",
+            search_endpoint="https://test.search.windows.net",
+            storage_account="teststore",
+            graph_job_name="azgrjtest",
+            resource_group="rg-test",
+            subscription_id="sub-test",
+        )
+
+        fingerprint = manifest["corpus_fingerprint"]
+        command = mock_run.call_args.args[0]
+        assert command[:5] == ["az", "containerapp", "job", "start", "--name"]
+        assert "azgrjtest" in command
+        assert "rg-test" in command
+        assert "--subscription" in command
+        assert f"GRAPH_WORKER_JOB_ID=job123" in command
+        assert f"CORPUS_FINGERPRINT={fingerprint}" in command
+        assert f"GRAPH_OUTPUT_PREFIX=runs/{fingerprint}/job123" in command
+        assert "GRAPHRAG_RUN_SCOPE=sample" in command
+        assert "GRAPHRAG_MAX_DOCUMENTS=50" in command
+        assert result["graph_job_execution_name"] == "graph-job-abc"
+        assert result["graph_worker_artifact_prefix"] == (
+            f"runs/{fingerprint}/job123"
+        )
+        assert result["graph_worker_status_blob"] == "jobs/job123/status.json"
 
     def test_local_indexing_uses_public_api_not_cli(self, monkeypatch, tmp_path):
         from types import SimpleNamespace

@@ -40,11 +40,12 @@ def test_preprovision_reuses_persisted_whole_stack_region(monkeypatch):
 
 
 def test_preprovision_rejects_live_resource_group(monkeypatch):
+    monkeypatch.setenv("RETRIEVE_PROTECTED_RESOURCE_GROUPS", "rg-protected-live")
     hook = _load_script("preprovision")
     monkeypatch.setattr(
         hook,
         "get_value",
-        lambda name: "ret-test2" if name == "AZURE_ENV_NAME" else "",
+        lambda name: "protected-live" if name == "AZURE_ENV_NAME" else "",
     )
 
     with pytest.raises(RuntimeError, match="protected live resource group"):

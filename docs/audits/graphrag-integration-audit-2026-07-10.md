@@ -180,7 +180,7 @@ The current generation appears to be the 1,617-file May set, subject to domain-o
 `save_doc()` manually writes:
 
 ```yaml
-source_url: "C:\Users\..."
+source_url: "C:\path\to\source"
 ```
 
 The backslashes are not YAML-escaped. `yaml.safe_load()` fails with `ScannerError`, especially on sequences such as `\U`.

@@ -86,6 +86,7 @@ class TestMarkdownPlugin:
             fetched = plugin.fetch(page, tmpdir)
             assert fetched is not None
             assert fetched.raw_content == "Content here"
+            assert fetched.source_url == "doc.md"
 
     def test_fetch_missing(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -163,7 +164,7 @@ class TestSaveDoc:
 
     def test_windows_source_path_round_trips_through_yaml(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            source_url = r"C:\Users\nabilahmed\Documents\Policy\100-3.md"
+            source_url = r"C:\Policy\100-3.md"
             doc = ConvertedDoc(
                 policy_id="100-3",
                 title='Confidentiality: "Protected"',

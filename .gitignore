@@ -12,7 +12,18 @@ __pycache__
 retrieve.db
 retrieve.db-*
 retrieve.yaml
+retrieve-*.yaml
+retrieve-*.db
+retrieve-*.db-*
 logs
+
+# Generated local validation/data artifacts
+.graphrag/
+corpus/
+retrieve-core/corpus/
+retrieve-core/e2e_corpus/
+retrieve-core/*e2e_live_results.json
+manual-validation/
 
 # Output
 .output
@@ -41,3 +52,5 @@ test-results
 
 # Coverage
 coverage
+
+.azure/

@@ -1,10 +1,10 @@
 # Retrieve Azure Modernization Deployment Plan
 
-**Status:** Approved — Implementation Started  
+**Status:** Validated — Deployment Awaiting Explicit Approval  
 **Approved by:** User (“Start implementation”, 2026-07-10)  
 **Mode:** Modernize existing application in a parallel Azure environment  
 **Deployment path:** Azure Developer CLI (`azd`) + subscription-scoped modular Bicep  
-**Current live environment:** `rg-ret-test2` — preserve; no destructive changes during implementation
+**Current live environment:** protected existing resource group — preserve; no destructive changes during implementation
 
 ## 1. Objective
 
@@ -22,7 +22,7 @@ Detailed plans will be stored under `docs/plans/`.
 ## 3. Safety Constraints
 
 - Do not start another full paid GraphRAG run until sample and canary gates pass.
-- Do not mutate or delete `rg-ret-test2` during implementation.
+- Do not mutate or delete the protected live resource group during implementation.
 - Do not delete corpus generations, databases, or runtime artifacts until they are inventoried and backed up.
 - Do not modify upstream GraphRAG or LightRAG source.
 - Use a new `azd` environment and resource group for deployment validation.
@@ -71,6 +71,30 @@ Detailed plans will be stored under `docs/plans/`.
 - Localhost UI/API can consume the azd output contract without a deployed application service.
 - GraphRAG sample index and structured evidence query pass before canary/full runs.
 
+### 6.1 Azure Validation Checklist
+
+- [x] All validation checks pass.
+	- [x] Azure Developer CLI 1.27.1 and Azure CLI 2.84.0 are installed.
+	- [x] `azure.yaml` passes the official stable-schema validator.
+	- [x] Disposable local azd environment targets an isolated validation resource group, not the protected live resource group.
+	- [x] azd authentication and the selected subscription context are valid.
+	- [x] `northcentralus` supports every declared resource type and has Search, Container Apps, Storage, AI Services, and required model quota.
+	- [x] This is not an Aspire project; Aspire checks do not apply.
+	- [x] `azd provision --preview --no-prompt` completes without errors.
+	- [x] Local SvelteKit and Python build/test verification passes.
+	- [x] The GraphRAG Docker build context is valid; no azd application service package step applies.
+	- [x] Assigned Azure Policy permits ARM validation and what-if for the previewed resource topology.
+	- [x] Bicep compiles and lints without diagnostics.
+	- [x] Subscription-scope template validation and what-if complete without errors.
+
+### 6.2 Static Role Assignment Verification
+
+- **GraphRAG job identity:** ACR Pull, Storage Blob Data Contributor, Cognitive Services OpenAI User, Search Service Contributor, and Search Index Data Contributor at individual resource scope.
+- **Search service identity:** Storage Blob Data Reader and Cognitive Services OpenAI User at individual resource scope for indexers and embedding skills.
+- **Local deployer:** Storage Blob Data Contributor, Cognitive Services OpenAI User, Search Service Contributor, Search Index Data Contributor, and Container Registry Tasks Contributor at individual resource scope.
+- **Least privilege fixes:** removed the redundant Search Index Data Reader assignment; replaced insufficient `AcrPush` with Container Registry Tasks Contributor for `az acr build`.
+- **Remaining live check:** preview must prove the signed-in principal can create deterministic role assignments; postprovision must later prove ACR role propagation and job update authorization.
+
 ## 7. Validation Proof
 
 The current implementation is locally validated; Azure preview and deployment are not
@@ -89,12 +113,23 @@ yet validated.
 - Installed package proof: `graphrag=3.1.0`.
 - Generated-config proof: `GraphRagConfig` parses the shared settings with active
 	`rate_limit` and `retry.max_retries=12`; unexpected Pydantic extras are rejected.
-- Azure safety: no deployment, paid GraphRAG execution, or mutation of `rg-ret-test2`
+- Azure safety: no deployment, paid GraphRAG execution, or mutation of the protected live resource group
 	occurred in this batch.
+- azd preview: succeeded in 22 seconds for the isolated validation environment in `northcentralus`; the
+	preview contains only the resource group, retrieval dependencies, and one GraphRAG Job.
+- Subscription-scope ARM validation: `Succeeded` with no error.
+- Non-mutation proof: `az group exists` returned `false` for the isolated validation resource group after
+	preview and validation.
+- Policy/quota proof: assigned policies were retrieved; ARM accepted the topology;
+	Search Basic has 12 available services, and the requested GPT-4.1 and embedding
+	capacities are within regional quota.
+- RBAC proof: redundant Search reader access was removed, and the deployer now receives
+	Container Registry Tasks Contributor for the `az acr build` hook instead of the
+	insufficient `AcrPush` role.
 
 ## 8. Rollback
 
-- Keep `rg-ret-test2` unchanged and available during parallel validation.
+- Keep the protected live resource group unchanged and available during parallel validation.
 - Use immutable data/index prefixes and atomic current-index promotion.
 - Keep corpus and SQLite backups until post-cutover approval.
 - Cut back to the existing endpoint/environment if any acceptance gate fails.

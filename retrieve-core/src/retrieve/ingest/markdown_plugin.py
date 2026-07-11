@@ -57,7 +57,7 @@ class MarkdownPlugin(IngestPlugin):
             title=page.title,
             parent=page.parent,
             raw_content=src.read_text(encoding="utf-8"),
-            source_url=str(src.resolve()),
+            source_url=page.href,
         )
 
     def convert(self, page: FetchedPage) -> ConvertedDoc | None:

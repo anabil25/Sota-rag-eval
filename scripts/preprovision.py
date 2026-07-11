@@ -13,7 +13,11 @@ REGIONS = (
     "southcentralus",
     "eastus2",
 )
-PROTECTED_RESOURCE_GROUPS = {"rg-ret-test2"}
+PROTECTED_RESOURCE_GROUPS = {
+    resource_group.strip()
+    for resource_group in os.environ.get("RETRIEVE_PROTECTED_RESOURCE_GROUPS", "").split(",")
+    if resource_group.strip()
+}
 
 
 def _azd(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:

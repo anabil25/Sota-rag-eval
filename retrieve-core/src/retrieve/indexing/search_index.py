@@ -118,6 +118,8 @@ def create_index_for_architecture(
     cosmos_endpoint: str = "",
     function_endpoint: str = "",
     graph_worker_endpoint: str = "",
+    graph_job_name: str = "",
+    subscription_id: str = "",
     container_app_endpoint: str = "",
     corpus_dir: str = "",
     llm_model: str = "gpt-4.1",
@@ -212,6 +214,9 @@ def create_index_for_architecture(
             cosmos_endpoint=cosmos_endpoint,
             function_endpoint=function_endpoint,
             graph_worker_endpoint=graph_worker_endpoint,
+            graph_job_name=graph_job_name,
+            resource_group=resource_group,
+            subscription_id=subscription_id,
             embedding_model=embedding_model,
             llm_model=llm_model,
         )
