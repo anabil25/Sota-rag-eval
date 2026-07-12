@@ -146,6 +146,45 @@ def _canonical_doc_id(identifier: str, aliases: dict[str, str]) -> str:
     return aliases.get(normalized, aliases.get(identifier, normalized))
 
 
+def _retrieval_questions(questions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return active questions that have evidence for retrieval scoring."""
+    return [
+        question
+        for question in questions
+        if str(question.get("status") or "active").lower() == "active"
+        and bool(question.get("ground_truth_chunk_ids"))
+    ]
+
+
+_DERIVED_MODEL_METRICS = {
+    "failure_rate",
+    "retry_rate",
+    "compute_duration_per_response_seconds",
+    "cache_hit_rate",
+    "tokens_per_response",
+    "cost_per_response",
+}
+
+
+def aggregate_model_metrics(
+    samples: list[dict[str, dict[str, int | float]]],
+) -> dict[str, dict[str, int | float]]:
+    """Aggregate raw model counters and recompute derived rates."""
+    from graphrag_llm.metrics.metrics_aggregator import metrics_aggregator
+
+    aggregated: dict[str, dict[str, int | float]] = {}
+    for sample in samples:
+        for model_id, metrics in sample.items():
+            totals = aggregated.setdefault(model_id, {})
+            for name, value in metrics.items():
+                if name not in _DERIVED_MODEL_METRICS and isinstance(value, (int, float)):
+                    totals[name] = totals.get(name, 0) + value
+
+    for metrics in aggregated.values():
+        metrics_aggregator.aggregate(metrics)
+    return aggregated
+
+
 # ── Search query adapters ─────────────────────────────────────────────
 # Each architecture uses its native query mode per azure-ai-search.md skill:
 #   keyword        → search_text only (BM25)
@@ -277,6 +316,7 @@ def query_ai_search(
             storage_account=kwargs.get("storage_account", ""),
             output_container=kwargs.get("graph_output_container", "graphrag"),
             search_endpoint=endpoint,
+            metrics_sink=kwargs.get("graphrag_metrics_sink"),
         )
 
     elif arch_name == "lightrag":
@@ -500,14 +540,21 @@ def run_evaluation(
             ).fetchall()
         }
         with step("eval_run.load_questions", eval_set_id=eval_set_id):
-            questions = db.get_questions(eval_set_id)
+            all_questions = db.get_questions(eval_set_id)
+            questions = _retrieval_questions(all_questions)
+        skipped_questions = len(all_questions) - len(questions)
         console.print(
             f"\n[bold]Running eval set '{eval_set['version_label']}' "
-            f"({len(questions)} questions)[/bold]\n"
+            f"({len(questions)} retrieval questions)[/bold]\n"
         )
+        if skipped_questions:
+            console.print(
+                f"[dim]Skipped {skipped_questions} inactive or evidence-free question(s) "
+                "from retrieval scoring.[/dim]\n"
+            )
 
         if not questions:
-            console.print("[red]Eval set has no questions.[/red]")
+            console.print("[red]Eval set has no active questions with retrieval evidence.[/red]")
             return
 
         # Determine which architectures to eval
@@ -640,6 +687,7 @@ def _eval_variant(
 
     all_scores: list[dict[str, float]] = []
     all_latencies: list[float] = []
+    model_metric_samples: list[dict[str, dict[str, int | float]]] = []
     misses_to_classify: list[dict[str, Any]] = []
 
     # Throttle for architectures that use the embedding vectorizer to avoid 429s.
@@ -655,6 +703,7 @@ def _eval_variant(
                 time.sleep(0.3)
 
             # Query using architecture's native query mode
+            query_model_metrics: dict[str, dict[str, int | float]] = {}
             retrieved_ids, latency_ms = query_ai_search(
                 endpoint=search_endpoint,
                 index_name=index_name,
@@ -673,7 +722,10 @@ def _eval_variant(
                 corpus_fingerprint=arch_config.get("corpus_fingerprint", ""),
                 storage_account=arch_config.get("storage_account", ""),
                 graph_output_container=arch_config.get("graph_output_container", "graphrag"),
+                graphrag_metrics_sink=query_model_metrics.update,
             )
+            if query_model_metrics:
+                model_metric_samples.append(query_model_metrics)
 
             # Compute metrics — normalize IDs for matching
             ground_truth = q["ground_truth_chunk_ids"]
@@ -760,6 +812,8 @@ def _eval_variant(
     )
     agg["miss_count"] = len(misses_to_classify)
     agg["total_questions"] = len(questions)
+    if model_metric_samples:
+        agg["model_metrics"] = aggregate_model_metrics(model_metric_samples)
 
     # Cost estimation
     cost = estimate_cost(arch_name, len(questions))

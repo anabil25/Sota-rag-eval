@@ -248,8 +248,15 @@ def test_localhost_query_uses_private_container_job(
             "request_id": "request123",
             "document_ids": ["100-3", "101"],
             "latency_ms": 12.5,
+            "model_metrics": {
+                "azure/gpt-4.1": {
+                    "attempted_request_count": 1,
+                    "total_tokens": 42,
+                }
+            },
         }
     )
+    captured_metrics = {}
 
     document_ids, latency_ms = query_graphrag(
         query="What is confidential?",
@@ -259,6 +266,7 @@ def test_localhost_query_uses_private_container_job(
         subscription_id="sub-test",
         artifact_prefix=f"runs/{fingerprint}/job123",
         corpus_fingerprint=fingerprint,
+        metrics_sink=captured_metrics.update,
     )
 
     assert document_ids == ["100-3", "101"]
@@ -268,6 +276,7 @@ def test_localhost_query_uses_private_container_job(
     payload = decode_payload(environment[1].split("=", 1)[1])
     assert payload["request_id"] == "request123"
     assert payload["query"]["artifact_prefix"] == f"runs/{fingerprint}/job123"
+    assert captured_metrics["azure/gpt-4.1"]["total_tokens"] == 42
     mock_wait.assert_called_once()
 
 
@@ -323,12 +332,20 @@ def test_worker_query_returns_compact_structured_evidence(monkeypatch):
         )
     )
     monkeypatch.setattr(run_job, "execute_graphrag_query", execute)
+    monkeypatch.setattr(
+        run_job,
+        "collect_graphrag_model_metrics",
+        lambda _config: {"azure/gpt-4.1": {"attempted_request_count": 1}},
+    )
 
     result = run_job.query_graphrag()
 
     assert result["kind"] == "query"
     assert result["request_id"] == "request123"
     assert result["document_ids"] == ["100-3"]
+    assert result["model_metrics"] == {
+        "azure/gpt-4.1": {"attempted_request_count": 1}
+    }
     assert result["citations"][0]["text_unit_id"] == "tu-1"
     assert "text" not in result["citations"][0]
     execute.assert_awaited_once()
@@ -390,6 +407,11 @@ async def test_internal_query_endpoint_returns_structured_result(monkeypatch):
     )
     execute = AsyncMock(return_value=result)
     monkeypatch.setattr(worker, "execute_graphrag_query", execute)
+    monkeypatch.setattr(
+        worker,
+        "collect_graphrag_model_metrics",
+        lambda _config: {"azure/gpt-4.1": {"attempted_request_count": 1}},
+    )
 
     response = await worker.query_index(
         worker.QueryRequest(
@@ -401,6 +423,9 @@ async def test_internal_query_endpoint_returns_structured_result(monkeypatch):
 
     assert response["answer"].startswith("Confidential")
     assert response["document_ids"] == ["100-3"]
+    assert response["model_metrics"] == {
+        "azure/gpt-4.1": {"attempted_request_count": 1}
+    }
     assert response["citations"][0]["text_unit_id"] == "tu-1"
     execute.assert_awaited_once()
 

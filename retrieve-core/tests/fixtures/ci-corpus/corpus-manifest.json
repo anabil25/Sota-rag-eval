@@ -8,7 +8,7 @@
   "documents": [
     {
       "document_id": "ci-image-fixture",
-      "graphrag_document_id": "8b982c445be137da3bf4c41d8482ff659cba23111b5369a14423a29fb4e81ddb9919dfba053d7ce1fa525462387725d0655cb72c8c0478389551877d624d9057",
+      "graphrag_document_id": "8f0a6295559f787360ba18476afbefaef7a1cc2674583bb97ce96c41e894905402e09bfcd2d09c2606dc5d49f98141cc257401d9a59195069dcf60d9824269ed",
       "source_id": "sha256:150cefea99a2816936629b1af2bdaa0486c4112252848140d435daaf1e38f2e7",
       "source_url": "fixtures/ci-image-fixture.md",
       "relative_path": "ci-image-fixture.md",

@@ -217,6 +217,10 @@ def reconcile_graphrag_architecture(
                 lambda value: list(value or []),
             ),
             "sample_selection": ("graph_worker_sample_selection", lambda value: str(value or "")),
+            "model_metrics": (
+                "graph_worker_model_metrics",
+                lambda value: dict(value or {}),
+            ),
         }
         for source, (target, normalize) in optional_fields.items():
             if source in worker_status:

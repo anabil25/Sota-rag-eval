@@ -54,7 +54,6 @@ def graph_image_tag() -> str:
         core / "pyproject.toml",
     ]
     inputs.extend(sorted((core / "src").rglob("*")))
-    inputs.extend(sorted((REPO_ROOT / "corpus").rglob("*")))
     digest = hashlib.sha256()
     for path in inputs:
         if not path.is_file():
@@ -63,6 +62,24 @@ def graph_image_tag() -> str:
         digest.update(b"\0")
         digest.update(path.read_bytes())
         digest.update(b"\0")
+    return digest.hexdigest()[:16]
+
+
+def graph_seed_image_tag(worker_image: str, manifest: dict) -> str:
+    """Return a deterministic tag for one transient corpus seed image."""
+    digest = hashlib.sha256()
+    digest.update(worker_image.encode("utf-8"))
+    digest.update(b"\0")
+    digest.update(
+        json.dumps(
+            manifest,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+    )
+    digest.update(b"\0")
+    digest.update((REPO_ROOT / "retrieve-core" / "Dockerfile.graphrag-seed").read_bytes())
     return digest.hexdigest()[:16]
 
 
@@ -80,7 +97,20 @@ def graph_build_context():
         )
         shutil.copy2(source_core / "pyproject.toml", target_core / "pyproject.toml")
         shutil.copytree(source_core / "src", target_core / "src")
-        shutil.copytree(REPO_ROOT / "corpus", context / "corpus")
+        yield context
+
+
+@contextmanager
+def graph_seed_build_context(corpus_dir: Path):
+    with tempfile.TemporaryDirectory(prefix="retrieve-graphrag-seed-build-") as temp_dir:
+        context = Path(temp_dir)
+        target_core = context / "retrieve-core"
+        target_core.mkdir()
+        shutil.copy2(
+            REPO_ROOT / "retrieve-core" / "Dockerfile.graphrag-seed",
+            target_core / "Dockerfile.graphrag-seed",
+        )
+        shutil.copytree(corpus_dir, context / "corpus")
         yield context
 
 
@@ -132,14 +162,32 @@ def _json_command(command: list[str], operation: str) -> dict | list:
         raise RuntimeError(f"{operation} returned invalid JSON") from exc
 
 
-def publish_graph_image() -> None:
+def _update_graph_job_image(image: str, operation: str) -> None:
+    _run_with_auth_retry(
+        [
+            "az",
+            "containerapp",
+            "job",
+            "update",
+            "--resource-group",
+            required("AZURE_RESOURCE_GROUP"),
+            "--name",
+            required("AZURE_GRAPHRAG_JOB_NAME"),
+            "--image",
+            image,
+            "--output",
+            "none",
+        ],
+        operation,
+    )
+
+
+def publish_graph_image() -> str:
     if _truthy("RETRIEVE_SKIP_GRAPH_IMAGE_BUILD"):
         print("[postprovision] skipping GraphRAG image build by request")
-        return
+        return required("RETRIEVE_GRAPHRAG_IMAGE")
     registry = required("AZURE_CONTAINER_REGISTRY_NAME")
     registry_endpoint = required("AZURE_CONTAINER_REGISTRY_ENDPOINT")
-    resource_group = required("AZURE_RESOURCE_GROUP")
-    job_name = required("AZURE_GRAPHRAG_JOB_NAME")
     image = f"retrieve-graphrag:{graph_image_tag()}"
     with graph_build_context() as context:
         _run_with_auth_retry(
@@ -159,25 +207,81 @@ def publish_graph_image() -> None:
             "GraphRAG ACR build",
         )
     full_image = f"{registry_endpoint}/{image}"
-    _run_with_auth_retry(
-        [
-            "az",
-            "containerapp",
-            "job",
-            "update",
-            "--resource-group",
-            resource_group,
-            "--name",
-            job_name,
-            "--image",
-            full_image,
-            "--output",
-            "none",
-        ],
-        "GraphRAG job image update",
-    )
+    _update_graph_job_image(full_image, "GraphRAG job image update")
     set_azd_value("RETRIEVE_GRAPHRAG_IMAGE", full_image)
     print(f"[postprovision] published {full_image}")
+    return full_image
+
+
+@contextmanager
+def temporary_graph_seed_image(
+    worker_image: str,
+    corpus_dir: Path,
+    manifest: dict,
+):
+    registry = required("AZURE_CONTAINER_REGISTRY_NAME")
+    registry_endpoint = required("AZURE_CONTAINER_REGISTRY_ENDPOINT")
+    image = f"retrieve-graphrag-seed:{graph_seed_image_tag(worker_image, manifest)}"
+    full_image = f"{registry_endpoint}/{image}"
+    with graph_seed_build_context(corpus_dir) as context:
+        _run_with_auth_retry(
+            [
+                "az",
+                "acr",
+                "build",
+                "--registry",
+                registry,
+                "--image",
+                image,
+                "--file",
+                "retrieve-core/Dockerfile.graphrag-seed",
+                "--build-arg",
+                f"WORKER_IMAGE={worker_image}",
+                "--no-logs",
+                str(context),
+            ],
+            "GraphRAG seed ACR build",
+        )
+    try:
+        _update_graph_job_image(full_image, "GraphRAG seed image activation")
+    except Exception:
+        _run_with_auth_retry(
+            [
+                "az",
+                "acr",
+                "repository",
+                "delete",
+                "--name",
+                registry,
+                "--image",
+                image,
+                "--yes",
+                "--output",
+                "none",
+            ],
+            "GraphRAG unused seed image deletion",
+        )
+        raise
+    try:
+        yield full_image
+    finally:
+        _update_graph_job_image(worker_image, "GraphRAG worker image restoration")
+        _run_with_auth_retry(
+            [
+                "az",
+                "acr",
+                "repository",
+                "delete",
+                "--name",
+                registry,
+                "--image",
+                image,
+                "--yes",
+                "--output",
+                "none",
+            ],
+            "GraphRAG seed image deletion",
+        )
 
 
 def approve_search_storage_private_link(
@@ -314,6 +418,7 @@ def _job_logs(job_name: str, execution_name: str) -> str:
 
 def upload_canonical_corpus(
     *,
+    worker_image: str = "",
     delays: tuple[int, ...] = tuple(10 for _ in range(60)),
     retry_delays: tuple[int, ...] = (20,),
 ) -> None:
@@ -326,6 +431,7 @@ def upload_canonical_corpus(
         return
 
     manifest = load_corpus_manifest(corpus_dir)
+    worker_image = worker_image or required("RETRIEVE_GRAPHRAG_IMAGE")
     resource_group = required("AZURE_RESOURCE_GROUP")
     subscription_id = required("AZURE_SUBSCRIPTION_ID")
     job_name = required("AZURE_GRAPHRAG_JOB_NAME")
@@ -337,73 +443,77 @@ def upload_canonical_corpus(
         "stopped",
         "timedout",
     }
-    last_failure = ""
-    for seed_attempt in range(len(retry_delays) + 1):
-        execution_name = start_container_job(
-            job_name=job_name,
-            resource_group=resource_group,
-            subscription_id=subscription_id,
-            environment=[
-                "GRAPH_WORKER_MODE=seed",
-                "BUNDLED_CORPUS_DIR=/app/corpus",
-            ],
-        )
-
-        state = ""
-        details = ""
-        for attempt in range(len(delays) + 1):
-            execution = _json_command(
-                [
-                    "az",
-                    "containerapp",
-                    "job",
-                    "execution",
-                    "show",
-                    "--resource-group",
-                    resource_group,
-                    "--name",
-                    job_name,
-                    "--job-execution-name",
-                    execution_name,
-                    "--subscription",
-                    subscription_id,
-                    "--output",
-                    "json",
-                    "--only-show-errors",
+    with temporary_graph_seed_image(worker_image, corpus_dir, manifest):
+        last_failure = ""
+        for seed_attempt in range(len(retry_delays) + 1):
+            execution_name = start_container_job(
+                job_name=job_name,
+                resource_group=resource_group,
+                subscription_id=subscription_id,
+                environment=[
+                    "GRAPH_WORKER_MODE=seed",
+                    "BUNDLED_CORPUS_DIR=/app/corpus",
                 ],
-                "Azure-side corpus seed status",
             )
-            properties = execution.get("properties", {}) if isinstance(execution, dict) else {}
-            state = str(properties.get("status") or execution.get("status") or "").lower()
-            details = str(properties.get("statusDetails") or "")
-            if state in terminal_states:
-                break
-            if attempt < len(delays):
-                time.sleep(delays[attempt])
-        if state == "succeeded":
-            logs = _job_logs(job_name, execution_name)
-            seed_result = parse_job_result(logs)
-            if (
-                seed_result.get("kind") != "seed"
-                or seed_result.get("state") != "succeeded"
-                or seed_result.get("corpus_fingerprint") != manifest["corpus_fingerprint"]
-                or seed_result.get("document_count") != manifest["document_count"]
-            ):
-                raise RuntimeError("Azure-side corpus seed returned a mismatched result")
-            break
 
-        logs = _job_logs(job_name, execution_name)
-        last_failure = (
-            f"Azure-side corpus seed ended as {state or 'unknown'}: {details}\n{logs}"
-        ).strip()
-        if seed_attempt >= len(retry_delays):
-            raise RuntimeError(last_failure)
-        retry_delay = retry_delays[seed_attempt]
-        print(
-            f"[postprovision] corpus seed execution failed; retrying in "
-            f"{retry_delay}s ({seed_attempt + 1}/{len(retry_delays)})."
-        )
-        time.sleep(retry_delay)
+            state = ""
+            details = ""
+            for attempt in range(len(delays) + 1):
+                execution = _json_command(
+                    [
+                        "az",
+                        "containerapp",
+                        "job",
+                        "execution",
+                        "show",
+                        "--resource-group",
+                        resource_group,
+                        "--name",
+                        job_name,
+                        "--job-execution-name",
+                        execution_name,
+                        "--subscription",
+                        subscription_id,
+                        "--output",
+                        "json",
+                        "--only-show-errors",
+                    ],
+                    "Azure-side corpus seed status",
+                )
+                properties = (
+                    execution.get("properties", {}) if isinstance(execution, dict) else {}
+                )
+                state = str(properties.get("status") or execution.get("status") or "").lower()
+                details = str(properties.get("statusDetails") or "")
+                if state in terminal_states:
+                    break
+                if attempt < len(delays):
+                    time.sleep(delays[attempt])
+            if state == "succeeded":
+                logs = _job_logs(job_name, execution_name)
+                seed_result = parse_job_result(logs)
+                if (
+                    seed_result.get("kind") != "seed"
+                    or seed_result.get("state") != "succeeded"
+                    or seed_result.get("corpus_fingerprint")
+                    != manifest["corpus_fingerprint"]
+                    or seed_result.get("document_count") != manifest["document_count"]
+                ):
+                    raise RuntimeError("Azure-side corpus seed returned a mismatched result")
+                break
+
+            logs = _job_logs(job_name, execution_name)
+            last_failure = (
+                f"Azure-side corpus seed ended as {state or 'unknown'}: {details}\n{logs}"
+            ).strip()
+            if seed_attempt >= len(retry_delays):
+                raise RuntimeError(last_failure)
+            retry_delay = retry_delays[seed_attempt]
+            print(
+                f"[postprovision] corpus seed execution failed; retrying in "
+                f"{retry_delay}s ({seed_attempt + 1}/{len(retry_delays)})."
+            )
+            time.sleep(retry_delay)
 
     count = int(manifest["document_count"])
     fingerprint = str(manifest["corpus_fingerprint"])
@@ -481,23 +591,28 @@ def sync_local_runtime_contract() -> None:
             "llm_model": outputs["chat_deployment"],
         }
         for name in architectures:
-            architecture_config = {
+            provisioned_config = {
                 **common,
                 "index_name": f"ret-{outputs['resource_token']}-{name}",
             }
+            architecture_defaults: dict[str, object] = {}
             if name == "graphrag":
-                architecture_config.update(
+                provisioned_config.update(
                     {
                         "graph_job_name": outputs["graph_job_name"],
                         "graph_worker_environment": outputs[
                             "container_apps_environment"
                         ],
+                    }
+                )
+                architecture_defaults.update(
+                    {
                         "graphrag_run_scope": "sample",
                         "graphrag_max_documents": 50,
                     }
                 )
             elif name == "lightrag":
-                architecture_config["lightrag_max_documents"] = 50
+                architecture_defaults["lightrag_max_documents"] = 50
             existing = db.get_architecture(name)
             if (
                 existing
@@ -505,16 +620,37 @@ def sync_local_runtime_contract() -> None:
                 == outputs["resource_token"]
             ):
                 architecture_id = int(existing["id"])
+                architecture_config = {
+                    **existing["config"],
+                    **provisioned_config,
+                }
+                resources_provisioned = {
+                    **existing["resources_provisioned"],
+                    **provisioned_config,
+                }
+                for key, value in architecture_defaults.items():
+                    architecture_config.setdefault(key, value)
+                    resources_provisioned.setdefault(key, value)
+                status = (
+                    existing["status"]
+                    if existing["status"] in {"active", "indexing"}
+                    else "provisioned"
+                )
                 db.conn.execute(
                     "UPDATE architectures SET config = ?, resources_provisioned = ?, "
-                    "status = 'provisioned' WHERE id = ?",
+                    "status = ? WHERE id = ?",
                     (
                         json.dumps(architecture_config),
-                        json.dumps(architecture_config),
+                        json.dumps(resources_provisioned),
+                        status,
                         architecture_id,
                     ),
                 )
             else:
+                architecture_config = {
+                    **provisioned_config,
+                    **architecture_defaults,
+                }
                 architecture_id = db.register_architecture(name, architecture_config)
                 db.conn.execute(
                     "UPDATE architectures SET resources_provisioned = ?, "
@@ -543,9 +679,9 @@ def sync_local_runtime_contract() -> None:
 
 def main() -> None:
     print("[postprovision] starting data-plane setup")
-    publish_graph_image()
+    worker_image = publish_graph_image()
     approve_search_storage_private_link()
-    upload_canonical_corpus()
+    upload_canonical_corpus(worker_image=worker_image)
     sync_local_runtime_contract()
     print("[postprovision] complete")
 

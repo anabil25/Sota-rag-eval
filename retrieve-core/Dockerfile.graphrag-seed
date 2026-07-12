@@ -1,0 +1,9 @@
+ARG WORKER_IMAGE=retrieve-graphrag:local
+FROM ${WORKER_IMAGE}
+
+USER root
+WORKDIR /app
+COPY --chown=retrieve:retrieve corpus ./corpus
+
+USER retrieve
+WORKDIR /tmp/retrieve

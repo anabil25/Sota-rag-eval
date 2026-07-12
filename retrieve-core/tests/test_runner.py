@@ -9,7 +9,13 @@ import pytest
 
 from retrieve.config import RetrieveConfig
 from retrieve.db import RetrieveDB
-from retrieve.eval.runner import _canonical_doc_id, query_ai_search, run_evaluation
+from retrieve.eval.runner import (
+    _canonical_doc_id,
+    _retrieval_questions,
+    aggregate_model_metrics,
+    query_ai_search,
+    run_evaluation,
+)
 from retrieve.ingest.manifest import build_document_id_aliases
 
 
@@ -73,6 +79,51 @@ class TestQueryAISearch:
 
 
 class TestRunEvaluation:
+    def test_model_metrics_aggregate_raw_counters_and_recompute_rates(self):
+        metrics = aggregate_model_metrics(
+            [
+                {
+                    "azure/gpt-4.1": {
+                        "attempted_request_count": 2,
+                        "successful_response_count": 1,
+                        "failed_response_count": 1,
+                        "requests_with_retries": 1,
+                        "retries": 1,
+                        "responses_with_tokens": 1,
+                        "total_tokens": 100,
+                        "failure_rate": 0.5,
+                    }
+                },
+                {
+                    "azure/gpt-4.1": {
+                        "attempted_request_count": 2,
+                        "successful_response_count": 2,
+                        "failed_response_count": 0,
+                        "requests_with_retries": 0,
+                        "retries": 0,
+                        "responses_with_tokens": 2,
+                        "total_tokens": 50,
+                        "failure_rate": 0.0,
+                    }
+                },
+            ]
+        )["azure/gpt-4.1"]
+
+        assert metrics["attempted_request_count"] == 4
+        assert metrics["total_tokens"] == 150
+        assert metrics["failure_rate"] == 0.25
+        assert metrics["retry_rate"] == 0.2
+        assert metrics["tokens_per_response"] == 50
+
+    def test_retrieval_questions_exclude_inactive_and_evidence_free_rows(self):
+        questions = [
+            {"id": 1, "status": "active", "ground_truth_chunk_ids": ["doc-1::0"]},
+            {"id": 2, "status": "inactive", "ground_truth_chunk_ids": ["doc-2::0"]},
+            {"id": 3, "status": "active", "ground_truth_chunk_ids": []},
+        ]
+
+        assert [question["id"] for question in _retrieval_questions(questions)] == [1]
+
     @patch("retrieve.eval.runner._classify_misses", new_callable=AsyncMock, return_value=[])
     @patch("retrieve.eval.runner.query_ai_search")
     def test_run_evaluation_stores_results(self, mock_search, mock_classify):
@@ -105,6 +156,50 @@ class TestRunEvaluation:
         results = db.get_results_for_run(runs[0]["id"])
         assert len(results) == 2
         assert all(r["latency_ms"] == 45.0 for r in results)
+        db.close()
+
+    @patch("retrieve.eval.runner._classify_misses", new_callable=AsyncMock, return_value=[])
+    @patch("retrieve.eval.runner.query_ai_search")
+    def test_graphrag_evaluation_stores_measured_model_metrics(
+        self,
+        mock_search,
+        mock_classify,
+    ):
+        def query(**kwargs):
+            kwargs["graphrag_metrics_sink"](
+                {
+                    "azure/gpt-4.1": {
+                        "attempted_request_count": 1,
+                        "successful_response_count": 1,
+                        "failed_response_count": 0,
+                        "responses_with_tokens": 1,
+                        "total_tokens": 42,
+                    }
+                }
+            )
+            return ["100::0"], 25.0
+
+        mock_search.side_effect = query
+        tmpdir = tempfile.mkdtemp()
+        db_path = os.path.join(tmpdir, "test.db")
+        cfg = RetrieveConfig()
+        cfg.db_path = db_path
+        cfg.architectures = ["graphrag"]
+
+        db = RetrieveDB(db_path)
+        eval_set_id = db.create_eval_set("v1")
+        db.add_question(eval_set_id, "What form?", "direct_lookup", ["100::0"])
+        db.update_eval_set_counts(eval_set_id)
+        db.close()
+
+        run_evaluation(eval_set_version="v1", cfg=cfg)
+
+        db = RetrieveDB(db_path)
+        run = db.get_all_completed_runs()[0]
+        metrics = run["aggregate_metrics"]["model_metrics"]["azure/gpt-4.1"]
+        assert metrics["attempted_request_count"] == 1
+        assert metrics["failure_rate"] == 0
+        assert metrics["total_tokens"] == 42
         db.close()
 
     @patch("retrieve.eval.runner.query_ai_search")

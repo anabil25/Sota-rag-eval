@@ -34,8 +34,10 @@ az bicep build --file infra/main.bicep
 Build the deployed image with:
 
 ```sh
-docker build -f retrieve-core/Dockerfile.graphrag-job -t retrieve-graphrag:local retrieve-core
+docker build -f retrieve-core/Dockerfile.graphrag-job -t retrieve-graphrag:local .
 ```
+
+The runtime image must not contain a corpus. Postprovision layers the selected canonical corpus onto that image only in a transient seed image, restores the runtime image after private Blob attestation, and deletes the seed tag. CI uses the one-document canonical fixture to validate both image boundaries.
 
 ## Repository boundaries
 

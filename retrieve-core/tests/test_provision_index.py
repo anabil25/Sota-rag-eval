@@ -65,6 +65,41 @@ class TestGraphRAGWorkerSettings:
         assert parsed_embedding.retry.max_retries == 12
         assert parsed_completion.retry.max_delay == 120.0
 
+    def test_worker_snapshots_official_model_metrics(self):
+        from graphrag_llm.metrics import create_metrics_store
+
+        from retrieve.graphrag.settings import (
+            build_graphrag_settings,
+            validate_graphrag_settings,
+        )
+        from retrieve.graphrag_worker.app import collect_graphrag_model_metrics
+
+        settings = build_graphrag_settings(
+            input_dir="input",
+            ai_services_endpoint="https://test-ai.cognitiveservices.azure.com/",
+            llm_model="metrics-test-completion",
+            embedding_model="metrics-test-embedding",
+        )
+        config = validate_graphrag_settings(settings)
+        completion = config.completion_models["default_completion_model"]
+        model_id = f"{completion.model_provider}/{completion.model}"
+        store = create_metrics_store(config=completion.metrics, id=model_id)
+        store.clear_metrics()
+        store.update_metrics(
+            metrics={
+                "attempted_request_count": 2,
+                "successful_response_count": 2,
+                "total_tokens": 123,
+            }
+        )
+
+        metrics = collect_graphrag_model_metrics(config)
+
+        assert metrics[model_id]["attempted_request_count"] == 2
+        assert metrics[model_id]["successful_response_count"] == 2
+        assert metrics[model_id]["total_tokens"] == 123
+        store.clear_metrics()
+
     def test_settings_validator_rejects_silently_accepted_extras(self):
         from retrieve.graphrag.settings import (
             build_graphrag_settings,
@@ -420,6 +455,24 @@ class TestGraphRAGSafety:
         selected_ids = {document["document_id"] for document in selected}
         assert len(selected) == 4
         assert "doc-5" in selected_ids
+        assert selected_ids & {"doc-0", "doc-1"}
+        assert selected_ids & {"doc-8", "doc-9"}
+
+    def test_sample_selection_needs_no_eval_document_ids(self):
+        from retrieve.graphrag_worker.app import select_graphrag_documents
+
+        documents = [
+            {"document_id": f"doc-{index}", "relative_path": f"{index:02d}.md"}
+            for index in range(10)
+        ]
+
+        selected = select_graphrag_documents(
+            {"documents": documents},
+            max_documents=4,
+        )
+
+        selected_ids = {document["document_id"] for document in selected}
+        assert len(selected) == 4
         assert selected_ids & {"doc-0", "doc-1"}
         assert selected_ids & {"doc-8", "doc-9"}
 

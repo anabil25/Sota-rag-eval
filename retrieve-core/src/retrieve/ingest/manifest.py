@@ -21,8 +21,8 @@ def _sha256_bytes(value: bytes) -> str:
 
 
 def _graphrag_document_id(value: bytes) -> str:
-    """Match GraphRAG TextFileReader's SHA-512 hash of decoded UTF-8 text."""
-    text = value.decode("utf-8")
+    """Match GraphRAG TextFileReader's text-mode SHA-512 identity."""
+    text = value.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
     return hashlib.sha512(text.encode("utf-8"), usedforsecurity=False).hexdigest()
 
 

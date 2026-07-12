@@ -46,6 +46,7 @@ SvelteKit and FastAPI are not deployed by the current azd contract. Azure contai
 - FastAPI is the sole writer for operational SQLite/config state. SvelteKit proxies mutations.
 - SQLite uses WAL, schema-version rejection, durable operation jobs, idempotency, admission locking, and bounded event replay.
 - Corpus generations are immutable sets identified by a SHA-256 fingerprint. Blob synchronization is manifest-owned and requires an exact dry-run plan before deletion.
+- The GraphRAG runtime image contains code and pinned dependencies only. Private corpus synchronization uses a content-addressed transient seed image that is deleted after the runtime image is restored.
 - GraphRAG writes immutable `runs/<fingerprint>/<job-id>` artifacts. An architecture becomes active only when the Azure execution and durable Blob status both succeed.
 - GraphRAG and LightRAG return canonical manifest document IDs; generated answer text is never treated as retrieval evidence.
 

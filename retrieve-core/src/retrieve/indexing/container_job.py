@@ -306,5 +306,82 @@ def get_container_job_logs(
     ]
     if subscription_id:
         command.extend(["--subscription", subscription_id])
-    result = _run(command)
+    try:
+        result = _run(command)
+    except subprocess.CalledProcessError as exc:
+        details = "\n".join(
+            part.strip()
+            for part in (exc.stdout, exc.stderr)
+            if isinstance(part, str) and part.strip()
+        )
+        if "No replicas found" not in details:
+            raise
+        return _get_retained_container_job_logs(
+            execution_name=execution_name,
+            resource_group=resource_group,
+            subscription_id=subscription_id,
+        )
     return "\n".join(part.strip() for part in (result.stdout, result.stderr) if part.strip())
+
+
+def _get_retained_container_job_logs(
+    *,
+    execution_name: str,
+    resource_group: str,
+    subscription_id: str,
+) -> str:
+    workspace_command = [
+        "az",
+        "monitor",
+        "log-analytics",
+        "workspace",
+        "list",
+        "--resource-group",
+        resource_group,
+        "--output",
+        "json",
+        "--only-show-errors",
+    ]
+    if subscription_id:
+        workspace_command.extend(["--subscription", subscription_id])
+    workspace_result = _run(workspace_command)
+    workspaces = json.loads(workspace_result.stdout)
+    if not isinstance(workspaces, list) or len(workspaces) != 1:
+        raise RuntimeError(
+            "Completed Container Apps Job logs require exactly one Log Analytics "
+            "workspace in the resource group"
+        )
+    workspace_id = str(workspaces[0].get("customerId") or "").strip()
+    if not workspace_id:
+        raise RuntimeError("Log Analytics workspace has no customer ID")
+
+    escaped_execution = execution_name.replace("'", "''")
+    kusto = (
+        "ContainerAppConsoleLogs_CL "
+        f"| where ContainerGroupName_s startswith '{escaped_execution}' "
+        "| project TimeGenerated, Log_s | order by TimeGenerated asc"
+    )
+    query_command = [
+        "az",
+        "monitor",
+        "log-analytics",
+        "query",
+        "--workspace",
+        workspace_id,
+        "--analytics-query",
+        kusto,
+        "--output",
+        "json",
+        "--only-show-errors",
+    ]
+    if subscription_id:
+        query_command.extend(["--subscription", subscription_id])
+    query_result = _run(query_command)
+    rows = json.loads(query_result.stdout)
+    if not isinstance(rows, list):
+        raise RuntimeError("Log Analytics returned invalid Container Apps Job logs")
+    logs = [str(row.get("Log_s") or "") for row in rows if isinstance(row, dict)]
+    retained = "\n".join(line for line in logs if line)
+    if not retained:
+        raise RuntimeError("Log Analytics contains no retained Container Apps Job logs")
+    return retained

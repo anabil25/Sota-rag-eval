@@ -15,6 +15,8 @@ GraphRAG is cost-gated. Full-corpus execution remains locked until representativ
 
 Use `graphrag_run_scope=sample` and `graphrag_max_documents<=50`. Start three immutable runs with chunk sizes `100`, `300`, and `600`. Use an overlap below each chunk size.
 
+Document IDs are generated from the active corpus manifest; the accelerator does not require a predefined ID scheme or corpus-specific configuration. When a selected eval set has grounded questions, its canonical evidence IDs may be pinned into the bounded sample so the quality benchmark covers those questions. The remaining slots are selected deterministically across the corpus. With no grounded eval evidence, the same sampler works with no pinned IDs and selects the entire bounded sample across the corpus.
+
 For every run, retain:
 
 - Azure execution name and terminal state;

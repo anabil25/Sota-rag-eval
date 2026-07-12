@@ -20,4 +20,5 @@ manual-validation/
 .azure/
 .github/
 .vscode/
+corpus/
 *.csv

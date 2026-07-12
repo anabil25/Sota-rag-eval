@@ -20,7 +20,7 @@ import os
 import subprocess
 import sys
 import uuid
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
@@ -1128,6 +1128,7 @@ def query_graphrag(
     storage_account: str = "",
     output_container: str = "graphrag",
     search_endpoint: str = "",
+    metrics_sink: Callable[[dict[str, dict[str, int | float]]], None] | None = None,
 ) -> tuple[list[str], float]:
     """Query GraphRAG and return canonical document IDs plus latency."""
     import time as _time
@@ -1158,6 +1159,9 @@ def query_graphrag(
         )
         response.raise_for_status()
         data = response.json()
+        model_metrics = data.get("model_metrics")
+        if metrics_sink and isinstance(model_metrics, dict):
+            metrics_sink(model_metrics)
         document_ids = data.get("document_ids")
         if not isinstance(document_ids, list):
             raise RuntimeError("GraphRAG worker returned invalid structured evidence")
@@ -1218,6 +1222,9 @@ def query_graphrag(
         )
         if result.get("kind") != "query" or result.get("request_id") != request_id:
             raise RuntimeError("GraphRAG query execution returned a mismatched result")
+        model_metrics = result.get("model_metrics")
+        if metrics_sink and isinstance(model_metrics, dict):
+            metrics_sink(model_metrics)
         document_ids = result.get("document_ids")
         if not isinstance(document_ids, list):
             raise RuntimeError("GraphRAG query execution returned invalid structured evidence")
@@ -1246,6 +1253,10 @@ def query_graphrag(
                 mode=mode,
             )
         )
+        if metrics_sink:
+            from retrieve.graphrag_worker.app import collect_graphrag_model_metrics
+
+            metrics_sink(collect_graphrag_model_metrics(config))
         latency_ms = (_time.perf_counter() - start) * 1000
         return list(result.document_ids), latency_ms
 
@@ -1269,6 +1280,10 @@ def query_graphrag(
             mode=mode,
         )
     )
+    if metrics_sink:
+        from retrieve.graphrag_worker.app import collect_graphrag_model_metrics
+
+        metrics_sink(collect_graphrag_model_metrics(config))
     latency_ms = (_time.perf_counter() - start) * 1000
     return list(result.document_ids), latency_ms
 

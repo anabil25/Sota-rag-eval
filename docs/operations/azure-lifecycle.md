@@ -34,9 +34,10 @@ azd provision --preview --no-prompt
 5. provisions through azd;
 6. classifies any failure;
 7. on backend capacity only, purges the isolated failed attempt before trying the next whole-stack region;
-8. builds and publishes the GraphRAG image;
-9. verifies and mirrors the canonical corpus;
-10. writes azd outputs into the ignored local config and selected architecture rows.
+8. builds and publishes the corpus-free GraphRAG runtime image;
+9. builds a transient seed image containing the canonical corpus;
+10. verifies and mirrors the corpus through private Blob access, restores the runtime image, and deletes the seed tag;
+11. writes azd outputs into the ignored local config and selected architecture rows.
 
 Quota, policy, authorization, validation, and unknown failures stop immediately. They are not blind-retry conditions.
 
@@ -52,7 +53,7 @@ Data-plane checks use managed identity/Azure CLI credentials. Shared keys are di
 
 ## Re-run
 
-Repeated `retrieve provision` or `azd provision` is expected to be idempotent. Postprovision skips unchanged corpus blobs and commits the new manifest last.
+Repeated `retrieve provision` or `azd provision` is expected to be idempotent. Postprovision skips unchanged corpus blobs, commits the new manifest last, restores the corpus-free worker image before returning, and treats seed-image deletion failure as a failed hook.
 
 ## Remove the environment
 

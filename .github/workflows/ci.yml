@@ -96,11 +96,18 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Build GraphRAG job image
-        run: |
-          cp -R retrieve-core/tests/fixtures/ci-corpus corpus
-          docker build -f retrieve-core/Dockerfile.graphrag-job -t retrieve-graphrag:${{ github.sha }} .
+        run: docker build -f retrieve-core/Dockerfile.graphrag-job -t retrieve-graphrag:${{ github.sha }} .
 
       - name: Inspect GraphRAG job image
         run: |
           test "$(docker run --rm --entrypoint id retrieve-graphrag:${{ github.sha }} -u)" != "0"
+          docker run --rm --entrypoint test retrieve-graphrag:${{ github.sha }} ! -e /app/corpus
           docker run --rm --entrypoint python retrieve-graphrag:${{ github.sha }} -c "import graphrag; import retrieve.graphrag_worker.run_job"
+
+      - name: Build transient corpus seed image
+        run: |
+          mkdir -p "$RUNNER_TEMP/graphrag-seed/retrieve-core"
+          cp retrieve-core/Dockerfile.graphrag-seed "$RUNNER_TEMP/graphrag-seed/retrieve-core/"
+          cp -R retrieve-core/tests/fixtures/ci-corpus "$RUNNER_TEMP/graphrag-seed/corpus"
+          docker build --build-arg "WORKER_IMAGE=retrieve-graphrag:${{ github.sha }}" -f "$RUNNER_TEMP/graphrag-seed/retrieve-core/Dockerfile.graphrag-seed" -t retrieve-graphrag-seed:${{ github.sha }} "$RUNNER_TEMP/graphrag-seed"
+          docker run --rm --entrypoint test retrieve-graphrag-seed:${{ github.sha }} -f /app/corpus/corpus-manifest.json

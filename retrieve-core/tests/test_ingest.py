@@ -1,5 +1,6 @@
 """Tests for ingest/ — plugin interface, markdown plugin, and orchestrator."""
 
+import hashlib
 import tempfile
 from pathlib import Path
 
@@ -271,6 +272,25 @@ class TestCorpusManifest:
             "https://example.test/100/100-3.htm"
         )
         assert load_corpus_manifest(first)["document_count"] == 1
+
+    def test_graphrag_document_id_uses_text_mode_newlines(self, tmp_path):
+        doc = ConvertedDoc(
+            policy_id="doc-1",
+            title="Document",
+            parent="",
+            source_url="https://example.test/doc-1",
+            markdown="First line\r\nSecond line\r\n",
+        )
+        output = tmp_path / "doc-1.md"
+        output.write_bytes(doc.markdown.encode("utf-8"))
+
+        entry = build_manifest_entry(doc, output, tmp_path)
+        expected = hashlib.sha512(
+            b"First line\nSecond line\n",
+            usedforsecurity=False,
+        ).hexdigest()
+
+        assert entry["graphrag_document_id"] == expected
 
     def test_manifest_rejects_stale_markdown(self, tmp_path):
         doc = ConvertedDoc("100", "Policy", "", "https://example.test/100.htm", "Body")

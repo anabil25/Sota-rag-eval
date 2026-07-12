@@ -164,6 +164,13 @@ def test_container_job_and_durable_status_must_both_succeed(
         "chunk_size": 100,
         "chunk_overlap": 20,
         "required_document_ids": ["doc-required"],
+        "model_metrics": {
+            "azure/gpt-4.1": {
+                "attempted_request_count": 4,
+                "successful_response_count": 4,
+                "failed_response_count": 0,
+            }
+        },
         "selected_document_ids": ["doc-required"],
         "sample_selection": "required-plus-stratified",
         "workflow_results": [],
@@ -174,6 +181,11 @@ def test_container_job_and_durable_status_must_both_succeed(
     assert reconciled["status"] == "active"
     assert reconciled["config"]["cloud_index_status"] == "succeeded"
     assert reconciled["config"]["graph_worker_selected_document_ids"] == ["doc-required"]
+    assert reconciled["config"]["graph_worker_model_metrics"]["azure/gpt-4.1"] == {
+        "attempted_request_count": 4,
+        "successful_response_count": 4,
+        "failed_response_count": 0,
+    }
     mock_execution.assert_called_once_with(
         job_name="azgrjtest",
         execution_name="azgrjtest-abc",
@@ -310,3 +322,47 @@ def test_container_job_control_plane_preserves_template(mock_run, mock_get, mock
         {"name": "GRAPH_WORKER_MODE", "value": "query"},
     ]
     assert mock_get.call_count == 2
+
+
+@patch("retrieve.indexing.container_job._run")
+def test_completed_job_logs_fall_back_to_log_analytics(mock_run):
+    import subprocess
+
+    from retrieve.indexing.container_job import get_container_job_logs
+
+    replica_error = subprocess.CalledProcessError(
+        1,
+        ["az", "containerapp", "job", "logs", "show"],
+        output="",
+        stderr="No replicas found for execution",
+    )
+    mock_run.side_effect = [
+        replica_error,
+        SimpleNamespace(
+            stdout=json.dumps([{"customerId": "workspace-id"}]),
+            stderr="",
+        ),
+        SimpleNamespace(
+            stdout=json.dumps(
+                [
+                    {"TimeGenerated": "2026-07-12T01:00:00Z", "Log_s": "first"},
+                    {"TimeGenerated": "2026-07-12T01:00:01Z", "Log_s": "second"},
+                ]
+            ),
+            stderr="",
+        ),
+    ]
+
+    logs = get_container_job_logs(
+        job_name="azgrjtest",
+        execution_name="azgrjtest-execution",
+        resource_group="rg-test",
+        subscription_id="sub-test",
+    )
+
+    assert logs == "first\nsecond"
+    workspace_command = mock_run.call_args_list[1].args[0]
+    assert workspace_command[1:5] == ["monitor", "log-analytics", "workspace", "list"]
+    query_command = mock_run.call_args_list[2].args[0]
+    assert query_command[1:4] == ["monitor", "log-analytics", "query"]
+    assert "azgrjtest-execution" in query_command[query_command.index("--analytics-query") + 1]

@@ -139,9 +139,17 @@ def test_postprovision_seeds_verified_manifest_in_azure(monkeypatch, tmp_path):
             }
         ),
     )
+    monkeypatch.setattr(
+        hook,
+        "temporary_graph_seed_image",
+        lambda *_args: nullcontext(),
+    )
     monkeypatch.setattr(hook, "set_azd_value", persisted.__setitem__)
 
-    hook.upload_canonical_corpus(delays=())
+    hook.upload_canonical_corpus(
+        worker_image="azcrtest.azurecr.io/retrieve-graphrag:worker",
+        delays=(),
+    )
 
     assert "GRAPH_WORKER_MODE=seed" in starts[0]["environment"]
     assert starts[0]["subscription_id"] == "sub-test"
@@ -193,10 +201,19 @@ def test_postprovision_retries_failed_corpus_seed(monkeypatch, tmp_path):
         )
     )
     monkeypatch.setattr(hook, "_job_logs", lambda *_args: next(log_calls))
+    monkeypatch.setattr(
+        hook,
+        "temporary_graph_seed_image",
+        lambda *_args: nullcontext(),
+    )
     monkeypatch.setattr(hook, "set_azd_value", persisted.__setitem__)
     monkeypatch.setattr(hook.time, "sleep", sleeps.append)
 
-    hook.upload_canonical_corpus(delays=(), retry_delays=(7,))
+    hook.upload_canonical_corpus(
+        worker_image="azcrtest.azurecr.io/retrieve-graphrag:worker",
+        delays=(),
+        retry_delays=(7,),
+    )
 
     assert sleeps == [7]
     assert "RETRIEVE_CORPUS_FINGERPRINT" in persisted
@@ -312,12 +329,13 @@ def test_postprovision_publishes_content_addressed_graph_image(monkeypatch, tmp_
     )
     monkeypatch.setattr(hook, "set_azd_value", persisted.__setitem__)
 
-    hook.publish_graph_image()
+    image = hook.publish_graph_image()
 
     assert calls[0][0][:3] == ["az", "acr", "build"]
     assert "retrieve-graphrag:abc123" in calls[0][0]
     assert calls[0][0][-1] == str(tmp_path)
     assert calls[1][0][:4] == ["az", "containerapp", "job", "update"]
+    assert image == "azcrtest.azurecr.io/retrieve-graphrag:abc123"
     assert persisted["RETRIEVE_GRAPHRAG_IMAGE"] == ("azcrtest.azurecr.io/retrieve-graphrag:abc123")
 
 
@@ -347,7 +365,6 @@ def test_postprovision_stages_minimal_graph_build_context(monkeypatch, tmp_path)
         }
         assert relative_files == {
             ".dockerignore",
-            "corpus/policy.md",
             "retrieve-core/Dockerfile.graphrag-job",
             "retrieve-core/pyproject.toml",
             "retrieve-core/src/retrieve/worker.py",
@@ -355,6 +372,126 @@ def test_postprovision_stages_minimal_graph_build_context(monkeypatch, tmp_path)
         staged_context = context
 
     assert not staged_context.exists()
+
+
+def test_postprovision_runtime_tag_excludes_corpus(monkeypatch, tmp_path):
+    hook = _load_script("postprovision")
+    repo = tmp_path / "repo"
+    core = repo / "retrieve-core"
+    source = core / "src" / "retrieve"
+    corpus = repo / "corpus"
+    source.mkdir(parents=True)
+    corpus.mkdir()
+    (repo / ".dockerignore").write_text("corpus/\n", encoding="utf-8")
+    (core / "Dockerfile.graphrag-job").write_text("FROM scratch\n", encoding="utf-8")
+    (core / "pyproject.toml").write_text("[project]\n", encoding="utf-8")
+    worker = source / "worker.py"
+    worker.write_text("WORKER = 1\n", encoding="utf-8")
+    policy = corpus / "policy.md"
+    policy.write_text("first corpus\n", encoding="utf-8")
+    monkeypatch.setattr(hook, "REPO_ROOT", repo)
+
+    original = hook.graph_image_tag()
+    policy.write_text("different corpus\n", encoding="utf-8")
+    assert hook.graph_image_tag() == original
+    worker.write_text("WORKER = 2\n", encoding="utf-8")
+    assert hook.graph_image_tag() != original
+
+
+def test_postprovision_stages_isolated_seed_build_context(monkeypatch, tmp_path):
+    hook = _load_script("postprovision")
+    repo = tmp_path / "repo"
+    core = repo / "retrieve-core"
+    corpus = repo / "corpus"
+    core.mkdir(parents=True)
+    corpus.mkdir()
+    (core / "Dockerfile.graphrag-seed").write_text(
+        "ARG WORKER_IMAGE\nFROM ${WORKER_IMAGE}\n",
+        encoding="utf-8",
+    )
+    (corpus / "policy.md").write_text("# Policy\n", encoding="utf-8")
+    (repo / "retrieve.db").write_text("local state", encoding="utf-8")
+    monkeypatch.setattr(hook, "REPO_ROOT", repo)
+
+    with hook.graph_seed_build_context(corpus) as context:
+        relative_files = {
+            path.relative_to(context).as_posix()
+            for path in context.rglob("*")
+            if path.is_file()
+        }
+        assert relative_files == {
+            "corpus/policy.md",
+            "retrieve-core/Dockerfile.graphrag-seed",
+        }
+
+
+def test_postprovision_seed_tag_includes_derived_manifest_fields(monkeypatch, tmp_path):
+    hook = _load_script("postprovision")
+    repo = tmp_path / "repo"
+    core = repo / "retrieve-core"
+    core.mkdir(parents=True)
+    (core / "Dockerfile.graphrag-seed").write_text(
+        "ARG WORKER_IMAGE=retrieve-graphrag:local\nFROM ${WORKER_IMAGE}\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(hook, "REPO_ROOT", repo)
+    original = {
+        "corpus_fingerprint": "f" * 64,
+        "documents": [{"document_id": "doc", "graphrag_document_id": "a" * 128}],
+    }
+    corrected = {
+        **original,
+        "documents": [{"document_id": "doc", "graphrag_document_id": "b" * 128}],
+    }
+
+    assert hook.graph_seed_image_tag("registry/worker:tag", original) != (
+        hook.graph_seed_image_tag("registry/worker:tag", corrected)
+    )
+
+
+def test_postprovision_seed_image_is_transient(monkeypatch, tmp_path):
+    hook = _load_script("postprovision")
+    values = {
+        "AZURE_CONTAINER_REGISTRY_NAME": "azcrtest",
+        "AZURE_CONTAINER_REGISTRY_ENDPOINT": "azcrtest.azurecr.io",
+        "AZURE_RESOURCE_GROUP": "rg-test",
+        "AZURE_GRAPHRAG_JOB_NAME": "azgrjtest",
+    }
+    for name, value in values.items():
+        monkeypatch.setenv(name, value)
+    calls = []
+    monkeypatch.setattr(hook, "graph_seed_image_tag", lambda *_args: "seed123")
+    monkeypatch.setattr(
+        hook,
+        "graph_seed_build_context",
+        lambda *_args: nullcontext(tmp_path),
+    )
+    monkeypatch.setattr(
+        hook,
+        "_run_with_auth_retry",
+        lambda command, operation: calls.append((command, operation)),
+    )
+    worker_image = "azcrtest.azurecr.io/retrieve-graphrag:worker123"
+
+    with hook.temporary_graph_seed_image(
+        worker_image,
+        tmp_path,
+        {"corpus_fingerprint": "f" * 64},
+    ) as seed_image:
+        assert seed_image == "azcrtest.azurecr.io/retrieve-graphrag-seed:seed123"
+
+    assert [operation for _, operation in calls] == [
+        "GraphRAG seed ACR build",
+        "GraphRAG seed image activation",
+        "GraphRAG worker image restoration",
+        "GraphRAG seed image deletion",
+    ]
+    assert f"WORKER_IMAGE={worker_image}" in calls[0][0]
+    assert calls[1][0][calls[1][0].index("--image") + 1] == seed_image
+    assert calls[2][0][calls[2][0].index("--image") + 1] == worker_image
+    assert calls[3][0][calls[3][0].index("--image") + 1] == (
+        "retrieve-graphrag-seed:seed123"
+    )
 
 
 def test_postprovision_retries_transient_authorization(monkeypatch):
@@ -426,4 +563,74 @@ def test_postprovision_syncs_localhost_contract_and_selected_architectures(monke
     assert graphrag["config"]["corpus_fingerprint"] == "f" * 64
     assert graphrag["config"]["graph_output_container"] == "graphrag"
     assert db.get_generation_preferences("ui_session")["provision_done"] is True
+    db.close()
+
+
+def test_postprovision_preserves_same_environment_runtime_evidence(monkeypatch, tmp_path):
+    hook = _load_script("postprovision")
+    config_path = tmp_path / "retrieve.yaml"
+    config_path.write_text(
+        "azure:\n  resource_group: rg-old\narchitectures:\n  - graphrag\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("RETRIEVE_CONFIG_PATH", str(config_path))
+    outputs = {
+        "AZURE_SUBSCRIPTION_ID": "sub-test",
+        "AZURE_LOCATION": "northcentralus",
+        "AZURE_RESOURCE_GROUP": "rg-retrieve-test",
+        "AZURE_RESOURCE_TOKEN": "abc123",
+        "AZURE_STORAGE_ACCOUNT_NAME": "azsttest",
+        "AZURE_STORAGE_CORPUS_CONTAINER": "corpus",
+        "RETRIEVE_CORPUS_FINGERPRINT": "f" * 64,
+        "AZURE_STORAGE_GRAPH_CONTAINER": "graphrag",
+        "AZURE_AI_SERVICES_ENDPOINT": "https://azaitest.cognitiveservices.azure.com/",
+        "AZURE_SEARCH_ENDPOINT": "https://azsrtest.search.windows.net",
+        "AZURE_OPENAI_CHAT_DEPLOYMENT": "gpt-4.1",
+        "AZURE_OPENAI_EMBEDDING_DEPLOYMENT": "text-embedding-3-large",
+        "AZURE_GRAPHRAG_JOB_NAME": "azgrjtest",
+        "AZURE_CONTAINER_APPS_ENVIRONMENT_NAME": "azcaetest",
+    }
+    for name, value in outputs.items():
+        monkeypatch.setenv(name, value)
+
+    from retrieve.db import RetrieveDB
+
+    db = RetrieveDB(tmp_path / "retrieve.db")
+    architecture_id = db.register_architecture(
+        "graphrag",
+        {
+            "resource_token": "abc123",
+            "graph_job_name": "old-job",
+            "graphrag_run_scope": "canary",
+            "graphrag_max_documents": 200,
+            "graph_worker_artifact_prefix": "runs/fingerprint/job-id",
+            "graphrag_pipeline_smoke_100": {"job_id": "smoke-job"},
+        },
+    )
+    db.conn.execute(
+        "UPDATE architectures SET status = 'active', resources_provisioned = ? WHERE id = ?",
+        (
+            json.dumps({"resource_token": "abc123", "deployment_marker": "preserve"}),
+            architecture_id,
+        ),
+    )
+    db.upsert_generation_preferences(
+        {"selected_architectures": ["graphrag"]},
+        "ui_session",
+    )
+    db.conn.commit()
+    db.close()
+
+    hook.sync_local_runtime_contract()
+
+    db = RetrieveDB(tmp_path / "retrieve.db")
+    graphrag = db.get_architecture("graphrag")
+    assert graphrag is not None
+    assert graphrag["status"] == "active"
+    assert graphrag["config"]["graph_job_name"] == "azgrjtest"
+    assert graphrag["config"]["graphrag_run_scope"] == "canary"
+    assert graphrag["config"]["graphrag_max_documents"] == 200
+    assert graphrag["config"]["graph_worker_artifact_prefix"] == "runs/fingerprint/job-id"
+    assert graphrag["config"]["graphrag_pipeline_smoke_100"] == {"job_id": "smoke-job"}
+    assert graphrag["resources_provisioned"]["deployment_marker"] == "preserve"
     db.close()

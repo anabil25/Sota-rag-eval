@@ -100,6 +100,7 @@ class JobStatus(BaseModel):
     progress_completed: int | None = None
     progress_total: int | None = None
     workflow_results: list[dict[str, str]] = Field(default_factory=list)
+    model_metrics: dict[str, dict[str, int | float]] = Field(default_factory=dict)
 
 
 class QueryRequest(BaseModel):
@@ -117,6 +118,7 @@ def select_graphrag_documents(
     max_documents: int | None,
     required_document_ids: list[str] | None = None,
 ) -> list[dict[str, Any]]:
+    """Select a corpus-wide sample, optionally pinning current eval evidence."""
     documents = sorted(
         manifest.get("documents") or [],
         key=lambda document: str(document.get("relative_path") or ""),
@@ -436,6 +438,34 @@ def _env_float(name: str, default: float) -> float:
         return default
 
 
+def collect_graphrag_model_metrics(config: Any) -> dict[str, dict[str, int | float]]:
+    """Snapshot GraphRAG's official singleton metrics stores by model ID."""
+    from graphrag_llm.metrics import create_metrics_store
+
+    model_configs = [
+        *config.completion_models.values(),
+        *config.embedding_models.values(),
+    ]
+    result: dict[str, dict[str, int | float]] = {}
+    for model_config in model_configs:
+        if model_config.metrics is None:
+            continue
+        model_id = f"{model_config.model_provider}/{model_config.model}"
+        store = create_metrics_store(config=model_config.metrics, id=model_id)
+        metrics: dict[str, int | float] = {}
+        for name, value in store.get_metrics().items():
+            if isinstance(value, bool):
+                metrics[str(name)] = int(value)
+            elif isinstance(value, (int, float)):
+                metrics[str(name)] = value
+            elif hasattr(value, "item"):
+                scalar = value.item()
+                if isinstance(scalar, (int, float)):
+                    metrics[str(name)] = scalar
+        result[model_id] = metrics
+    return result
+
+
 def _upload_artifacts(
     storage_account: str,
     output_container: str,
@@ -598,6 +628,8 @@ def _run_index(job_id: str, request: IndexRequest) -> None:
             details = "; ".join(f"{result.workflow}: {result.error}" for result in failures)
             raise RuntimeError(f"GraphRAG workflows failed: {details}")
 
+        status["model_metrics"] = collect_graphrag_model_metrics(config)
+        _set_status(storage_account, request.output_container, status)
         _upload_artifacts(
             storage_account,
             request.output_container,
@@ -661,7 +693,9 @@ async def query_index(request: QueryRequest) -> dict[str, Any]:
             community_level=request.community_level,
             dynamic_community_selection=request.dynamic_community_selection,
         )
-        return result.to_dict()
+        payload = result.to_dict()
+        payload["model_metrics"] = collect_graphrag_model_metrics(config)
+        return payload
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 

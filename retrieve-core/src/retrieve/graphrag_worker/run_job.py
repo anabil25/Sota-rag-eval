@@ -15,6 +15,7 @@ from retrieve.graphrag_worker.app import (
     _load_successful_run_config,
     _run_index,
     _status_blob_name,
+    collect_graphrag_model_metrics,
 )
 from retrieve.graphrag_worker.protocol import decode_payload, format_job_result
 from retrieve.indexing.blob_upload import BlobMirrorPlan, upload_corpus
@@ -116,6 +117,7 @@ def query_graphrag() -> dict[str, object]:
         "mode": result.mode,
         "text_unit_ids": list(result.text_unit_ids),
         "document_ids": list(result.document_ids),
+        "model_metrics": collect_graphrag_model_metrics(config),
         "citations": [
             {
                 "text_unit_id": citation.text_unit_id,
