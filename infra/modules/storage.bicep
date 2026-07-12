@@ -137,6 +137,41 @@ resource graphContainer 'Microsoft.Storage/storageAccounts/blobServices/containe
   }
 }
 
+resource graphArtifactLifecycle 'Microsoft.Storage/storageAccounts/managementPolicies@2023-05-01' = {
+  parent: storageAccount
+  name: 'default'
+  properties: {
+    policy: {
+      rules: [
+        {
+          name: 'retrieve-delete-graphrag-artifacts'
+          enabled: true
+          type: 'Lifecycle'
+          definition: {
+            actions: {
+              baseBlob: {
+                delete: {
+                  daysAfterModificationGreaterThan: 30
+                }
+              }
+            }
+            filters: {
+              blobTypes: [
+                'blockBlob'
+              ]
+              prefixMatch: [
+                '${graphContainerName}/runs/'
+                '${graphContainerName}/cache/'
+                '${graphContainerName}/jobs/'
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
 resource runtimeBlobContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(storageAccount.id, runtimePrincipalId, blobContributorRoleId)
   scope: storageAccount

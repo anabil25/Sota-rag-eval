@@ -1,8 +1,8 @@
 # Plan 1 — Repair GraphRAG End to End
 
-**Status:** Local implementation complete; live sample and canary pending
+**Status:** Complete — GraphRAG evaluated as a candidate; hybrid-reranker selected
 **Priority:** P0
-**Last updated:** 2026-07-11
+**Last updated:** 2026-07-12
 
 ## Goal
 
@@ -46,9 +46,14 @@ Replace the failed experimental GraphRAG path with a pinned, schema-validated Gr
 - [x] Evaluation consumes the persisted endpoint/artifact/fingerprint/storage contract.
 - [x] Full-corpus execution remains default-denied; sample and canary caps are enforced.
 - [x] Live pipeline smoke exposed zero golden-set coverage in lexicographic first-N sampling; bounded runs now use deterministic corpus-wide selection and can require all golden evidence documents, with selected IDs persisted for reconciliation.
-- [ ] Live 50-document runs for chunk sizes 100, 300, and 600, followed by query/eval comparison.
-- [ ] Live canary with throttle, cost, quality, and duration thresholds.
-- [ ] Full run only if every automated sample/canary gate passes.
+- [x] Live representative 50-document, 100-token run completed with all 17 grounded
+	evidence documents included and structured query evidence validated.
+- [x] Same 25-question eval completed across hybrid-reranker, Agentic KB, GraphRAG,
+	and LightRAG.
+- [x] Stop gate applied: GraphRAG nDCG@10 was 0.384 versus hybrid-reranker 0.758,
+	so 300/600-token tuning, canary, and full-corpus execution were not justified.
+- [x] GraphRAG loser indexes/runtime removed; Blob evidence has 30-day Azure lifecycle
+	retention.
 
 ### Live pipeline smoke evidence
 

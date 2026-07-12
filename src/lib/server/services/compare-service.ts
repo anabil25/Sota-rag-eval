@@ -13,14 +13,17 @@ export function getCompareContext(): CompareContext {
 		? ui.active_experiment_architectures.map(String)
 		: [];
 	const experimentId = String(ui.active_experiment_id || '');
-	const runs = activeEval
-		? db.getCompletedRunsForExperiment({
-				experimentId,
-				evalSetId: activeEval.id,
-				architectureNames: activeArchitectures,
-				corpusFingerprint: String(ui.active_experiment_corpus_fingerprint || '')
-			})
-		: [];
+	const runs =
+		experimentId && activeEval
+			? db.getCompletedRunsForExperiment({
+					experimentId,
+					evalSetId: activeEval.id,
+					architectureNames: activeArchitectures,
+					corpusFingerprint: String(ui.active_experiment_corpus_fingerprint || '')
+				})
+			: ui.pending_experiment_id
+				? []
+				: db.getAllCompletedRuns();
 	const categories: CompareContext['categories'] = {};
 	const failures: CompareContext['failures'] = {};
 	for (const run of runs) {

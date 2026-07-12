@@ -369,15 +369,18 @@ def _compare_context(db: RetrieveDB, cfg: RetrieveConfig, ui: dict[str, Any]) ->
     active_version = str(ui.get("active_experiment_eval_set_version") or "").strip()
     active_eval = db.get_eval_set_by_version(active_version) if active_version else None
     active_architectures = ui.get("active_experiment_architectures") or []
+    active_experiment_id = str(ui.get("active_experiment_id") or "")
     runs = (
         db.get_completed_runs_for_experiment(
-            str(ui.get("active_experiment_id") or ""),
+            active_experiment_id,
             eval_set_id=int(active_eval["id"]),
             architecture_names=[str(name) for name in active_architectures],
             corpus_fingerprint=str(ui.get("active_experiment_corpus_fingerprint") or ""),
         )
-        if active_eval and isinstance(active_architectures, list)
-        else []
+        if active_experiment_id and active_eval and isinstance(active_architectures, list)
+        else (
+            [] if ui.get("pending_experiment_id") else db.get_all_completed_runs()
+        )
     )
     categories = {}
     failures = {}
@@ -457,7 +460,7 @@ def _compare_context(db: RetrieveDB, cfg: RetrieveConfig, ui: dict[str, Any]) ->
         "categories": categories,
         "failures": failures,
         "latest_eval": active_eval or db.get_latest_eval_set(),
-        "experiment_id": str(ui.get("active_experiment_id") or ""),
+        "experiment_id": active_experiment_id,
         "selected_mode": ui.get("selected_mode") or "",
         "arch_costs": arch_costs,
         "winners": winners,
@@ -819,7 +822,7 @@ def _run_job_sync(
                     cfg=cfg,
                     variants=variants,
                     mode=mode,
-                    experiment_id=operation_id,
+                    experiment_id=str(args.get("experiment_id") or operation_id),
                 )
             _patch_ui_session(
                 cfg,
@@ -1479,11 +1482,12 @@ def create_app(config_path: str = "retrieve.yaml") -> FastAPI:
             try:
                 running_db.update_operation_job(operation_id, state="running")
                 job["state"] = "running"
+                job_cfg = cfg.model_copy(deep=True)
                 result = await asyncio.to_thread(
                     _run_job_sync,
                     kind,
                     args,
-                    cfg,
+                    job_cfg,
                     operation_id,
                     principal.principal_id,
                     config_path,

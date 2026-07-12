@@ -1,5 +1,6 @@
 """Tests for GraphRAG, indexing, Search, and app-level teardown."""
 
+import json
 import os
 import tempfile
 from pathlib import Path
@@ -533,7 +534,7 @@ class TestTeardown:
 
         cfg = RetrieveConfig()
         cfg.db_path = db_path
-        cfg.architectures = ["keyword", "hybrid"]
+        cfg.architectures = ["hybrid"]
 
         from retrieve.provision.teardown import teardown
 
@@ -558,6 +559,242 @@ class TestTeardown:
 
         # Should not crash
         teardown(keep=None, cfg=cfg)
+
+    def test_teardown_failure_does_not_mark_architecture_removed(self, tmp_path):
+        db_path = tmp_path / "retrieve.db"
+        db = RetrieveDB(db_path)
+        db.register_architecture(
+            "keyword", {"search_endpoint": "https://x", "index_name": "keyword"}
+        )
+        db.conn.execute("UPDATE architectures SET status = 'provisioned'")
+        db.conn.commit()
+        db.close()
+        cfg = RetrieveConfig(db_path=str(db_path), architectures=["keyword"])
+
+        from retrieve.provision.teardown import teardown
+
+        with (
+            patch(
+                "retrieve.provision.teardown._delete_search_resources",
+                side_effect=RuntimeError("delete failed"),
+            ),
+            pytest.raises(RuntimeError, match="delete failed"),
+        ):
+            teardown(keep=[], cfg=cfg)
+
+        db = RetrieveDB(db_path)
+        assert db.get_architecture("keyword")["status"] == "provisioned"
+        db.close()
+
+    @patch("retrieve.provision.teardown._delete_search_resources")
+    @patch("retrieve.provision.teardown.requests.delete")
+    @patch("retrieve.indexing.search_index._search_rest_headers", return_value={})
+    @patch("azure.identity.DefaultAzureCredential")
+    def test_agentic_teardown_removes_kb_source_and_base_index(
+        self,
+        mock_credential,
+        mock_headers,
+        mock_delete,
+        mock_delete_search,
+    ):
+        from retrieve.provision.teardown import _delete_agentic_resources
+
+        mock_delete.return_value = SimpleNamespace(status_code=204, text="")
+
+        _delete_agentic_resources(
+            "https://test.search.windows.net",
+            "test-agentic-kb",
+        )
+
+        urls = [call.args[0] for call in mock_delete.call_args_list]
+        assert any("knowledgebases('test-agentic-kb')" in url for url in urls)
+        assert any("knowledgesources('test-agentic-kb-base-ks')" in url for url in urls)
+        mock_delete_search.assert_called_once_with(
+            "https://test.search.windows.net", "test-agentic-kb-base"
+        )
+
+    @patch("azure.search.documents.indexes.SearchIndexClient")
+    @patch("azure.identity.DefaultAzureCredential")
+    def test_graphrag_teardown_deletes_only_matching_corpus_indexes(
+        self,
+        mock_credential,
+        mock_client_type,
+    ):
+        from retrieve.provision.teardown import _delete_graphrag_search_resources
+
+        client = mock_client_type.return_value
+        matching = SimpleNamespace(name="gr-ffffffff-job123-entity")
+        winner = SimpleNamespace(name="ret-token-hybrid-reranker")
+        client.list_indexes.side_effect = [[matching, winner], [winner]]
+
+        _delete_graphrag_search_resources(
+            "https://test.search.windows.net",
+            {"corpus_fingerprint": "f" * 64},
+        )
+
+        client.delete_index.assert_called_once_with(matching.name)
+
+    @patch("retrieve.provision.teardown._az_cmd")
+    def test_graphrag_blob_retention_requires_owned_prefixes(
+        self,
+        mock_az,
+    ):
+        from retrieve.provision.teardown import _verify_graphrag_blob_retention
+
+        mock_az.return_value = SimpleNamespace(
+            returncode=0,
+            stderr="",
+            stdout=json.dumps(
+                {
+                    "policy": {
+                        "rules": [
+                            {
+                                "name": "retrieve-delete-graphrag-artifacts",
+                                "enabled": True,
+                                "definition": {
+                                    "actions": {
+                                        "baseBlob": {
+                                            "delete": {
+                                                "daysAfterModificationGreaterThan": 30
+                                            }
+                                        }
+                                    },
+                                    "filters": {
+                                        "prefixMatch": [
+                                            "graphrag/runs/",
+                                            "graphrag/cache/",
+                                            "graphrag/jobs/",
+                                        ]
+                                    },
+                                },
+                            }
+                        ]
+                    }
+                }
+            ),
+        )
+
+        _verify_graphrag_blob_retention(
+            {
+                "storage_account": "teststore",
+                "resource_group": "rg-test",
+                "subscription_id": "sub-test",
+                "graph_output_container": "graphrag",
+                "corpus_container": "corpus",
+            }
+        )
+
+        command = mock_az.call_args.args[0]
+        assert command[0:4] == ["storage", "account", "management-policy", "show"]
+
+    def test_lightrag_teardown_requires_marker_and_removes_only_root(self, tmp_path):
+        from retrieve.provision.teardown import _delete_lightrag_state
+
+        root = tmp_path / "state"
+        active = root / "runs" / "fingerprint"
+        active.mkdir(parents=True)
+        (active / "retrieve-index.json").write_text(
+            json.dumps({"corpus_fingerprint": "f" * 64}), encoding="utf-8"
+        )
+        unrelated = tmp_path / "unrelated.txt"
+        unrelated.write_text("keep", encoding="utf-8")
+
+        _delete_lightrag_state(
+            {
+                "lightrag_working_root": str(root),
+                "lightrag_working_dir": str(active),
+                "representative_corpus_fingerprint": "f" * 64,
+            }
+        )
+
+        assert not root.exists()
+        assert unrelated.read_text(encoding="utf-8") == "keep"
+
+    def test_graph_runtime_teardown_blocks_protected_resource_group(self):
+        from retrieve.provision.teardown import _delete_graph_runtime
+
+        with pytest.raises(RuntimeError, match="Protected resource group"):
+            _delete_graph_runtime({"resource_group": "rg-ret-test2"})
+
+    @patch("retrieve.provision.teardown._az_json", return_value=[])
+    @patch("retrieve.provision.teardown._az_cmd")
+    def test_graph_support_teardown_uses_exact_derived_names(self, mock_az, mock_az_json):
+        from retrieve.provision.teardown import _delete_graph_support_resources
+
+        mock_az.side_effect = [
+            SimpleNamespace(
+                returncode=0,
+                stdout=json.dumps({"principalId": "principal-1"}),
+                stderr="",
+            ),
+            SimpleNamespace(returncode=0, stdout="", stderr=""),
+            SimpleNamespace(returncode=0, stdout="", stderr=""),
+            SimpleNamespace(returncode=0, stdout="", stderr=""),
+        ]
+
+        _delete_graph_support_resources(
+            {
+                "resource_group": "rg-test",
+                "subscription_id": "sub-test",
+                "resource_token": "token",
+                "location": "North Central US",
+            }
+        )
+
+        commands = [call.args[0] for call in mock_az.call_args_list]
+        assert commands[0][0:4] == ["identity", "show", "--name", "azidtoken"]
+        assert "azvnettoken" in commands[2]
+        assert "azvnettoken-container-apps-nsg-northcentralus" in commands[3]
+        mock_az_json.assert_called_once()
+
+    def test_teardown_promotes_exact_selected_winner_run(self, tmp_path):
+        db_path = tmp_path / "retrieve.db"
+        db = RetrieveDB(db_path)
+        eval_set_id = db.create_eval_set("v1")
+        architecture_id = db.register_architecture(
+            "hybrid-reranker",
+            {"index_name": "winner-index", "corpus_fingerprint": "f" * 64},
+        )
+        run_id = db.create_run(
+            eval_set_id,
+            "hybrid-reranker",
+            "sota",
+            {
+                "candidate_base": "hybrid-reranker",
+                "experiment_id": "experiment-1",
+                "corpus_fingerprint": "f" * 64,
+                "semantic_reranker": "on",
+            },
+            architecture_id,
+        )
+        db.complete_run(run_id, {"ndcg_at_10": 0.8})
+        db.conn.execute("UPDATE architectures SET status = 'provisioned'")
+        db.upsert_generation_preferences(
+            {
+                "final_winner": "hybrid-reranker",
+                "selected_run_id": run_id,
+                "final_eval_set_id": eval_set_id,
+                "final_corpus_fingerprint": "f" * 64,
+            },
+            "ui_session",
+        )
+        db.close()
+        cfg = RetrieveConfig(
+            db_path=str(db_path),
+            architectures=["hybrid-reranker"],
+        )
+
+        from retrieve.provision.teardown import teardown
+
+        teardown(keep=["hybrid-reranker"], cfg=cfg)
+
+        db = RetrieveDB(db_path)
+        winner = db.get_architecture("hybrid-reranker")
+        assert winner["status"] == "active"
+        assert winner["config"]["semantic_reranker"] == "on"
+        assert winner["config"]["selected_run_id"] == run_id
+        assert winner["config"]["selected_metrics"]["ndcg_at_10"] == 0.8
+        db.close()
 
 
 class TestIndexOrchestrator:
@@ -922,8 +1159,8 @@ class TestSearchIndexBuilder:
 
         assert document_ids == ["714-1_alaska_residency.md"]
         request = kb_client.retrieve.call_args.kwargs["retrieval_request"]
-        assert request.retrieval_reasoning_effort == "medium"
-        assert request.output_mode == "extractiveData"
+        assert request.retrieval_reasoning_effort.kind == "medium"
+        assert request.output_mode.value == "extractiveData"
         assert request.max_runtime_in_seconds == 45
         assert request.include_activity is False
         assert latency_ms >= 0

@@ -579,6 +579,28 @@ class RetrieveDB:
             return d
         return None
 
+    def get_latest_architectures(self) -> list[dict[str, Any]]:
+        """Return the latest durable row for every registered architecture name."""
+        rows = self.conn.execute(
+            """SELECT a.*
+               FROM architectures a
+               INNER JOIN (
+                   SELECT name, MAX(id) AS max_id
+                   FROM architectures
+                   GROUP BY name
+               ) latest ON a.id = latest.max_id
+               ORDER BY a.id"""
+        ).fetchall()
+        result = []
+        for row in rows:
+            architecture = dict(row)
+            architecture["config"] = json.loads(architecture["config"])
+            architecture["resources_provisioned"] = json.loads(
+                architecture["resources_provisioned"]
+            )
+            result.append(architecture)
+        return result
+
     # ── Durable operation events ─────────────────────────────────────
 
     def append_operation_event(

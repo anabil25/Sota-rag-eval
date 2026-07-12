@@ -1,8 +1,8 @@
 # Plan 2 — Clean and Normalize the Repository
 
-**Status:** Implemented; final tree validated; live-operation evidence pending
+**Status:** Complete — final tree, live operation, and cleanup evidence validated
 **Priority:** P1
-**Last updated:** 2026-07-11
+**Last updated:** 2026-07-12
 
 ## Goal
 
@@ -107,4 +107,5 @@ Create a maintainable monorepo with explicit source, generated, runtime, fixture
 - [x] Added root architecture, contribution, operations, upstream-dependency, and cleanup evidence docs.
 - [x] Full Ruff and frontend formatting/lint pass; copied/generated path references are removed from active code.
 - [x] Repeat complete offline/build/image/generated-path/secret/vulnerability gates on the final tree.
-- [ ] Record live deployment and cleanup evidence, then mark the plan complete.
+- [x] Recorded live deployment, architecture verdict, winner handoff, loser cleanup,
+  dependency audit, portability scan, and final validation evidence.

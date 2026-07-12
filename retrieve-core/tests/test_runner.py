@@ -262,7 +262,7 @@ class TestRunEvaluation:
         db.update_eval_set_counts(eid)
         db.close()
 
-        run_evaluation(eval_set_version="v1", cfg=cfg)
+        experiment = run_evaluation(eval_set_version="v1", cfg=cfg)
 
         db = RetrieveDB(db_path)
         runs = db.get_all_completed_runs()
@@ -278,6 +278,57 @@ class TestRunEvaluation:
         results = db.get_results_for_run(runs[0]["id"])
         assert len(results) == 2
         assert all(r["latency_ms"] == 45.0 for r in results)
+        db.close()
+
+        mock_search.reset_mock()
+        resumed = run_evaluation(
+            eval_set_version="v1",
+            cfg=cfg,
+            experiment_id=experiment["experiment_id"],
+        )
+        assert mock_search.call_count == 0
+        assert resumed["run_ids"] == experiment["run_ids"]
+
+    @patch("retrieve.eval.runner._classify_misses", new_callable=AsyncMock, return_value=[])
+    @patch("retrieve.indexing.advanced.query_graphrag_batch")
+    @patch("retrieve.eval.runner.query_ai_search")
+    def test_graphrag_evaluation_uses_one_batch_job(
+        self,
+        mock_search,
+        mock_batch,
+        mock_classify,
+        tmp_path,
+    ):
+        mock_batch.return_value = [(["100"], 50.0), (["101"], 60.0)]
+        cfg = RetrieveConfig(db_path=str(tmp_path / "retrieve.db"))
+        cfg.corpus.output_dir = str(tmp_path / "missing-corpus")
+        cfg.azure.corpus_fingerprint = "corpus-fingerprint"
+        cfg.architectures = ["graphrag"]
+        db = RetrieveDB(cfg.db_path)
+        eval_set_id = db.create_eval_set("v1")
+        db.add_question(eval_set_id, "First?", "direct_lookup", ["100::0"])
+        db.add_question(eval_set_id, "Second?", "direct_lookup", ["101::0"])
+        db.register_architecture(
+            "graphrag",
+            {
+                "graph_job_name": "azgrjtest",
+                "resource_group": "rg-test",
+                "subscription_id": "sub-test",
+                "graph_worker_artifact_prefix": "runs/corpus/job123",
+                "corpus_fingerprint": "corpus-fingerprint",
+            },
+        )
+        db.close()
+
+        run_evaluation(eval_set_version="v1", cfg=cfg)
+
+        mock_batch.assert_called_once()
+        assert mock_batch.call_args.args[0] == ["First?", "Second?"]
+        mock_search.assert_not_called()
+        db = RetrieveDB(cfg.db_path)
+        run = db.get_all_completed_runs()[0]
+        assert run["aggregate_metrics"]["avg_latency_ms"] == 55.0
+        assert len(db.get_results_for_run(run["id"])) == 2
         db.close()
 
     @patch("retrieve.eval.runner._classify_misses", new_callable=AsyncMock, return_value=[])

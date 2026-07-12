@@ -344,6 +344,20 @@ class TestRuns:
         compared = db.compare_runs([r1, r2])
         assert len(compared) == 2
 
+    def test_latest_architectures_returns_only_newest_row_per_name(self, db):
+        db.register_architecture("hybrid", {"version": 1})
+        latest_hybrid = db.register_architecture("hybrid", {"version": 2})
+        db.register_architecture("keyword", {"version": 1})
+
+        architectures = db.get_latest_architectures()
+
+        assert [architecture["name"] for architecture in architectures] == [
+            "hybrid",
+            "keyword",
+        ]
+        assert architectures[0]["id"] == latest_hybrid
+        assert architectures[0]["config"]["version"] == 2
+
 
 class TestRunResults:
     def test_add_and_get_results(self, db):

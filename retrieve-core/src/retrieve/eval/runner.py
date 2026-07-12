@@ -664,6 +664,16 @@ def run_evaluation(
             )
         except (FileNotFoundError, ValueError):
             current_corpus_fingerprint = str(cfg.azure.corpus_fingerprint or "")
+        session = db.get_generation_preferences("ui_session") or {}
+        session.update(
+            {
+                "pending_experiment_id": experiment_id,
+                "pending_experiment_eval_set_id": int(eval_set_id),
+                "pending_experiment_eval_set_version": str(eval_set["version_label"]),
+                "pending_experiment_corpus_fingerprint": current_corpus_fingerprint,
+            }
+        )
+        db.upsert_generation_preferences(session, "ui_session")
         preexisting_running_ids = {
             int(row["id"])
             for row in db.conn.execute(
@@ -715,6 +725,41 @@ def run_evaluation(
             for an in arch_names:
                 variants_to_run.append({"base": an, "name": an, "toggles": {}})
 
+        requested_variants = list(variants_to_run)
+        run_ids: list[int] = []
+        pending_variants: list[dict[str, Any]] = []
+        prior_runs = reversed(db.get_runs_for_eval_set(int(eval_set_id)))
+        completed_by_name: dict[str, dict[str, Any]] = {}
+        for prior_run in prior_runs:
+            prior_config = prior_run.get("architecture_config") or {}
+            if (
+                prior_run.get("status") == "completed"
+                and prior_run.get("mode") == mode
+                and prior_config.get("experiment_id") == experiment_id
+                and prior_config.get("corpus_fingerprint") == current_corpus_fingerprint
+            ):
+                completed_by_name.setdefault(str(prior_run["architecture_name"]), prior_run)
+        for variant in variants_to_run:
+            completed = completed_by_name.get(str(variant["name"]))
+            completed_config = completed.get("architecture_config", {}) if completed else {}
+            toggles_match = all(
+                completed_config.get(key) == value
+                for key, value in variant.get("toggles", {}).items()
+            )
+            if (
+                completed
+                and completed_config.get("candidate_base") == variant["base"]
+                and toggles_match
+            ):
+                run_ids.append(int(completed["id"]))
+                console.print(
+                    f"  [dim]Reusing completed {variant['name']} run {completed['id']} "
+                    f"from experiment {experiment_id}.[/dim]"
+                )
+            else:
+                pending_variants.append(variant)
+        variants_to_run = pending_variants
+
         if parallel and len(variants_to_run) > 1:
             # Group by base architecture — variants sharing a base run serially
             # (same index → same vectorizer → rate limits), different bases in parallel.
@@ -750,13 +795,11 @@ def run_evaluation(
                 finally:
                     thread_db.close()
 
-            run_ids: list[int] = []
             with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(groups), 4)) as executor:
                 futures = [executor.submit(_run_group, g) for g in groups.values()]
                 for f in concurrent.futures.as_completed(futures):
                     run_ids.extend(f.result())
         else:
-            run_ids = []
             for variant in variants_to_run:
                 run_ids.append(
                     _eval_variant(
@@ -776,12 +819,13 @@ def run_evaluation(
             "eval_set_id": int(eval_set_id),
             "eval_set_version": str(eval_set["version_label"]),
             "corpus_fingerprint": current_corpus_fingerprint,
-            "architecture_names": sorted({str(v["base"]) for v in variants_to_run}),
+            "architecture_names": sorted({str(v["base"]) for v in requested_variants}),
             "run_ids": sorted(run_ids),
         }
         session = db.get_generation_preferences("ui_session") or {}
         session.update(
             {
+            "pending_experiment_id": "",
                 "active_experiment_id": experiment_id,
                 "active_experiment_eval_set_id": int(eval_set_id),
                 "active_experiment_eval_set_version": str(eval_set["version_label"]),
@@ -893,6 +937,37 @@ def _eval_variant(
     model_metric_samples: list[dict[str, dict[str, int | float]]] = []
     misses_to_classify: list[dict[str, Any]] = []
 
+    graph_batch_results: list[tuple[list[str], float]] | None = None
+    if arch_name == "graphrag" and arch_config.get("graph_job_name"):
+        from retrieve.indexing.advanced import query_graphrag_batch
+
+        response_types = {
+            "multiple-paragraphs": "Multiple Paragraphs",
+            "bullet-points": "List of 3-7 Points",
+            "short-answer": "Single Sentence",
+        }
+        batch_model_metrics: dict[str, dict[str, int | float]] = {}
+        graph_batch_results = query_graphrag_batch(
+            [str(question["question_text"]) for question in questions],
+            mode=str(arch_config.get("graphrag_query_mode", "local")),
+            graph_job_name=str(arch_config["graph_job_name"]),
+            resource_group=str(arch_config.get("resource_group", "")),
+            subscription_id=str(arch_config.get("subscription_id", "")),
+            artifact_prefix=str(arch_config.get("graph_worker_artifact_prefix", "")),
+            corpus_fingerprint=str(arch_config.get("corpus_fingerprint", "")),
+            response_type=response_types.get(
+                str(arch_config.get("graphrag_response_type", "multiple-paragraphs")),
+                "Multiple Paragraphs",
+            ),
+            community_level=int(arch_config.get("graphrag_community_level", 2)),
+            dynamic_community_selection=_config_bool(
+                arch_config.get("graphrag_dynamic_community_selection"), default=False
+            ),
+            metrics_sink=batch_model_metrics.update,
+        )
+        if batch_model_metrics:
+            model_metric_samples.append(batch_model_metrics)
+
     # Throttle for architectures that use the embedding vectorizer to avoid 429s.
     # Keyword-only doesn't call the embedding endpoint, so no throttle needed.
     needs_throttle = arch_name != "keyword"
@@ -907,16 +982,19 @@ def _eval_variant(
 
             # Query using architecture's native query mode
             query_model_metrics: dict[str, dict[str, int | float]] = {}
-            retrieved_ids, latency_ms = query_ai_search(
-                endpoint=search_endpoint,
-                index_name=index_name,
-                query=q["question_text"],
-                arch_name=arch_name,
-                toggles=toggles,
-                corpus_dir=cfg.corpus.output_dir,
-                graphrag_metrics_sink=query_model_metrics.update,
-                **build_query_runtime_kwargs(arch_config),
-            )
+            if graph_batch_results is not None:
+                retrieved_ids, latency_ms = graph_batch_results[qi]
+            else:
+                retrieved_ids, latency_ms = query_ai_search(
+                    endpoint=search_endpoint,
+                    index_name=index_name,
+                    query=q["question_text"],
+                    arch_name=arch_name,
+                    toggles=toggles,
+                    corpus_dir=cfg.corpus.output_dir,
+                    graphrag_metrics_sink=query_model_metrics.update,
+                    **build_query_runtime_kwargs(arch_config),
+                )
             if query_model_metrics:
                 model_metric_samples.append(query_model_metrics)
 

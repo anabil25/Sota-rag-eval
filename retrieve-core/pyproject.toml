@@ -17,31 +17,36 @@ dependencies = [
     "github-copilot-sdk==0.2.0",
     "requests>=2.31",
     "azure-identity>=1.16",
+    "cryptography>=48.0.1,<49",
+    "PyJWT>=2.13.0",
     "azure-storage-blob>=12.20",
     "azure-search-documents==11.7.0b2",
     "beautifulsoup4>=4.12",
+    "soupsieve>=2.8.4",
     "markdownify>=0.13",
     "fastapi>=0.115",
     "uvicorn>=0.34",
     "jinja2>=3.1",
-    "python-multipart>=0.0.9",
+    "python-multipart>=0.0.31",
+    "pygments>=2.20.0",
     "filelock>=3.15",
 ]
 
 [project.optional-dependencies]
 pdf = ["pdfplumber>=0.10"]
 graphrag = ["graphrag==3.1.0"]
-lightrag = ["lightrag-hku>=1.0"]
+lightrag = ["lightrag-hku>=1.0", "aiohttp>=3.14.1"]
 domain = ["openai>=1.30", "sentence-transformers>=3.0"]
 all = [
     "pdfplumber>=0.10",
     "graphrag==3.1.0",
     "lightrag-hku>=1.0",
+    "aiohttp>=3.14.1",
     "openai>=1.30",
     "sentence-transformers>=3.0",
 ]
 dev = [
-    "pytest>=8.0",
+    "pytest>=9.0.3",
     "pytest-asyncio>=0.24",
     "ruff>=0.5",
 ]

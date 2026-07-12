@@ -220,11 +220,7 @@ export function getCompletedRunsForExperiment(scope: {
 	architectureNames: string[];
 	corpusFingerprint: string;
 }): (RunSummary & Row)[] {
-	if (
-		!scope.experimentId ||
-		!scope.corpusFingerprint ||
-		scope.architectureNames.length === 0
-	)
+	if (!scope.experimentId || !scope.corpusFingerprint || scope.architectureNames.length === 0)
 		return [];
 	const database = dbWithTables('runs', 'eval_sets');
 	if (!database) return [];

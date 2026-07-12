@@ -1,8 +1,8 @@
 # Plan 3 — Rebuild Azure Deployment as an azd Accelerator
 
-**Status:** Isolated environment deployed; GraphRAG sample gate in progress
+**Status:** Complete — isolated experiment finished and winner environment retained
 **Priority:** P0/P1
-**Last updated:** 2026-07-11
+**Last updated:** 2026-07-12
 
 ## Goal
 
@@ -13,7 +13,10 @@ Replace Python-driven split-brain provisioning with one deterministic `azd` prov
 - Retrieve remains local-first: SvelteKit, FastAPI, SQLite history, and workflow control run on localhost.
 - `azd` provisions only the Azure dependencies used by retrieval experiments and remote graph workloads.
 - The current Azure topology has no SvelteKit or FastAPI Container Apps and no `services:` entries in `azure.yaml`.
-- The only deployed application workload in this phase is the manual GraphRAG Container Apps Job.
+- No hosted application workload remains after winner selection. The GraphRAG Job,
+   managed environment, and ACR were removed as loser-only resources.
+- The retained production data plane is Azure AI Search plus its AI Services and private
+   Storage dependencies.
 - Any future hosted UI/API is a separate topology decision that requires an explicit plan update and approval.
 
 ## Adopted reference conventions
@@ -126,7 +129,9 @@ Replace Python-driven split-brain provisioning with one deterministic `azd` prov
 - [x] Run `azd provision --preview` and subscription-scope ARM validation against a new environment only.
 - [x] Obtain explicit approval before provisioning the validated isolated environment.
 - [x] Provision and validate the isolated `retrieve-v7k2` environment without modifying the protected resource group.
-- [ ] Run an approved GraphRAG sample before any canary or full-corpus execution.
+- [x] Ran the approved representative GraphRAG sample and four-way eval.
+- [x] Selected and tuned hybrid-reranker, promoted run 15, and removed loser resources.
+- [x] Added Azure-side 30-day retention for private GraphRAG run/cache/status blobs.
 
 Deployment authorization was provided on 2026-07-11 with instructions to continue through live provisioning and debugging without another approval pause. Capacity-only regional fallback may purge failed isolated attempts; protected environments remain excluded.
 
@@ -147,7 +152,11 @@ Deployment authorization was provided on 2026-07-11 with instructions to continu
 - The isolated environment is deployed in `rg-retrieve-v7k2`; the protected resource group remains untouched.
 - Storage is private and keyless; Search reaches Blob through an approved shared private link. Search, AI Services, and Basic ACR retain public client endpoints with local/admin/anonymous authentication disabled and managed-identity/RBAC access enforced. The Container Apps environment and manual GraphRAG Job are live.
 - The canonical 1,617-document corpus is seeded; hybrid-reranker, true agentic Knowledge Base, and bounded LightRAG live checks passed.
-- The approved 50-document, 100-token GraphRAG sample is running; no canary or full-corpus GraphRAG execution has started.
+- The representative GraphRAG sample completed, then scored 0.384 nDCG@10 in the
+   four-way eval. Hybrid-reranker won at 0.758 nDCG@10, so no GraphRAG canary or full run
+   was started.
+- Winner environment: `rg-retrieve-v7k2`, Search index
+   `ret-qg6risucd5ba6-hybrid-reranker`; graph runtime resources are deleted.
 
 ## Key files
 

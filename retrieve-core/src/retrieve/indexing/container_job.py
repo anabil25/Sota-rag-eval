@@ -287,7 +287,7 @@ def get_container_job_logs(
     subscription_id: str = "",
     tail: int = 100,
     require_result: bool = False,
-    retained_delays: tuple[int, ...] = (5, 10, 20, 30, 30),
+    retained_delays: tuple[int, ...] = (5, 10, 20, 30, 60, 60, 120, 120, 120),
 ) -> str:
     command = [
         "az",

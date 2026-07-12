@@ -1,8 +1,8 @@
 # Plan 4 — Critical Bug and Security Pass
 
-**Status:** Local P0/P1 pass complete; disposable live canary pending
+**Status:** Complete — live P0/P1 workflow and cleanup sign-off passed
 **Priority:** P0
-**Last updated:** 2026-07-11
+**Last updated:** 2026-07-12
 
 ## Goal
 
@@ -59,8 +59,11 @@ All blockers below have local fixes and regression coverage. The disposable live
 - [x] Pinned CI actions/Bicep; full Ruff, frontend gates, root Bicep, and non-root GraphRAG image are CI contracts.
 - [x] Repaired the clean-checkout GraphRAG image job to use the root Docker context and a canonical one-document test fixture; isolated-clone build/import/non-root checks pass.
 - [x] Preserve the bounded GraphRAG launch contract during sparse running-state reconciliation and validate scope, document cap, chunk size, and overlap before activation.
-- [ ] Run the complete workflow against the disposable Azure environment, including RBAC propagation, Search/index/query failures, graph restart/timeout evidence, and cleanup.
-- [ ] Publish final P0/P1 disposition and residual-risk recommendation after the live sample/canary.
+- [x] Ran the complete workflow against the isolated Azure environment, including
+	readiness, native queries, resumable evaluation, Log Analytics lag recovery, winner
+	tuning, durable promotion, and architecture-specific cleanup.
+- [x] Published final disposition and residual risk in
+	`docs/audits/final-retrieval-verdict-2026-07-12.md`.
 
 ## Phase 0 — Evidence and safe boundaries
 

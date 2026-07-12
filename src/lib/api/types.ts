@@ -106,6 +106,7 @@ export interface UiSession {
 	active_experiment_eval_set_version?: string;
 	active_experiment_corpus_fingerprint?: string;
 	active_experiment_architectures?: string[];
+	pending_experiment_id?: string;
 	[key: string]: unknown;
 }
 

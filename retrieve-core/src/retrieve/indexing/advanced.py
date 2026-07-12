@@ -814,6 +814,10 @@ def query_agentic_kb(
         from azure.search.documents.knowledgebases import KnowledgeBaseRetrievalClient
         from azure.search.documents.knowledgebases.models import (
             KnowledgeBaseRetrievalRequest,
+            KnowledgeRetrievalLowReasoningEffort,
+            KnowledgeRetrievalMediumReasoningEffort,
+            KnowledgeRetrievalMinimalReasoningEffort,
+            KnowledgeRetrievalOutputMode,
             KnowledgeRetrievalSemanticIntent,
             SearchIndexKnowledgeSourceParams,
         )
@@ -828,6 +832,20 @@ def query_agentic_kb(
         credential=credential,
     )
 
+    reasoning_types = {
+        "minimal": KnowledgeRetrievalMinimalReasoningEffort,
+        "low": KnowledgeRetrievalLowReasoningEffort,
+        "medium": KnowledgeRetrievalMediumReasoningEffort,
+    }
+    output_modes = {
+        "extractiveData": KnowledgeRetrievalOutputMode.EXTRACTIVE_DATA,
+        "answerSynthesis": KnowledgeRetrievalOutputMode.ANSWER_SYNTHESIS,
+    }
+    if reasoning_effort not in reasoning_types:
+        raise ValueError(f"Unsupported Agentic KB reasoning effort: {reasoning_effort}")
+    if output_mode not in output_modes:
+        raise ValueError(f"Unsupported Agentic KB output mode: {output_mode}")
+
     base_index_name = kb_name if kb_name.endswith("-base") else f"{kb_name}-base"
     request = KnowledgeBaseRetrievalRequest(
         intents=[
@@ -836,9 +854,9 @@ def query_agentic_kb(
             )
         ],
         max_runtime_in_seconds=max_runtime_seconds,
-        retrieval_reasoning_effort=reasoning_effort,
+        retrieval_reasoning_effort=reasoning_types[reasoning_effort](),
         include_activity=include_activity,
-        output_mode=output_mode,
+        output_mode=output_modes[output_mode],
         knowledge_source_params=[
             SearchIndexKnowledgeSourceParams(
                 knowledge_source_name=f"{base_index_name}-ks",
@@ -1299,6 +1317,113 @@ def query_graphrag(
         metrics_sink(collect_graphrag_model_metrics(config))
     latency_ms = (_time.perf_counter() - start) * 1000
     return list(result.document_ids), latency_ms
+
+
+def query_graphrag_batch(
+    queries: list[str],
+    *,
+    mode: str = "local",
+    graph_job_name: str,
+    resource_group: str,
+    subscription_id: str,
+    artifact_prefix: str,
+    corpus_fingerprint: str,
+    response_type: str = "Multiple Paragraphs",
+    community_level: int = 2,
+    dynamic_community_selection: bool = False,
+    metrics_sink: Callable[[dict[str, dict[str, int | float]]], None] | None = None,
+) -> list[tuple[list[str], float]]:
+    """Query one immutable GraphRAG run for an evaluation batch in one job."""
+    import time as _time
+
+    if not queries:
+        return []
+    if len(queries) > 500:
+        raise ValueError("GraphRAG evaluation batch exceeds 500 queries")
+    if not all(isinstance(query, str) and query.strip() for query in queries):
+        raise ValueError("GraphRAG evaluation batch contains an empty query")
+    if not graph_job_name or not resource_group or not subscription_id:
+        raise RuntimeError("GraphRAG evaluation batch requires its Container Apps Job context")
+    if not artifact_prefix or not corpus_fingerprint:
+        raise RuntimeError("GraphRAG evaluation batch requires an immutable graph run")
+
+    start = _time.perf_counter()
+    request_id = uuid.uuid4().hex
+    query_payload = encode_payload(
+        {
+            "request_id": request_id,
+            "queries": [
+                {
+                    "artifact_prefix": artifact_prefix,
+                    "corpus_fingerprint": corpus_fingerprint,
+                    "query": query,
+                    "mode": mode,
+                    "response_type": response_type,
+                    "community_level": community_level,
+                    "dynamic_community_selection": dynamic_community_selection,
+                }
+                for query in queries
+            ],
+        }
+    )
+    execution_name = start_container_job(
+        job_name=graph_job_name,
+        resource_group=resource_group,
+        subscription_id=subscription_id,
+        environment=[
+            "GRAPH_WORKER_MODE=query",
+            f"GRAPH_QUERY_PAYLOAD={query_payload}",
+        ],
+    )
+    try:
+        wait_for_container_job(
+            job_name=graph_job_name,
+            execution_name=execution_name,
+            resource_group=resource_group,
+            subscription_id=subscription_id,
+        )
+    except RuntimeError as exc:
+        logs = get_container_job_logs(
+            job_name=graph_job_name,
+            execution_name=execution_name,
+            resource_group=resource_group,
+            subscription_id=subscription_id,
+        )
+        raise RuntimeError(f"{exc}\n{logs}".strip()) from exc
+    result = parse_job_result(
+        get_container_job_logs(
+            job_name=graph_job_name,
+            execution_name=execution_name,
+            resource_group=resource_group,
+            subscription_id=subscription_id,
+            require_result=True,
+        )
+    )
+    if result.get("kind") != "query-batch" or result.get("request_id") != request_id:
+        raise RuntimeError("GraphRAG batch execution returned a mismatched result")
+    raw_results = result.get("results")
+    if not isinstance(raw_results, list) or len(raw_results) != len(queries):
+        raise RuntimeError("GraphRAG batch execution returned an invalid result count")
+    model_metrics = result.get("model_metrics")
+    if metrics_sink and isinstance(model_metrics, dict):
+        metrics_sink(model_metrics)
+
+    total_latency_ms = (_time.perf_counter() - start) * 1000
+    internal_latency_ms = sum(
+        float(item.get("latency_ms") or 0) for item in raw_results if isinstance(item, dict)
+    )
+    overhead_per_query_ms = max(0.0, total_latency_ms - internal_latency_ms) / len(queries)
+    batch: list[tuple[list[str], float]] = []
+    for item in raw_results:
+        if not isinstance(item, dict) or not isinstance(item.get("document_ids"), list):
+            raise RuntimeError("GraphRAG batch execution returned invalid structured evidence")
+        batch.append(
+            (
+                [str(document_id) for document_id in item["document_ids"]],
+                float(item.get("latency_ms") or 0) + overhead_per_query_ms,
+            )
+        )
+    return batch
 
 
 # ── LightRAG indexing ─────────────────────────────────────────────────

@@ -1,11 +1,11 @@
 # Retrieve Azure Modernization Deployment Plan
 
-**Status:** Validated and Authorized — Deployment Execution Pending  
+**Status:** Completed
 **Approved by:** User (“Start implementation”, 2026-07-10)  
 **Live deployment authorized by:** User (“actually deploy and test live”, 2026-07-11)  
 **Mode:** Modernize existing application in a parallel Azure environment  
 **Deployment path:** Azure Developer CLI (`azd`) + subscription-scoped modular Bicep  
-**Current live environment:** protected existing resource group — preserve; no destructive changes during implementation
+**Current live environment:** isolated `retrieve-v7k2` / `rg-retrieve-v7k2`; `rg-ret-test2` is permanently denylisted
 
 ## 1. Objective
 
@@ -54,10 +54,11 @@ Detailed plans will be stored under `docs/plans/`.
 - [x] Centralize operational writes and durable jobs.
 - [x] Validate the narrowed IaC locally: compile Bicep, inspect resource types, and prove no hosted UI/API resources are emitted.
 - [x] Run focused and full offline validation for the Plan 03 deployment slice.
-- [ ] Run `azd`/Bicep preflight in a new environment.
-- [ ] Run Azure sample and 10% canary.
-- [ ] Perform final critical-bug sign-off.
-- [ ] Clean obsolete repository/runtime/IaC assets after parity.
+- [x] Run `azd`/Bicep preflight in a new environment.
+- [x] Run representative Azure sample and architecture comparison; skip GraphRAG
+	canary by measured stop gate.
+- [x] Perform final critical-bug sign-off.
+- [x] Clean obsolete repository/runtime/IaC assets after parity.
 
 ## 6. Validation Requirements
 
@@ -98,8 +99,8 @@ Detailed plans will be stored under `docs/plans/`.
 
 ## 7. Validation Proof
 
-The current implementation is locally validated; Azure preview and deployment are not
-yet validated.
+The implementation, isolated Azure deployment, live architecture comparison, winner
+promotion, and loser cleanup are validated.
 
 - Compiled Bicep topology: 0 hosted Container Apps, 1 manual Container Apps Job, and
 	1 managed environment.
@@ -134,3 +135,58 @@ yet validated.
 - Use immutable data/index prefixes and atomic current-index promotion.
 - Keep corpus and SQLite backups until post-cutover approval.
 - Cut back to the existing endpoint/environment if any acceptance gate fails.
+
+## 9. Code-Only GraphRAG Worker Rollout (2026-07-12)
+
+**Scope:** Publish a new content-addressed `retrieve-graphrag` image and update only
+the existing manual Container Apps Job in `rg-retrieve-v7k2`.
+
+- No Bicep or Azure resource topology changes.
+- No corpus reseed, index rebuild, canary, or full GraphRAG indexing run.
+- No resource deletion or teardown.
+- Keep D4 workload profile `min=0`, `max=1`.
+- Keep immutable GraphRAG index prefix
+	`runs/4fff6583bdc9113be4052735f8076c8d4ccfb8294eb6a6d4278fdaeb6f6f10a2/de3b682cbd5847fea4df287b06eba03c`.
+- Add one-job, compact 25-query GraphRAG evaluation batching.
+- Extend bounded Log Analytics result ingestion recovery.
+- Resume experiment `0c7706cb-c1a2-41c2-a193-4c57475166b8`, reusing completed
+	hybrid-reranker and agentic-kb runs and running only GraphRAG and LightRAG.
+
+### Rollout Gates
+
+- [x] Existing single-query worker protocol remains compatible.
+- [x] Batch worker/client, retained logs, and resumable evaluator tests pass.
+- [x] Full backend and frontend validation pass.
+- [x] Bicep build and `azd provision --preview --no-prompt` pass.
+- [x] Preview drift reviewed: do not run `azd provision`; publish only the worker image.
+- [x] Corpus-free worker image inspection passes.
+- [x] ACR build and Container Apps Job image update succeeded.
+- [x] One live batch query smoke succeeded with no active execution left behind.
+- [x] Original four-way experiment cohort completed before winner selection.
+
+### Rollout Validation Proof
+
+- Full backend: `436 passed, 2 skipped`.
+- Ruff: all source, test, and deployment-hook checks passed.
+- Svelte diagnostics: 0 errors and 0 warnings.
+- Frontend unit suite: 11 files, 87 tests passed.
+- Adapter-node production build passed.
+- GraphRAG batch/resume focused suites: 42 tests passed.
+- GraphRAG worker/query/log transport suites: 15 tests passed.
+- Bicep compile passed.
+- Guarded azd preview passed against only `rg-retrieve-v7k2`; it proposed noisy
+	API-default drift, so this rollout explicitly forbids `azd provision`.
+- Local worker image built successfully, runs as UID 999, imports the batch worker,
+	and has no `/app/corpus`.
+- Live safety check: no active GraphRAG execution; `rg-ret-test2` was not queried or mutated.
+
+## 10. Final Outcome
+
+- Winner: `hybrid-reranker`, run `15`, semantic reranker enabled.
+- Quality: Recall@10 0.84, MRR@10 0.793, nDCG@10 0.758.
+- Live winner smoke: expected document rank 1 after loser cleanup.
+- Agentic KB, GraphRAG, and LightRAG statuses: `torn_down`.
+- Graph job/environment/ACR/UAMI/delegated subnet/NSG and all loser Search/local graph
+	artifacts: removed.
+- Private GraphRAG Blob evidence: Azure-side 30-day lifecycle retention.
+- Full handoff: `docs/audits/final-retrieval-verdict-2026-07-12.md`.

@@ -131,6 +131,67 @@ def query_graphrag() -> dict[str, object]:
     }
 
 
+def query_graphrag_batch() -> dict[str, object]:
+    """Run an evaluation query batch against one loaded immutable graph."""
+    envelope = decode_payload(os.environ.get("GRAPH_QUERY_PAYLOAD", ""))
+    request_id = str(envelope.get("request_id", ""))
+    if not request_id:
+        raise RuntimeError("GraphRAG query payload requires a request ID")
+    raw_queries = envelope.get("queries")
+    if not isinstance(raw_queries, list) or not raw_queries:
+        raise RuntimeError("GraphRAG batch payload requires at least one query")
+    requests = [QueryRequest.model_validate(raw_query) for raw_query in raw_queries]
+    first = requests[0]
+    if any(
+        request.artifact_prefix != first.artifact_prefix
+        or request.corpus_fingerprint != first.corpus_fingerprint
+        for request in requests[1:]
+    ):
+        raise RuntimeError("GraphRAG batch queries must use one immutable graph run")
+
+    storage_account = os.environ.get("STORAGE_ACCOUNT_NAME", "").strip()
+    output_container = os.environ.get("GRAPH_OUTPUT_CONTAINER", "graphrag").strip()
+    corpus_container = os.environ.get("CORPUS_CONTAINER_NAME", "corpus").strip()
+    if not storage_account or not output_container or not corpus_container:
+        raise RuntimeError("GraphRAG query storage is not configured")
+    config = _load_successful_run_config(
+        storage_account,
+        output_container,
+        first.artifact_prefix,
+        first.corpus_fingerprint,
+    )
+    manifest = _load_remote_corpus_manifest(storage_account, corpus_container)
+    if manifest.get("corpus_fingerprint") != first.corpus_fingerprint:
+        raise RuntimeError("Canonical corpus fingerprint no longer matches the query run")
+
+    async def execute_batch() -> list[dict[str, object]]:
+        results: list[dict[str, object]] = []
+        for request in requests:
+            result = await execute_graphrag_query(
+                config=config,
+                corpus_manifest=manifest,
+                query=request.query,
+                mode=request.mode,
+                response_type=request.response_type,
+                community_level=request.community_level,
+                dynamic_community_selection=request.dynamic_community_selection,
+            )
+            results.append(
+                {
+                    "document_ids": list(result.document_ids),
+                    "latency_ms": result.latency_ms,
+                }
+            )
+        return results
+
+    return {
+        "kind": "query-batch",
+        "request_id": request_id,
+        "results": asyncio.run(execute_batch()),
+        "model_metrics": collect_graphrag_model_metrics(config),
+    }
+
+
 def _load_durable_status(job_id: str) -> dict[str, object]:
     storage_account = os.environ.get("STORAGE_ACCOUNT_NAME", "").strip()
     output_container = os.environ.get("GRAPH_OUTPUT_CONTAINER", "graphrag").strip()
@@ -154,7 +215,9 @@ def main() -> None:
         print(format_job_result(seed_canonical_corpus()), flush=True)
         return
     if mode == "query":
-        print(format_job_result(query_graphrag()), flush=True)
+        envelope = decode_payload(os.environ.get("GRAPH_QUERY_PAYLOAD", ""))
+        result = query_graphrag_batch() if "queries" in envelope else query_graphrag()
+        print(format_job_result(result), flush=True)
         return
     if mode != "index":
         raise RuntimeError(f"Unsupported GraphRAG worker mode: {mode}")

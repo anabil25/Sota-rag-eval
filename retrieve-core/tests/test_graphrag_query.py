@@ -393,6 +393,126 @@ def test_worker_query_returns_compact_structured_evidence(monkeypatch):
     execute.assert_awaited_once()
 
 
+def test_worker_batch_loads_graph_once_and_returns_compact_results(monkeypatch):
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock, MagicMock
+
+    from retrieve.graphrag_worker import run_job
+    from retrieve.graphrag_worker.protocol import encode_payload
+
+    fingerprint = "f" * 64
+    monkeypatch.setenv("STORAGE_ACCOUNT_NAME", "teststore")
+    monkeypatch.setenv("GRAPH_OUTPUT_CONTAINER", "graphrag")
+    monkeypatch.setenv("CORPUS_CONTAINER_NAME", "corpus")
+    monkeypatch.setenv(
+        "GRAPH_QUERY_PAYLOAD",
+        encode_payload(
+            {
+                "request_id": "request123",
+                "queries": [
+                    {
+                        "artifact_prefix": f"runs/{fingerprint}/job123",
+                        "corpus_fingerprint": fingerprint,
+                        "query": "First question?",
+                    },
+                    {
+                        "artifact_prefix": f"runs/{fingerprint}/job123",
+                        "corpus_fingerprint": fingerprint,
+                        "query": "Second question?",
+                    },
+                ],
+            }
+        ),
+    )
+    load_config = MagicMock(return_value=object())
+    monkeypatch.setattr(run_job, "_load_successful_run_config", load_config)
+    monkeypatch.setattr(
+        run_job,
+        "_load_remote_corpus_manifest",
+        lambda *args: {"corpus_fingerprint": fingerprint, "documents": []},
+    )
+    execute = AsyncMock(
+        side_effect=[
+            SimpleNamespace(document_ids=("doc-1",), latency_ms=10.0),
+            SimpleNamespace(document_ids=("doc-2",), latency_ms=20.0),
+        ]
+    )
+    monkeypatch.setattr(run_job, "execute_graphrag_query", execute)
+    monkeypatch.setattr(
+        run_job,
+        "collect_graphrag_model_metrics",
+        lambda _config: {"azure/gpt-4.1": {"total_tokens": 42}},
+    )
+
+    result = run_job.query_graphrag_batch()
+
+    assert result == {
+        "kind": "query-batch",
+        "request_id": "request123",
+        "results": [
+            {"document_ids": ["doc-1"], "latency_ms": 10.0},
+            {"document_ids": ["doc-2"], "latency_ms": 20.0},
+        ],
+        "model_metrics": {"azure/gpt-4.1": {"total_tokens": 42}},
+    }
+    load_config.assert_called_once()
+    assert execute.await_count == 2
+
+
+@patch("retrieve.indexing.advanced.get_container_job_logs")
+@patch("retrieve.indexing.advanced.wait_for_container_job")
+@patch("retrieve.indexing.advanced.start_container_job")
+@patch("retrieve.indexing.advanced.uuid.uuid4")
+def test_localhost_batch_query_uses_one_private_container_job(
+    mock_uuid,
+    mock_start,
+    mock_wait,
+    mock_logs,
+):
+    from types import SimpleNamespace
+
+    from retrieve.graphrag_worker.protocol import decode_payload, format_job_result
+    from retrieve.indexing.advanced import query_graphrag_batch
+
+    fingerprint = "f" * 64
+    mock_uuid.return_value = SimpleNamespace(hex="request123")
+    mock_start.return_value = "execution-123"
+    mock_logs.return_value = format_job_result(
+        {
+            "kind": "query-batch",
+            "request_id": "request123",
+            "results": [
+                {"document_ids": ["doc-1"], "latency_ms": 10.0},
+                {"document_ids": ["doc-2"], "latency_ms": 20.0},
+            ],
+            "model_metrics": {"azure/gpt-4.1": {"total_tokens": 42}},
+        }
+    )
+    metrics = {}
+
+    results = query_graphrag_batch(
+        ["First question?", "Second question?"],
+        graph_job_name="azgrjtest",
+        resource_group="rg-test",
+        subscription_id="sub-test",
+        artifact_prefix=f"runs/{fingerprint}/job123",
+        corpus_fingerprint=fingerprint,
+        metrics_sink=metrics.update,
+    )
+
+    assert [document_ids for document_ids, _latency in results] == [["doc-1"], ["doc-2"]]
+    assert all(latency >= 0 for _document_ids, latency in results)
+    environment = mock_start.call_args.kwargs["environment"]
+    payload = decode_payload(environment[1].split("=", 1)[1])
+    assert [item["query"] for item in payload["queries"]] == [
+        "First question?",
+        "Second question?",
+    ]
+    assert metrics["azure/gpt-4.1"]["total_tokens"] == 42
+    mock_start.assert_called_once()
+    mock_wait.assert_called_once()
+
+
 @pytest.mark.asyncio
 async def test_internal_query_endpoint_is_default_off(monkeypatch):
     from fastapi import HTTPException
