@@ -511,6 +511,44 @@ def test_postprovision_retries_transient_authorization(monkeypatch):
     assert sleeps == [1]
 
 
+def test_postprovision_main_skips_graph_work_when_runtime_is_disabled(
+    monkeypatch, capsys
+):
+    hook = _load_script("postprovision")
+    calls = []
+    monkeypatch.setattr(hook, "graph_runtime_enabled", lambda: False)
+    monkeypatch.setattr(
+        hook,
+        "publish_graph_image",
+        lambda: (_ for _ in ()).throw(AssertionError("graph image build must be skipped")),
+    )
+    monkeypatch.setattr(
+        hook,
+        "upload_canonical_corpus",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("graph seed must be skipped")),
+    )
+    monkeypatch.setattr(
+        hook, "approve_search_storage_private_link", lambda: calls.append("private-link")
+    )
+    monkeypatch.setattr(
+        hook, "sync_local_runtime_contract", lambda: calls.append("runtime-contract")
+    )
+
+    hook.main()
+
+    assert calls == ["private-link", "runtime-contract"]
+    assert "GraphRAG runtime disabled" in capsys.readouterr().out
+
+
+def test_postprovision_rejects_incomplete_graph_runtime_outputs(monkeypatch):
+    hook = _load_script("postprovision")
+    monkeypatch.setenv("AZURE_GRAPHRAG_JOB_NAME", "azgrjtest")
+    monkeypatch.delenv("AZURE_CONTAINER_APPS_ENVIRONMENT_NAME", raising=False)
+
+    with pytest.raises(RuntimeError, match="runtime outputs are incomplete"):
+        hook.graph_runtime_enabled()
+
+
 def test_postprovision_syncs_localhost_contract_and_selected_architectures(monkeypatch, tmp_path):
     hook = _load_script("postprovision")
     config_path = tmp_path / "retrieve.yaml"
@@ -563,6 +601,71 @@ def test_postprovision_syncs_localhost_contract_and_selected_architectures(monke
     assert graphrag["config"]["corpus_fingerprint"] == "f" * 64
     assert graphrag["config"]["graph_output_container"] == "graphrag"
     assert db.get_generation_preferences("ui_session")["provision_done"] is True
+    db.close()
+
+
+def test_postprovision_preserves_completed_teardown_winner(monkeypatch, tmp_path):
+    hook = _load_script("postprovision")
+    config_path = tmp_path / "retrieve.yaml"
+    config_path.write_text(
+        "azure:\n  resource_group: rg-old\narchitectures:\n  - graphrag\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("RETRIEVE_CONFIG_PATH", str(config_path))
+    outputs = {
+        "AZURE_SUBSCRIPTION_ID": "sub-test",
+        "AZURE_LOCATION": "northcentralus",
+        "AZURE_RESOURCE_GROUP": "rg-retrieve-test",
+        "AZURE_RESOURCE_TOKEN": "abc123",
+        "AZURE_STORAGE_ACCOUNT_NAME": "azsttest",
+        "AZURE_STORAGE_CORPUS_CONTAINER": "corpus",
+        "RETRIEVE_CORPUS_FINGERPRINT": "f" * 64,
+        "AZURE_STORAGE_GRAPH_CONTAINER": "graphrag",
+        "AZURE_AI_SERVICES_ENDPOINT": "https://azaitest.cognitiveservices.azure.com/",
+        "AZURE_SEARCH_ENDPOINT": "https://azsrtest.search.windows.net",
+        "AZURE_OPENAI_CHAT_DEPLOYMENT": "gpt-4.1",
+        "AZURE_OPENAI_EMBEDDING_DEPLOYMENT": "text-embedding-3-large",
+        "AZURE_GRAPHRAG_JOB_NAME": "",
+        "AZURE_CONTAINER_APPS_ENVIRONMENT_NAME": "",
+    }
+    for name, value in outputs.items():
+        monkeypatch.setenv(name, value)
+
+    from retrieve.db import RetrieveDB
+
+    db = RetrieveDB(tmp_path / "retrieve.db")
+    winner_id = db.register_architecture(
+        "hybrid-reranker", {"resource_token": "abc123"}
+    )
+    loser_id = db.register_architecture("graphrag", {"resource_token": "abc123"})
+    db.conn.execute(
+        "UPDATE architectures SET status = 'active' WHERE id = ?", (winner_id,)
+    )
+    db.conn.execute(
+        "UPDATE architectures SET status = 'torn_down' WHERE id = ?", (loser_id,)
+    )
+    db.upsert_generation_preferences(
+        {
+            "selected_architectures": ["hybrid-reranker", "graphrag"],
+            "winners": ["hybrid-reranker"],
+            "teardown_done": True,
+        },
+        "ui_session",
+    )
+    db.conn.commit()
+    db.close()
+
+    hook.sync_local_runtime_contract()
+
+    from retrieve.config import load_config
+
+    assert load_config(config_path).architectures == ["hybrid-reranker"]
+    db = RetrieveDB(tmp_path / "retrieve.db")
+    assert db.get_architecture("hybrid-reranker")["status"] == "active"
+    assert db.get_architecture("graphrag")["status"] == "torn_down"
+    assert db.get_generation_preferences("ui_session")["architectures"] == [
+        "hybrid-reranker"
+    ]
     db.close()
 
 

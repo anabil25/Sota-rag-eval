@@ -816,6 +816,14 @@
 		return estimateMonthlyProductionCost(name, provisionPricingInputs).total;
 	}
 
+	function runBaseArchitecture(run: RunSummary) {
+		const config = run.architecture_config ?? {};
+		return String(config._variant_of ?? config.candidate_base ?? run.architecture_name).split(
+			'[',
+			1
+		)[0];
+	}
+
 	function architectureResources(key: string) {
 		const declared = data.architectures[key]?.required_azure_resources ?? [];
 		return declared.length ? declared : (architectureResourceFallback[key] ?? []);
@@ -847,8 +855,16 @@
 	}
 
 	function configEntries(run: RunSummary) {
+		const visibleControls = new Set([
+			'semantic_reranker',
+			'embedding_model',
+			'chunk_size',
+			'chunking_strategy',
+			'query_expansion',
+			'rrf_weights'
+		]);
 		return Object.entries(run.architecture_config ?? {}).filter(
-			([key]) => !['base', '_variant_of'].includes(key)
+			([key, value]) => visibleControls.has(key) && typeof value !== 'object'
 		);
 	}
 
@@ -2645,14 +2661,14 @@
 										<div>
 											<dt>Est $/mo</dt>
 											<dd>
-												{architectureMonthlyCost(run.architecture_name)
-													? formatUsd(architectureMonthlyCost(run.architecture_name))
+												{architectureMonthlyCost(runBaseArchitecture(run))
+													? formatUsd(architectureMonthlyCost(runBaseArchitecture(run)))
 													: 'n/a'}
 											</dd>
 										</div>
 										<div>
 											<dt>Misses</dt>
-											<dd>{run.failure_count ?? run.miss_count ?? 'n/a'}</dd>
+											<dd>{metricNumber(run, 'miss_count') ?? run.failure_count ?? 'n/a'}</dd>
 										</div>
 									</dl>
 									{#if configEntries(run).length}
@@ -2777,7 +2793,9 @@
 						<p class="eyebrow">Promoted</p>
 						<h2 id="winners-heading">Winning architectures</h2>
 						<p class="muted">
-							These stay deployed. Everything else can be torn down so it stops incurring cost.
+							{data.session.teardown_done
+								? 'The selected winner remains active and all loser-owned resources are removed.'
+								: 'These stay deployed. Everything else can be torn down so it stops incurring cost.'}
 						</p>
 					</div>
 					{#if (data.session.winners ?? []).length}
@@ -2858,40 +2876,53 @@ Content-Type: application/json
 					</section>
 				{/if}
 
-				<form
-					class="panel section-stack"
-					method="POST"
-					action="?/startJob"
-					onsubmit={handleStartJobSubmit}
-				>
-					<input type="hidden" name="kind" value="teardown" />
-					<div>
-						<p class="eyebrow">Cleanup</p>
-						<h2>Tear down non-winners</h2>
-						<p class="muted">
-							Deletes indexes and deployments for every architecture except the ones you keep. This
-							frees the running cost.
-						</p>
-					</div>
-					<label>
-						<span>Keep architectures</span>
-						<input
-							name="keep"
-							value={(data.session.winners ?? []).join(',')}
-							placeholder="hybrid"
-						/>
-					</label>
-					<button class="button danger" type="submit">Start teardown</button>
-				</form>
+				{#if data.session.teardown_done}
+					<section class="panel section-stack" aria-labelledby="cleanup-complete-heading">
+						<div>
+							<p class="eyebrow">Cleanup complete</p>
+							<h2 id="cleanup-complete-heading">Winner-only environment</h2>
+							<p class="muted">
+								Loser indexes, graph runtimes, and local graph state have been removed. Retained
+								GraphRAG audit blobs expire under the Storage lifecycle policy.
+							</p>
+						</div>
+					</section>
+				{:else}
+					<form
+						class="panel section-stack"
+						method="POST"
+						action="?/startJob"
+						onsubmit={handleStartJobSubmit}
+					>
+						<input type="hidden" name="kind" value="teardown" />
+						<div>
+							<p class="eyebrow">Cleanup</p>
+							<h2>Tear down non-winners</h2>
+							<p class="muted">
+								Deletes indexes and deployments for every architecture except the ones you keep. This
+								frees the running cost.
+							</p>
+						</div>
+						<label>
+							<span>Keep architectures</span>
+							<input
+								name="keep"
+								value={(data.session.winners ?? []).join(',')}
+								placeholder="hybrid"
+							/>
+						</label>
+						<button class="button danger" type="submit">Start teardown</button>
+					</form>
 
-				{#key streamKey('teardown', ['teardown'])}
-					<JobProgressStream
-						jobId={streamJobId(['teardown'])}
-						label="Teardown stream"
-						pending={streamPending(['teardown'])}
-						onDone={refreshAfterJob}
-					/>
-				{/key}
+					{#key streamKey('teardown', ['teardown'])}
+						<JobProgressStream
+							jobId={streamJobId(['teardown'])}
+							label="Teardown stream"
+							pending={streamPending(['teardown'])}
+							onDone={refreshAfterJob}
+						/>
+					{/key}
+				{/if}
 			</section>
 		{/if}
 	</div>

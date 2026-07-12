@@ -101,6 +101,8 @@ ranked first.
 - Loser SQLite architecture statuses: `torn_down`.
 - Winner SQLite architecture status: `active`, with run `15`, exact configuration, and
   metrics promoted into its durable config.
+- Future IaC reconciliation leaves GraphRAG compute disabled by default. Experiments must
+  explicitly set `AZURE_DEPLOY_GRAPH_RUNTIME=true` to recreate it.
 
 ## Final Azure Boundary
 
@@ -112,7 +114,7 @@ The protected resource group `rg-ret-test2` was not queried, mutated, or deleted
 
 ## Validation
 
-- Backend: 444 passed, 2 skipped
+- Backend: 448 passed, 2 skipped
 - Frontend: 87 unit tests passed
 - Svelte diagnostics: 0 errors, 0 warnings
 - Production build: passed

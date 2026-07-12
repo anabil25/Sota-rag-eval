@@ -24,6 +24,27 @@ test('read-only flow inventory uses real SvelteKit data surfaces', async ({ page
 		await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible();
 	}
 
+	await audit.goto(page, '/flow/compare');
+	const sotaCards = page.locator('article').filter({ hasText: 'semantic_reranker:' });
+	if ((await sotaCards.count()) > 1) {
+		const costs = await sotaCards
+			.locator('dt', { hasText: 'Est $/mo' })
+			.locator('..')
+			.allTextContents();
+		const misses = await sotaCards
+			.locator('dt', { hasText: 'Misses' })
+			.locator('..')
+			.allTextContents();
+		expect(new Set(costs).size).toBe(1);
+		expect(misses.every((value) => !value.includes('n/a'))).toBe(true);
+	}
+
+	await audit.goto(page, '/flow/teardown');
+	if (await page.getByText('Cleanup complete', { exact: true }).isVisible()) {
+		await expect(page.getByRole('heading', { name: 'Winner-only environment' })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Start teardown' })).toHaveCount(0);
+	}
+
 	await audit.goto(page, '/settings');
 	await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
 	await expect(page.getByRole('heading', { level: 2, name: 'Workflow defaults' })).toBeVisible();
@@ -42,24 +63,38 @@ test('configure interactions update local component state without submitting ope
 	const audit = new FlowAudit(testInfo);
 	await audit.goto(page, '/flow/configure');
 
-	await expect(page.getByText('Build candidates to measure')).toBeVisible();
-	await audit.click(page.getByRole('button', { name: /Cross-paradigm/ }), 'select cross-paradigm');
-	await expect(
-		page.locator('input[name="selected_architectures"][value="graphrag"]')
-	).toBeChecked();
-	await expect(
-		page.locator('input[name="selected_architectures"][value="lightrag"]')
-	).toBeChecked();
+	const testMode = page.getByText('Build candidates to measure');
+	const sotaMode = page.getByRole('heading', { level: 2, name: 'Configure SOTA Eval Path' });
+	await expect(testMode.or(sotaMode)).toBeVisible();
+	if (await testMode.isVisible()) {
+		await audit.click(
+			page.getByRole('button', { name: /Cross-paradigm/ }),
+			'select cross-paradigm'
+		);
+		await expect(
+			page.locator('input[name="selected_architectures"][value="graphrag"]')
+		).toBeChecked();
+		await expect(
+			page.locator('input[name="selected_architectures"][value="lightrag"]')
+		).toBeChecked();
 
-	const embeddingSelect = page.getByLabel('Embedding model');
-	if (await embeddingSelect.isVisible()) {
-		await audit.select(embeddingSelect, 'text-embedding-3-large', 'embedding model');
+		const embeddingSelect = page.getByLabel('Embedding model');
+		if (await embeddingSelect.isVisible()) {
+			await audit.select(embeddingSelect, 'text-embedding-3-large', 'embedding model');
+		}
+	} else {
+		const rerankerOn = page.locator('input[name="sota__semantic_reranker"][value="on"]');
+		const rerankerOff = page.locator('input[name="sota__semantic_reranker"][value="off"]');
+		await expect(rerankerOn).toBeChecked();
+		await expect(rerankerOff).toBeChecked();
+		await audit.click(rerankerOff, 'toggle semantic reranker variant locally');
+		await expect(rerankerOff).not.toBeChecked();
 	}
 
 	await audit.screenshot(page, testInfo, '02-configure-real-data');
 });
 
-test('operational form actions fail closed without the Python backend', async ({
+test('operational form actions use FastAPI or fail closed when it is absent', async ({
 	page,
 	request
 }, testInfo) => {
@@ -83,13 +118,17 @@ test('operational form actions fail closed without the Python backend', async ({
 		),
 		audit.click(generateForm.getByRole('button', { name: 'Save Steering' }), 'save steering')
 	]);
-	expect(response.status()).toBe(503);
-	await expect(
-		page.getByRole('heading', { level: 1, name: 'The retrieval service isn’t responding' })
-	).toBeVisible();
-
 	const sessionAfter = await (await request.get('/api/ui/session')).json();
-	expect(sessionAfter.operator_context).toBe(sessionBefore.operator_context);
+	if (response.status() === 503) {
+		await expect(
+			page.getByRole('heading', { level: 1, name: 'The retrieval service isn’t responding' })
+		).toBeVisible();
+		expect(sessionAfter.operator_context).toBe(sessionBefore.operator_context);
+	} else {
+		expect(response.status()).toBe(200);
+		await expect(page.getByText('Draft saved')).toBeVisible();
+		expect(sessionAfter.operator_context).toBe('Real-data E2E operator context.');
+	}
 });
 
 test('review routes expose real run and eval detail pages', async ({ page, request }, testInfo) => {

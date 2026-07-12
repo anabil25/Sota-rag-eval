@@ -2,7 +2,9 @@
 
 ## Scope
 
-The current azd environment provisions Retrieve experiment dependencies and one manual GraphRAG Job. SvelteKit, FastAPI, SQLite, LightRAG state, and workflow control remain on localhost.
+The default azd environment provisions the shared Retrieve dependencies used by the selected winner. SvelteKit, FastAPI, SQLite, LightRAG state, and workflow control remain on localhost.
+
+GraphRAG experiment compute is opt-in. Set `AZURE_DEPLOY_GRAPH_RUNTIME=true` only while GraphRAG is an active candidate; the default `false` does not create its ACR, delegated subnet, Container Apps environment, or manual job.
 
 ## Configure an isolated environment
 
@@ -14,7 +16,10 @@ azd env set AZURE_SUBSCRIPTION_ID <subscription-id>
 azd env set AZURE_PRINCIPAL_ID <entra-object-id>
 azd env set AZURE_LOCATION northcentralus
 azd env set RETRIEVE_DEPLOYMENT_REGION northcentralus
+azd env set AZURE_DEPLOY_GRAPH_RUNTIME true
 ```
+
+Omit the last command for winner-only reconciliation. After an experiment handoff, run app-level teardown first and set `AZURE_DEPLOY_GRAPH_RUNTIME=false`; incremental ARM deployment does not delete resources that were deployed previously.
 
 Never select a protected/live environment for validation. Set `RETRIEVE_PROTECTED_RESOURCE_GROUPS` to a comma-separated denylist in operator environments.
 
@@ -34,9 +39,9 @@ azd provision --preview --no-prompt
 5. provisions through azd;
 6. classifies any failure;
 7. on backend capacity only, purges the isolated failed attempt before trying the next whole-stack region;
-8. builds and publishes the corpus-free GraphRAG runtime image;
-9. builds a transient seed image containing the canonical corpus;
-10. verifies and mirrors the corpus through private Blob access, restores the runtime image, and deletes the seed tag;
+8. when graph runtime is enabled, builds and publishes the corpus-free GraphRAG runtime image;
+9. when graph runtime is enabled, builds a transient seed image containing the canonical corpus;
+10. when graph runtime is enabled, verifies and mirrors the corpus through private Blob access, restores the runtime image, and deletes the seed tag;
 11. writes azd outputs into the ignored local config and selected architecture rows.
 
 Quota, policy, authorization, validation, and unknown failures stop immediately. They are not blind-retry conditions.
@@ -48,6 +53,8 @@ azd env get-values
 az group show --name "rg-$(azd env get-value AZURE_ENV_NAME)"
 az containerapp job show --resource-group "$(azd env get-value AZURE_RESOURCE_GROUP)" --name "$(azd env get-value AZURE_GRAPHRAG_JOB_NAME)"
 ```
+
+The Container Apps command applies only when `AZURE_DEPLOY_GRAPH_RUNTIME=true`.
 
 Data-plane checks use managed identity/Azure CLI credentials. Shared keys are disabled.
 

@@ -7,6 +7,9 @@ param tags object
 @description('Virtual network name')
 param virtualNetworkName string
 
+@description('Create the delegated subnet used only by the GraphRAG experiment runtime')
+param deployGraphRuntime bool = false
+
 resource virtualNetwork 'Microsoft.Network/virtualNetworks@2024-05-01' = {
   name: virtualNetworkName
   location: location
@@ -20,7 +23,7 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2024-05-01' = {
   }
 }
 
-resource containerAppsSubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' = {
+resource containerAppsSubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' = if (deployGraphRuntime) {
   parent: virtualNetwork
   name: 'container-apps'
   properties: {
@@ -46,5 +49,5 @@ resource privateEndpointsSubnet 'Microsoft.Network/virtualNetworks/subnets@2024-
 }
 
 output virtualNetworkId string = virtualNetwork.id
-output containerAppsSubnetId string = containerAppsSubnet.id
+output containerAppsSubnetId string = containerAppsSubnet.?id ?? ''
 output privateEndpointsSubnetId string = privateEndpointsSubnet.id

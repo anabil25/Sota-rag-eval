@@ -40,6 +40,9 @@ param embeddingModelName string = 'text-embedding-3-large'
 @minValue(1)
 param embeddingModelCapacity int = 100
 
+@description('Deploy the temporary GraphRAG experiment runtime. Leave false after winner handoff.')
+param deployGraphRuntime bool = false
+
 @allowed([
   'basic'
   'standard'
@@ -48,6 +51,9 @@ param embeddingModelCapacity int = 100
 param searchSku string = 'basic'
 
 var resourceToken = toLower(uniqueString(subscription().id, location, environmentName))
+var registryName = 'azcr${resourceToken}'
+var containerAppsEnvironmentName = 'azcae${resourceToken}'
+var graphJobName = 'azgrj${resourceToken}'
 var resourceTags = {
   'azd-env-name': environmentName
   solution: 'retrieve'
@@ -86,15 +92,16 @@ module network './modules/network.bicep' = {
     location: location
     tags: resourceTags
     virtualNetworkName: 'azvnet${resourceToken}'
+    deployGraphRuntime: deployGraphRuntime
   }
 }
 
-module registry './modules/registry.bicep' = {
+module registry './modules/registry.bicep' = if (deployGraphRuntime) {
   scope: resourceGroup
   params: {
     location: location
     tags: resourceTags
-    registryName: 'azcr${resourceToken}'
+    registryName: registryName
     runtimePrincipalId: identity.outputs.principalId
     deployerPrincipalId: principalId
   }
@@ -142,16 +149,16 @@ module search './modules/search.bicep' = {
   }
 }
 
-module containerApps './modules/container-apps.bicep' = {
+module containerApps './modules/container-apps.bicep' = if (deployGraphRuntime) {
   scope: resourceGroup
   params: {
     location: location
     tags: resourceTags
-    environmentName: 'azcae${resourceToken}'
-    graphJobName: 'azgrj${resourceToken}'
+    environmentName: containerAppsEnvironmentName
+    graphJobName: graphJobName
     managedIdentityResourceId: identity.outputs.resourceId
     infrastructureSubnetId: network.outputs.containerAppsSubnetId
-    registryServer: registry.outputs.loginServer
+    registryServer: '${registryName}.azurecr.io'
     logAnalyticsCustomerId: monitoring.outputs.logAnalyticsCustomerId
     logAnalyticsSharedKey: monitoring.outputs.logAnalyticsSharedKey
     applicationInsightsConnectionString: monitoring.outputs.applicationInsightsConnectionString
@@ -163,6 +170,7 @@ module containerApps './modules/container-apps.bicep' = {
     embeddingModelName: embeddingModelName
     embeddingModelCapacity: embeddingModelCapacity
   }
+  dependsOn: [registry]
 }
 
 output AZURE_RESOURCE_GROUP string = resourceGroup.name
@@ -175,8 +183,8 @@ output AZURE_MANAGED_IDENTITY_CLIENT_ID string = identity.outputs.clientId
 output AZURE_MANAGED_IDENTITY_PRINCIPAL_ID string = identity.outputs.principalId
 output AZURE_MANAGED_IDENTITY_RESOURCE_ID string = identity.outputs.resourceId
 
-output AZURE_CONTAINER_REGISTRY_NAME string = registry.outputs.name
-output AZURE_CONTAINER_REGISTRY_ENDPOINT string = registry.outputs.loginServer
+output AZURE_CONTAINER_REGISTRY_NAME string = deployGraphRuntime ? registryName : ''
+output AZURE_CONTAINER_REGISTRY_ENDPOINT string = deployGraphRuntime ? '${registryName}.azurecr.io' : ''
 
 output AZURE_STORAGE_ACCOUNT_NAME string = storage.outputs.name
 output AZURE_STORAGE_BLOB_ENDPOINT string = storage.outputs.blobEndpoint
@@ -191,8 +199,8 @@ output AZURE_OPENAI_EMBEDDING_DEPLOYMENT string = embeddingModelName
 output AZURE_SEARCH_SERVICE_NAME string = search.outputs.name
 output AZURE_SEARCH_ENDPOINT string = search.outputs.endpoint
 
-output AZURE_CONTAINER_APPS_ENVIRONMENT_NAME string = containerApps.outputs.environmentName
-output AZURE_GRAPHRAG_JOB_NAME string = containerApps.outputs.graphJobName
+output AZURE_CONTAINER_APPS_ENVIRONMENT_NAME string = deployGraphRuntime ? containerAppsEnvironmentName : ''
+output AZURE_GRAPHRAG_JOB_NAME string = deployGraphRuntime ? graphJobName : ''
 
 output APPLICATIONINSIGHTS_CONNECTION_STRING string = monitoring.outputs.applicationInsightsConnectionString
 output AZURE_LOG_ANALYTICS_WORKSPACE_ID string = monitoring.outputs.logAnalyticsId

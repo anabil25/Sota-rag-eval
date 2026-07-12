@@ -28,6 +28,9 @@
 		},
 		"searchSku": {
 			"value": "${AZURE_SEARCH_SKU=basic}"
+		},
+		"deployGraphRuntime": {
+			"value": "${AZURE_DEPLOY_GRAPH_RUNTIME=false}"
 		}
 	}
 }

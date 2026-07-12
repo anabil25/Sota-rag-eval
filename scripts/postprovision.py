@@ -45,6 +45,16 @@ def _truthy(name: str) -> bool:
     return os.environ.get(name, "").strip().lower() in {"1", "true", "yes"}
 
 
+def graph_runtime_enabled() -> bool:
+    job_name = os.environ.get("AZURE_GRAPHRAG_JOB_NAME", "").strip()
+    environment_name = os.environ.get(
+        "AZURE_CONTAINER_APPS_ENVIRONMENT_NAME", ""
+    ).strip()
+    if bool(job_name) != bool(environment_name):
+        raise RuntimeError("GraphRAG runtime outputs are incomplete")
+    return bool(job_name)
+
+
 def graph_image_tag() -> str:
     """Return a deterministic tag for the exact GraphRAG job build inputs."""
     core = REPO_ROOT / "retrieve-core"
@@ -538,8 +548,10 @@ def _output_contract() -> dict[str, str]:
         "search_endpoint": required("AZURE_SEARCH_ENDPOINT"),
         "chat_deployment": required("AZURE_OPENAI_CHAT_DEPLOYMENT"),
         "embedding_deployment": required("AZURE_OPENAI_EMBEDDING_DEPLOYMENT"),
-        "graph_job_name": required("AZURE_GRAPHRAG_JOB_NAME"),
-        "container_apps_environment": required("AZURE_CONTAINER_APPS_ENVIRONMENT_NAME"),
+        "graph_job_name": os.environ.get("AZURE_GRAPHRAG_JOB_NAME", "").strip(),
+        "container_apps_environment": os.environ.get(
+            "AZURE_CONTAINER_APPS_ENVIRONMENT_NAME", ""
+        ).strip(),
     }
 
 
@@ -559,13 +571,23 @@ def sync_local_runtime_contract() -> None:
             for name in os.environ.get("RETRIEVE_ARCHITECTURES", "").split(",")
             if name.strip()
         ]
+        final_winners = (
+            ui_session.get("winners", []) if ui_session.get("teardown_done") else []
+        )
         selected = (
-            explicit or ui_session.get("selected_architectures") or cfg.architectures
+            explicit
+            or final_winners
+            or ui_session.get("selected_architectures")
+            or cfg.architectures
         )
         architectures = [str(name) for name in selected if str(name).strip()]
         if not architectures:
             raise RuntimeError("No Retrieve architectures are selected")
         outputs = _output_contract()
+        if "graphrag" in architectures and not outputs["graph_job_name"]:
+            raise RuntimeError(
+                "GraphRAG is selected but AZURE_DEPLOY_GRAPH_RUNTIME is false"
+            )
 
         def update_config(raw: dict) -> dict:
             azure = dict(raw.get("azure") or {})
@@ -679,9 +701,13 @@ def sync_local_runtime_contract() -> None:
 
 def main() -> None:
     print("[postprovision] starting data-plane setup")
-    worker_image = publish_graph_image()
+    graph_enabled = graph_runtime_enabled()
+    worker_image = publish_graph_image() if graph_enabled else ""
     approve_search_storage_private_link()
-    upload_canonical_corpus(worker_image=worker_image)
+    if graph_enabled:
+        upload_canonical_corpus(worker_image=worker_image)
+    else:
+        print("[postprovision] GraphRAG runtime disabled; skipping image and corpus seed")
     sync_local_runtime_contract()
     print("[postprovision] complete")
 
