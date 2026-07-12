@@ -190,12 +190,13 @@ def _context_text_unit_ids(context: Any, tables: dict[str, Any]) -> list[str]:
     )
     community_lookup = _row_lookup(tables.get("communities"), "id", "community")
 
-    selected_ids: list[str] = []
+    direct_ids: list[str] = []
+    indirect_ids: list[str] = []
 
-    def add(values: Any) -> None:
+    def add(values: Any, target: list[str]) -> None:
         for value in _as_list(values):
-            if value not in selected_ids:
-                selected_ids.append(value)
+            if value not in target:
+                target.append(value)
 
     for context_name, original_frame in _iter_context_frames(context):
         frame = _selected_frame(original_frame)
@@ -207,30 +208,35 @@ def _context_text_unit_ids(context: Any, tables: dict[str, Any]) -> list[str]:
             for identifier in identifiers:
                 row = text_lookup.get(str(identifier))
                 if row is not None:
-                    add(row.get("id"))
+                    add(row.get("id"), direct_ids)
         elif normalized_name in {"entities", "entity"}:
             for identifier in identifiers:
                 row = entity_lookup.get(str(identifier))
                 if row is not None:
-                    add(row.get("text_unit_ids"))
+                    add(row.get("text_unit_ids"), indirect_ids)
         elif normalized_name in {"relationships", "relationship"}:
             for identifier in identifiers:
                 row = relationship_lookup.get(str(identifier))
                 if row is not None:
-                    add(row.get("text_unit_ids"))
+                    add(row.get("text_unit_ids"), indirect_ids)
         elif normalized_name in {"reports", "report", "communities", "community"}:
             for identifier in identifiers:
                 report = report_lookup.get(str(identifier))
                 community_id = report.get("community") if report is not None else identifier
                 community = community_lookup.get(str(community_id))
                 if community is not None:
-                    add(community.get("text_unit_ids"))
+                    add(community.get("text_unit_ids"), indirect_ids)
 
         if "text_unit_ids" in frame.columns:
+            target = (
+                direct_ids
+                if normalized_name in {"sources", "source", "text_units", "text unit"}
+                else indirect_ids
+            )
             for values in frame["text_unit_ids"].tolist():
-                add(values)
+                add(values, target)
 
-    return selected_ids
+    return direct_ids or indirect_ids
 
 
 def _json_safe(value: Any) -> Any:

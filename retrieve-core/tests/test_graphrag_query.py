@@ -102,6 +102,48 @@ def test_report_context_maps_through_community_text_units():
     assert len(citations) == 1
 
 
+def test_direct_sources_take_precedence_over_indirect_graph_context():
+    tables = _tables()
+    tables["text_units"] = pd.concat(
+        [
+            tables["text_units"],
+            pd.DataFrame(
+                [
+                    {
+                        "id": "text-unit-2",
+                        "human_readable_id": 8,
+                        "text": "Indirect community context.",
+                        "document_id": "b" * 128,
+                    }
+                ]
+            ),
+        ],
+        ignore_index=True,
+    )
+    tables["communities"].loc[0, "text_unit_ids"] = ["text-unit-2"]
+    manifest = _manifest()
+    manifest["documents"].append(
+        {
+            "document_id": "indirect-doc",
+            "graphrag_document_id": "b" * 128,
+            "source_id": "sha256:" + "e" * 64,
+            "source_url": "https://example.test/indirect.htm",
+            "relative_path": "indirect.md",
+            "content_sha256": "f" * 64,
+            "file_sha256": "0" * 64,
+        }
+    )
+    context = {
+        "sources": pd.DataFrame([{"id": "7", "text": "direct"}]),
+        "reports": pd.DataFrame([{"id": "3", "title": "indirect"}]),
+    }
+
+    text_units, document_ids, _ = build_graphrag_evidence(context, tables, manifest)
+
+    assert text_units == ("text-unit-1",)
+    assert document_ids == ("100-3",)
+
+
 def test_unmapped_graphrag_document_id_is_rejected():
     context = {"sources": pd.DataFrame([{"id": "7", "text": "protected"}])}
 
