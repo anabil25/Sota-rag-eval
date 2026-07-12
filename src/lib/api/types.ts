@@ -101,6 +101,11 @@ export interface UiSession {
 	};
 	winners?: string[];
 	active_eval_set?: string;
+	active_experiment_id?: string;
+	active_experiment_eval_set_id?: number;
+	active_experiment_eval_set_version?: string;
+	active_experiment_corpus_fingerprint?: string;
+	active_experiment_architectures?: string[];
 	[key: string]: unknown;
 }
 
@@ -270,8 +275,13 @@ export interface SotaRecommendation {
 export interface DeploymentSummary {
 	architecture_name: string;
 	status?: string;
+	handoff_kind?: string;
 	endpoint?: string;
 	index_name?: string;
+	query_target?: string;
+	artifact_prefix?: string;
+	working_dir?: string;
+	handoff_note?: string;
 	resource_group?: string;
 	location?: string;
 	est_monthly_usd?: number;
@@ -282,6 +292,7 @@ export interface CompareContext {
 	categories: Record<string, Record<string, Record<string, number>>>;
 	failures: Record<string, RunResult[]>;
 	latest_eval: EvalSet | null;
+	experiment_id?: string;
 	selected_mode: string;
 	arch_costs: Record<string, number>;
 	winners: string[];

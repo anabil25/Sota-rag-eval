@@ -810,6 +810,14 @@ class RetrieveDB:
         self.conn.execute("UPDATE runs SET status = 'failed' WHERE id = ?", (run_id,))
         self.conn.commit()
 
+    def mark_interrupted_runs_failed(self) -> int:
+        """Fail evaluation runs that cannot survive a backend process restart."""
+        cursor = self.conn.execute(
+            "UPDATE runs SET status = 'failed' WHERE status = 'running'"
+        )
+        self.conn.commit()
+        return cursor.rowcount
+
     def get_run(self, run_id: int) -> dict[str, Any] | None:
         row = self.conn.execute("SELECT * FROM runs WHERE id = ?", (run_id,)).fetchone()
         if row:
@@ -851,6 +859,44 @@ class RetrieveDB:
             d["aggregate_metrics"] = json.loads(d["aggregate_metrics"])
             result.append(d)
         return result
+
+    def get_completed_runs_for_experiment(
+        self,
+        experiment_id: str,
+        *,
+        eval_set_id: int,
+        architecture_names: list[str],
+        corpus_fingerprint: str,
+    ) -> list[dict[str, Any]]:
+        """Return one completed run per candidate from an exact experiment cohort."""
+        if not experiment_id or not architecture_names or not corpus_fingerprint:
+            return []
+        rows = self.conn.execute(
+            """SELECT r.*, es.version_label AS eval_set_version
+               FROM runs r
+               LEFT JOIN eval_sets es ON es.id = r.eval_set_id
+               WHERE r.status = 'completed' AND r.eval_set_id = ?
+               ORDER BY r.id""",
+            (eval_set_id,),
+        ).fetchall()
+        by_name: dict[str, dict[str, Any]] = {}
+        allowed = set(architecture_names)
+        for row in rows:
+            run = dict(row)
+            config = json.loads(run["architecture_config"])
+            base_name = str(config.get("_variant_of") or run["architecture_name"]).split("[", 1)[
+                0
+            ]
+            if (
+                config.get("experiment_id") != experiment_id
+                or config.get("corpus_fingerprint") != corpus_fingerprint
+                or base_name not in allowed
+            ):
+                continue
+            run["architecture_config"] = config
+            run["aggregate_metrics"] = json.loads(run["aggregate_metrics"])
+            by_name[str(run["architecture_name"])] = run
+        return sorted(by_name.values(), key=lambda run: int(run["id"]))
 
     # ── Run results ───────────────────────────────────────────────────
 

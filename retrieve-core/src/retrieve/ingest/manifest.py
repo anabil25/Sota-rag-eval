@@ -128,6 +128,38 @@ def build_document_id_aliases(manifest: dict[str, Any]) -> dict[str, str]:
     return aliases
 
 
+def select_manifest_documents(
+    manifest: dict[str, Any],
+    max_documents: int | None,
+    required_document_ids: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Select a corpus-wide sample, optionally pinning current eval evidence."""
+    documents = sorted(
+        manifest.get("documents") or [],
+        key=lambda document: str(document.get("relative_path") or ""),
+    )
+    by_id = {str(document.get("document_id") or ""): document for document in documents}
+    required_ids = list(dict.fromkeys(required_document_ids or []))
+    missing = [document_id for document_id in required_ids if document_id not in by_id]
+    if missing:
+        raise ValueError(
+            "Required sample documents are absent from the canonical manifest: "
+            + ", ".join(missing[:5])
+        )
+    if max_documents is not None and len(required_ids) > max_documents:
+        raise ValueError("Required sample documents exceed the document cap")
+    if max_documents is None or max_documents >= len(documents):
+        return documents
+
+    selected = [by_id[document_id] for document_id in required_ids]
+    remaining = [document for document in documents if document not in selected]
+    slots = max_documents - len(selected)
+    if slots:
+        indexes = [((2 * index + 1) * len(remaining)) // (2 * slots) for index in range(slots)]
+        selected.extend(remaining[index] for index in indexes)
+    return sorted(selected, key=lambda document: str(document["relative_path"]))
+
+
 def _validate_entry_uniqueness(entries: list[dict[str, Any]]) -> None:
     for key in ("document_id", "source_id", "relative_path"):
         values = [str(entry.get(key, "")) for entry in entries]

@@ -57,8 +57,7 @@ class TestArchitectureRegistry:
         # hybrid-reranker should be the most toggleable
         hr = ARCHITECTURES["hybrid-reranker"]
         assert "semantic_reranker" in hr.toggleable_components
-        assert "embedding_model" in hr.toggleable_components
-        assert "chunk_size" in hr.toggleable_components
+        assert hr.toggleable_components == ["semantic_reranker"]
         # keyword should have none
         assert len(ARCHITECTURES["keyword"].toggleable_components) == 0
 

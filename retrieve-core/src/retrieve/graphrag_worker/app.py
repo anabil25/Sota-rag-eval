@@ -41,7 +41,11 @@ from retrieve.graphrag.settings import (
     build_graphrag_settings,
     validate_graphrag_settings,
 )
-from retrieve.ingest.manifest import MANIFEST_BLOB_NAME, validate_corpus_manifest_data
+from retrieve.ingest.manifest import (
+    MANIFEST_BLOB_NAME,
+    select_manifest_documents,
+    validate_corpus_manifest_data,
+)
 
 app = FastAPI(title="Retrieve GraphRAG Worker", version="0.1.0")
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
@@ -118,31 +122,8 @@ def select_graphrag_documents(
     max_documents: int | None,
     required_document_ids: list[str] | None = None,
 ) -> list[dict[str, Any]]:
-    """Select a corpus-wide sample, optionally pinning current eval evidence."""
-    documents = sorted(
-        manifest.get("documents") or [],
-        key=lambda document: str(document.get("relative_path") or ""),
-    )
-    by_id = {str(document.get("document_id") or ""): document for document in documents}
-    required_ids = list(dict.fromkeys(required_document_ids or []))
-    missing = [document_id for document_id in required_ids if document_id not in by_id]
-    if missing:
-        raise ValueError(
-            "Required GraphRAG sample documents are absent from the canonical manifest: "
-            + ", ".join(missing[:5])
-        )
-    if max_documents is not None and len(required_ids) > max_documents:
-        raise ValueError("Required GraphRAG sample documents exceed the document cap")
-    if max_documents is None or max_documents >= len(documents):
-        return documents
-
-    selected = [by_id[document_id] for document_id in required_ids]
-    remaining = [document for document in documents if document not in selected]
-    slots = max_documents - len(selected)
-    if slots:
-        indexes = [((2 * index + 1) * len(remaining)) // (2 * slots) for index in range(slots)]
-        selected.extend(remaining[index] for index in indexes)
-    return sorted(selected, key=lambda document: str(document["relative_path"]))
+    """Backward-compatible GraphRAG name for shared sample selection."""
+    return select_manifest_documents(manifest, max_documents, required_document_ids)
 
 
 def _credential() -> DefaultAzureCredential:

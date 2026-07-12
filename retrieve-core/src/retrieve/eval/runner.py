@@ -11,6 +11,7 @@ import concurrent.futures
 import json
 import logging
 import time
+import uuid
 from typing import Any
 
 from azure.identity import DefaultAzureCredential
@@ -30,6 +31,55 @@ log = logging.getLogger(__name__)
 console = Console()
 
 _client_cache: dict[tuple[str, str], SearchClient] = {}
+
+_SEARCH_RUNTIME_OPTIONS = {
+    "query_syntax",
+    "lexical_search_mode",
+    "search_fields",
+    "filter_expression",
+    "scoring_profile",
+    "top_k",
+}
+_VECTOR_RUNTIME_OPTIONS = {
+    "vector_k",
+    "vector_filter_mode",
+    "vector_weight",
+    "vector_exhaustive",
+}
+_SEMANTIC_RUNTIME_OPTIONS = {
+    "semantic_ranker_mode",
+    "semantic_captions",
+    "semantic_answers",
+    "query_rewrites",
+    "semantic_max_wait_ms",
+}
+_RUNTIME_QUERY_OPTIONS: dict[str, set[str]] = {
+    "keyword": _SEARCH_RUNTIME_OPTIONS,
+    "single-vector": _VECTOR_RUNTIME_OPTIONS | {"top_k", "filter_expression"},
+    "hybrid": _SEARCH_RUNTIME_OPTIONS | _VECTOR_RUNTIME_OPTIONS,
+    "hybrid-reranker": (
+        _SEARCH_RUNTIME_OPTIONS | _VECTOR_RUNTIME_OPTIONS | _SEMANTIC_RUNTIME_OPTIONS
+    ),
+    "hybrid-llm-enriched": (
+        _SEARCH_RUNTIME_OPTIONS | _VECTOR_RUNTIME_OPTIONS | _SEMANTIC_RUNTIME_OPTIONS
+    ),
+    "agentic-kb": {
+        "top_k",
+        "agentic_reasoning_effort",
+        "agentic_output_mode",
+        "agentic_max_runtime_seconds",
+        "agentic_include_activity",
+    },
+    "graphrag": {"graphrag_query_mode"},
+    "lightrag": {
+        "lightrag_query_mode",
+        "lightrag_top_k",
+        "lightrag_chunk_top_k",
+        "lightrag_enable_rerank",
+        "lightrag_response_type",
+        "lightrag_debug_mode",
+    },
+}
 
 # ── Cost estimation data (from service-matrix.md) ─────────────────────
 # Per-hour eval cost and estimated monthly production cost by architecture.
@@ -156,6 +206,59 @@ def _retrieval_questions(questions: list[dict[str, Any]]) -> list[dict[str, Any]
     ]
 
 
+def _config_bool(value: Any, *, default: bool) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value in (None, ""):
+        return default
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def build_query_runtime_kwargs(arch_config: dict[str, Any]) -> dict[str, Any]:
+    """Build the supported query-time contract from persisted architecture config."""
+    return {
+        "top_k": int(arch_config.get("top_k", 10)),
+        "query_syntax": arch_config.get("query_syntax", "simple"),
+        "lexical_search_mode": arch_config.get("lexical_search_mode", "any"),
+        "search_fields": arch_config.get("search_fields", ""),
+        "filter_expression": arch_config.get("filter_expression", ""),
+        "scoring_profile": arch_config.get("scoring_profile", ""),
+        "vector_k": arch_config.get("vector_k", 50),
+        "vector_filter_mode": arch_config.get("vector_filter_mode", "preFilter"),
+        "vector_weight": arch_config.get("vector_weight", 1),
+        "vector_exhaustive": arch_config.get("vector_exhaustive", False),
+        "semantic_ranker_mode": arch_config.get("semantic_ranker_mode", "auto"),
+        "semantic_max_wait_ms": arch_config.get("semantic_max_wait_ms", 1000),
+        "agentic_reasoning_effort": arch_config.get("agentic_reasoning_effort", "low"),
+        "agentic_output_mode": arch_config.get("agentic_output_mode", "extractiveData"),
+        "agentic_max_runtime_seconds": arch_config.get("agentic_max_runtime_seconds", 30),
+        "agentic_include_activity": arch_config.get("agentic_include_activity", True),
+        "graphrag_mode": arch_config.get("graphrag_query_mode", "local"),
+        "ai_services_endpoint": arch_config.get("ai_services_endpoint", ""),
+        "function_endpoint": arch_config.get("function_endpoint", ""),
+        "graph_worker_endpoint": arch_config.get("graph_worker_endpoint", ""),
+        "graph_job_name": arch_config.get("graph_job_name", ""),
+        "resource_group": arch_config.get("resource_group", ""),
+        "subscription_id": arch_config.get("subscription_id", ""),
+        "graph_worker_artifact_prefix": arch_config.get("graph_worker_artifact_prefix", ""),
+        "corpus_fingerprint": arch_config.get("corpus_fingerprint", ""),
+        "storage_account": arch_config.get("storage_account", ""),
+        "graph_output_container": arch_config.get("graph_output_container", "graphrag"),
+        "lightrag_mode": arch_config.get("lightrag_query_mode", "mix"),
+        "lightrag_working_dir": arch_config.get("lightrag_working_dir", ".lightrag"),
+        "container_app_endpoint": arch_config.get("container_app_endpoint", ""),
+        "embedding_model": arch_config.get("embedding_model", "text-embedding-3-large"),
+        "llm_model": arch_config.get("llm_model", "gpt-4.1"),
+        "lightrag_top_k": arch_config.get("lightrag_top_k", 40),
+        "lightrag_chunk_top_k": arch_config.get("lightrag_chunk_top_k", 20),
+        "lightrag_enable_rerank": arch_config.get("lightrag_enable_rerank", True),
+        "lightrag_response_type": arch_config.get(
+            "lightrag_response_type", "Multiple Paragraphs"
+        ),
+        "lightrag_debug_mode": arch_config.get("lightrag_debug_mode", "none"),
+    }
+
+
 _DERIVED_MODEL_METRICS = {
     "failure_rate",
     "retry_rate",
@@ -209,22 +312,49 @@ def query_ai_search(
     Client and credential are cached per (endpoint, index_name) to avoid
     token re-acquisition overhead across queries in an eval run.
 
-    `toggles` carries SOTA-mode runtime overrides. Honored at query time:
-      - semantic_reranker: "on"|"off" — turn semantic L2 ranking on/off
-      - cross_encoder: "on"|"off" — currently a no-op (reranker not deployed)
-      - chunk_size / chunking_strategy / embedding_model — index-time only,
-        recorded for audit but no query-time effect
-      - query_expansion: "on"|"off" — currently a no-op
-      - rrf_weights: passed through (informational)
+        `toggles` carries SOTA-mode runtime overrides. The only currently
+        executable override is semantic_reranker: "on"|"off".
     """
     client = _get_search_client(endpoint, index_name)
     toggles = toggles or {}
+    unsupported_toggles = sorted(set(toggles) - {"semantic_reranker"})
+    if unsupported_toggles:
+        raise ValueError(
+            "Unsupported SOTA toggle(s) require distinct implemented query/index paths: "
+            + ", ".join(unsupported_toggles)
+        )
+
+    vector_query = VectorizableTextQuery(
+        text=query,
+        k=int(kwargs.get("vector_k", 50)),
+        fields="content_vector",
+        weight=float(kwargs.get("vector_weight", 1)),
+        exhaustive=_config_bool(kwargs.get("vector_exhaustive"), default=False),
+    )
 
     # Only retrieve fields needed for ID extraction — avoids pulling large content blobs
     search_kwargs: dict[str, Any] = {
         "top": top_k,
         "select": ["id", "doc_id", "metadata_storage_name"],
     }
+    search_fields = [
+        field.strip() for field in str(kwargs.get("search_fields", "")).split(",") if field.strip()
+    ]
+    if search_fields:
+        search_kwargs["search_fields"] = search_fields
+    for key, value in (
+        ("filter", kwargs.get("filter_expression")),
+        ("scoring_profile", kwargs.get("scoring_profile")),
+        ("vector_filter_mode", kwargs.get("vector_filter_mode")),
+    ):
+        if value:
+            search_kwargs[key] = value
+    lexical_mode = str(kwargs.get("lexical_search_mode") or "").strip()
+    if lexical_mode in {"all", "any"}:
+        search_kwargs["search_mode"] = lexical_mode
+    query_syntax = str(kwargs.get("query_syntax") or "").strip()
+    if query_syntax in {"simple", "full"}:
+        search_kwargs["query_type"] = query_syntax
 
     if arch_name == "keyword":
         # Keyword only — BM25
@@ -233,13 +363,7 @@ def query_ai_search(
     elif arch_name == "single-vector":
         # Pure vector — ANN via index vectorizer, no keyword
         search_kwargs["search_text"] = None
-        search_kwargs["vector_queries"] = [
-            VectorizableTextQuery(
-                text=query,
-                k_nearest_neighbors=50,
-                fields="content_vector",
-            )
-        ]
+        search_kwargs["vector_queries"] = [vector_query]
 
     elif arch_name == "hybrid":
         # Hybrid — keyword + vector (RRF fusion)
@@ -247,42 +371,28 @@ def query_ai_search(
         # for more consistent RRF fusion weights
         search_kwargs["search_text"] = query
         search_kwargs["scoring_statistics"] = "global"
-        search_kwargs["vector_queries"] = [
-            VectorizableTextQuery(
-                text=query,
-                k_nearest_neighbors=50,
-                fields="content_vector",
-            )
-        ]
+        search_kwargs["vector_queries"] = [vector_query]
 
     elif arch_name in ("hybrid-reranker", "hybrid-llm-enriched"):
         # Hybrid + semantic reranker
         search_kwargs["search_text"] = query
         search_kwargs["scoring_statistics"] = "global"
-        search_kwargs["vector_queries"] = [
-            VectorizableTextQuery(
-                text=query,
-                k_nearest_neighbors=50,
-                fields="content_vector",
-            )
-        ]
+        search_kwargs["vector_queries"] = [vector_query]
         # SOTA toggle: semantic_reranker can be turned off at query time to
         # measure the marginal value of L2 reranking on the same index.
-        if toggles.get("semantic_reranker", "on") != "off":
+        semantic_default = str(kwargs.get("semantic_ranker_mode", "auto")) != "off"
+        if toggles.get("semantic_reranker", "on" if semantic_default else "off") != "off":
             search_kwargs["query_type"] = "semantic"
             search_kwargs["semantic_configuration_name"] = "default-semantic"
+            semantic_wait = kwargs.get("semantic_max_wait_ms")
+            if semantic_wait not in (None, ""):
+                search_kwargs["semantic_max_wait_in_milliseconds"] = int(semantic_wait)
 
     elif arch_name == "multi-vector":
         # Multi-vector — same as hybrid-reranker, possibly with AML vectorizer
         search_kwargs["search_text"] = query
         search_kwargs["scoring_statistics"] = "global"
-        search_kwargs["vector_queries"] = [
-            VectorizableTextQuery(
-                text=query,
-                k_nearest_neighbors=50,
-                fields="content_vector",
-            )
-        ]
+        search_kwargs["vector_queries"] = [vector_query]
         search_kwargs["query_type"] = "semantic"
         search_kwargs["semantic_configuration_name"] = "default-semantic"
 
@@ -295,6 +405,12 @@ def query_ai_search(
             kb_name=index_name,
             query=query,
             top_k=top_k,
+            reasoning_effort=kwargs.get("agentic_reasoning_effort", "low"),
+            output_mode=kwargs.get("agentic_output_mode", "extractiveData"),
+            max_runtime_seconds=int(kwargs.get("agentic_max_runtime_seconds", 30)),
+            include_activity=_config_bool(
+                kwargs.get("agentic_include_activity"), default=True
+            ),
         )
 
     elif arch_name == "graphrag":
@@ -326,11 +442,19 @@ def query_ai_search(
         return query_lightrag(
             query=query,
             mode=kwargs.get("lightrag_mode", "mix"),
+            working_dir=kwargs.get("lightrag_working_dir", ".lightrag"),
             ai_services_endpoint=kwargs.get("ai_services_endpoint", ""),
             container_app_endpoint=kwargs.get("container_app_endpoint", ""),
             corpus_dir=kwargs.get("corpus_dir", "corpus"),
             embedding_model=kwargs.get("embedding_model", "text-embedding-3-large"),
             llm_model=kwargs.get("llm_model", "gpt-4.1"),
+            top_k=int(kwargs.get("lightrag_top_k", 40)),
+            chunk_top_k=int(kwargs.get("lightrag_chunk_top_k", 20)),
+            enable_rerank=_config_bool(
+                kwargs.get("lightrag_enable_rerank"), default=True
+            ),
+            response_type=kwargs.get("lightrag_response_type", "Multiple Paragraphs"),
+            debug_mode=kwargs.get("lightrag_debug_mode", "none"),
         )
 
     else:
@@ -501,6 +625,7 @@ def run_evaluation(
     variants: list[dict[str, Any]] | None = None,
     mode: str = "test",
     parallel: bool = False,
+    experiment_id: str | None = None,
 ):
     """Run the golden eval set against provisioned search architectures.
 
@@ -532,6 +657,13 @@ def run_evaluation(
             return
 
         eval_set_id = eval_set["id"]
+        experiment_id = experiment_id or uuid.uuid4().hex
+        try:
+            current_corpus_fingerprint = str(
+                load_corpus_manifest(cfg.corpus.output_dir)["corpus_fingerprint"]
+            )
+        except (FileNotFoundError, ValueError):
+            current_corpus_fingerprint = str(cfg.azure.corpus_fingerprint or "")
         preexisting_running_ids = {
             int(row["id"])
             for row in db.conn.execute(
@@ -597,22 +729,72 @@ def run_evaluation(
                 f"{len(groups)} base architectures in parallel[/bold]"
             )
 
-            def _run_group(group_variants: list[dict[str, Any]]) -> None:
+            def _run_group(group_variants: list[dict[str, Any]]) -> list[int]:
                 # Each thread gets its own DB connection for thread safety
                 thread_db = RetrieveDB(cfg.db_path)
                 try:
-                    for v in group_variants:
-                        _eval_variant(v, questions, eval_set_id, cfg, mode, thread_db)
+                    return [
+                        _eval_variant(
+                            v,
+                            questions,
+                            eval_set_id,
+                            str(eval_set["version_label"]),
+                            experiment_id,
+                            current_corpus_fingerprint,
+                            cfg,
+                            mode,
+                            thread_db,
+                        )
+                        for v in group_variants
+                    ]
                 finally:
                     thread_db.close()
 
+            run_ids: list[int] = []
             with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(groups), 4)) as executor:
                 futures = [executor.submit(_run_group, g) for g in groups.values()]
                 for f in concurrent.futures.as_completed(futures):
-                    f.result()  # re-raises any exception
+                    run_ids.extend(f.result())
         else:
+            run_ids = []
             for variant in variants_to_run:
-                _eval_variant(variant, questions, eval_set_id, cfg, mode, db)
+                run_ids.append(
+                    _eval_variant(
+                        variant,
+                        questions,
+                        eval_set_id,
+                        str(eval_set["version_label"]),
+                        experiment_id,
+                        current_corpus_fingerprint,
+                        cfg,
+                        mode,
+                        db,
+                    )
+                )
+        experiment = {
+            "experiment_id": experiment_id,
+            "eval_set_id": int(eval_set_id),
+            "eval_set_version": str(eval_set["version_label"]),
+            "corpus_fingerprint": current_corpus_fingerprint,
+            "architecture_names": sorted({str(v["base"]) for v in variants_to_run}),
+            "run_ids": sorted(run_ids),
+        }
+        session = db.get_generation_preferences("ui_session") or {}
+        session.update(
+            {
+                "active_experiment_id": experiment_id,
+                "active_experiment_eval_set_id": int(eval_set_id),
+                "active_experiment_eval_set_version": str(eval_set["version_label"]),
+                "active_experiment_corpus_fingerprint": current_corpus_fingerprint,
+                "active_experiment_architectures": experiment["architecture_names"],
+                "run_done": True,
+                "compare_done": False,
+                "teardown_done": False,
+                "winners": [],
+            }
+        )
+        db.upsert_generation_preferences(session, "ui_session")
+        return experiment
     except Exception as exc:
         if "eval_set_id" in locals():
             running_rows = db.conn.execute(
@@ -633,10 +815,13 @@ def _eval_variant(
     variant: dict[str, Any],
     questions: list[dict[str, Any]],
     eval_set_id: int,
+    eval_set_version: str,
+    experiment_id: str,
+    corpus_fingerprint: str,
     cfg: RetrieveConfig,
     mode: str,
     db: RetrieveDB,
-) -> None:
+) -> int:
     """Evaluate a single architecture variant — extracted for parallel support."""
     arch_name = variant["base"]
     variant_label = variant["name"]
@@ -658,6 +843,14 @@ def _eval_variant(
     arch_record = db.get_architecture(arch_name)
     arch_config = dict(arch_record["config"]) if arch_record else {}
     arch_id = arch_record["id"] if arch_record else None
+    ui = db.get_generation_preferences("ui_session") or {}
+    architecture_options = ui.get("architecture_options") or {}
+    selected_options = architecture_options.get(arch_name) or {}
+    allowed_options = _RUNTIME_QUERY_OPTIONS.get(arch_name, set())
+    if isinstance(selected_options, dict):
+        arch_config.update(
+            {key: value for key, value in selected_options.items() if key in allowed_options}
+        )
 
     try:
         corpus_manifest = load_corpus_manifest(cfg.corpus.output_dir)
@@ -668,6 +861,16 @@ def _eval_variant(
     # Bake toggles into the persisted config so the audit trail captures them
     if toggles:
         arch_config = {**arch_config, **toggles, "_variant_of": arch_name}
+    arch_config.update(
+        {
+            "experiment_id": experiment_id,
+            "eval_set_id": eval_set_id,
+            "eval_set_version": eval_set_version,
+            "candidate_base": arch_name,
+        }
+    )
+    if corpus_fingerprint:
+        arch_config["corpus_fingerprint"] = corpus_fingerprint
 
     # Get search endpoint from config
     search_endpoint = arch_config.get(
@@ -711,18 +914,8 @@ def _eval_variant(
                 arch_name=arch_name,
                 toggles=toggles,
                 corpus_dir=cfg.corpus.output_dir,
-                graphrag_mode=arch_config.get("graphrag_query_mode", "local"),
-                ai_services_endpoint=arch_config.get("ai_services_endpoint", ""),
-                function_endpoint=arch_config.get("function_endpoint", ""),
-                graph_worker_endpoint=arch_config.get("graph_worker_endpoint", ""),
-                graph_job_name=arch_config.get("graph_job_name", ""),
-                resource_group=arch_config.get("resource_group", ""),
-                subscription_id=arch_config.get("subscription_id", ""),
-                graph_worker_artifact_prefix=arch_config.get("graph_worker_artifact_prefix", ""),
-                corpus_fingerprint=arch_config.get("corpus_fingerprint", ""),
-                storage_account=arch_config.get("storage_account", ""),
-                graph_output_container=arch_config.get("graph_output_container", "graphrag"),
                 graphrag_metrics_sink=query_model_metrics.update,
+                **build_query_runtime_kwargs(arch_config),
             )
             if query_model_metrics:
                 model_metric_samples.append(query_model_metrics)
@@ -851,3 +1044,4 @@ def _eval_variant(
         mrr_at_10=agg["mrr_at_10"],
         ndcg_at_10=agg["ndcg_at_10"],
     )
+    return run_id

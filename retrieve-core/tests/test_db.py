@@ -275,6 +275,16 @@ class TestRuns:
         run = db.get_run(rid)
         assert run["status"] == "failed"
 
+    def test_restart_marks_only_running_runs_failed(self, db):
+        eid = db.create_eval_set("v1")
+        interrupted = db.create_run(eid, "hybrid", "test")
+        completed = db.create_run(eid, "keyword", "test")
+        db.complete_run(completed, {"recall_at_10": 1.0})
+
+        assert db.mark_interrupted_runs_failed() == 1
+        assert db.get_run(interrupted)["status"] == "failed"
+        assert db.get_run(completed)["status"] == "completed"
+
     def test_get_runs_for_eval_set(self, db):
         eid = db.create_eval_set("v1")
         db.create_run(eid, "keyword", "test")
@@ -291,6 +301,39 @@ class TestRuns:
         completed = db.get_all_completed_runs()
         assert len(completed) == 1
         assert completed[0]["architecture_name"] == "keyword"
+
+    def test_completed_experiment_runs_reject_other_cohorts(self, db):
+        current_eval = db.create_eval_set("current")
+        old_eval = db.create_eval_set("old")
+
+        def completed(eval_set_id, name, experiment, fingerprint):
+            run_id = db.create_run(
+                eval_set_id,
+                name,
+                "test",
+                {
+                    "experiment_id": experiment,
+                    "corpus_fingerprint": fingerprint,
+                    "candidate_base": name,
+                },
+            )
+            db.complete_run(run_id, {"ndcg_at_10": 1.0})
+            return run_id
+
+        expected = completed(current_eval, "hybrid", "experiment-1", "corpus-1")
+        completed(current_eval, "keyword", "experiment-1", "corpus-1")
+        completed(current_eval, "hybrid", "experiment-2", "corpus-1")
+        completed(current_eval, "hybrid", "experiment-1", "corpus-2")
+        completed(old_eval, "hybrid", "experiment-1", "corpus-1")
+
+        runs = db.get_completed_runs_for_experiment(
+            "experiment-1",
+            eval_set_id=current_eval,
+            architecture_names=["hybrid"],
+            corpus_fingerprint="corpus-1",
+        )
+
+        assert [run["id"] for run in runs] == [expected]
 
     def test_compare_runs(self, db):
         eid = db.create_eval_set("v1")

@@ -21,6 +21,76 @@ from retrieve.ingest.manifest import build_document_id_aliases
 
 class TestQueryAISearch:
     @patch("retrieve.eval.runner._get_search_client")
+    def test_hybrid_query_serializes_pinned_preview_vector_controls(self, mock_get_client):
+        client = MagicMock()
+        client.search.return_value = iter([])
+        mock_get_client.return_value = client
+
+        query_ai_search(
+            "https://test.search.windows.net",
+            "test-index",
+            "question",
+            arch_name="hybrid",
+            top_k=7,
+            vector_k="23",
+            vector_weight="1.5",
+            vector_exhaustive=True,
+            vector_filter_mode="postFilter",
+            lexical_search_mode="all",
+            search_fields="content,title",
+        )
+
+        kwargs = client.search.call_args.kwargs
+        vector_query = kwargs["vector_queries"][0]
+        assert vector_query.k == 23
+        assert vector_query.weight == 1.5
+        assert vector_query.exhaustive is True
+        assert kwargs["top"] == 7
+        assert kwargs["vector_filter_mode"] == "postFilter"
+        assert kwargs["search_mode"] == "all"
+        assert kwargs["search_fields"] == ["content", "title"]
+
+    @patch("retrieve.eval.runner._get_search_client")
+    @patch("retrieve.indexing.advanced.query_lightrag")
+    def test_lightrag_query_uses_saved_index_contract(self, mock_query, mock_get_client):
+        mock_query.return_value = (["doc-1"], 12.0)
+
+        ids, latency = query_ai_search(
+            "https://test.search.windows.net",
+            "unused",
+            "question",
+            arch_name="lightrag",
+            lightrag_mode="hybrid",
+            lightrag_working_dir=".lightrag/runs/fingerprint",
+            ai_services_endpoint="https://test-ai.cognitiveservices.azure.com/",
+            embedding_model="embedding-deployment",
+            llm_model="completion-deployment",
+            lightrag_top_k="60",
+            lightrag_chunk_top_k="15",
+            lightrag_enable_rerank=False,
+            lightrag_response_type="short-answer",
+            lightrag_debug_mode="context",
+        )
+
+        assert ids == ["doc-1"]
+        assert latency == 12.0
+        mock_query.assert_called_once_with(
+            query="question",
+            mode="hybrid",
+            working_dir=".lightrag/runs/fingerprint",
+            ai_services_endpoint="https://test-ai.cognitiveservices.azure.com/",
+            container_app_endpoint="",
+            corpus_dir="corpus",
+            embedding_model="embedding-deployment",
+            llm_model="completion-deployment",
+            top_k=60,
+            chunk_top_k=15,
+            enable_rerank=False,
+            response_type="short-answer",
+            debug_mode="context",
+        )
+
+    @patch("retrieve.eval.runner._get_search_client")
     def test_successful_query(self, mock_get_client):
         mock_client = MagicMock()
         mock_client.search.return_value = iter(
@@ -79,6 +149,51 @@ class TestQueryAISearch:
 
 
 class TestRunEvaluation:
+    @patch("retrieve.eval.readiness.query_ai_search", return_value=(["100-3"], 12.5))
+    def test_grounded_readiness_activates_and_persists_evidence(self, mock_query, tmp_path):
+        from retrieve.eval.readiness import validate_architecture_readiness
+        from retrieve.ingest.manifest import build_manifest_entry, write_corpus_manifest
+        from retrieve.ingest.plugin import ConvertedDoc
+        from retrieve.ingest.run import save_doc
+
+        document = ConvertedDoc(
+            "100-3",
+            "Confidentiality",
+            "",
+            "https://example.test/100-3.htm",
+            "Confidential information is protected.",
+        )
+        output = save_doc(document, tmp_path)
+        manifest = write_corpus_manifest(
+            tmp_path,
+            [build_manifest_entry(document, output, tmp_path)],
+        )
+        cfg = RetrieveConfig(db_path=str(tmp_path / "retrieve.db"))
+        cfg.corpus.output_dir = str(tmp_path)
+        db = RetrieveDB(cfg.db_path)
+        eval_set_id = db.create_eval_set("current")
+        db.add_question(eval_set_id, "What is protected?", "direct_lookup", ["100-3::0"])
+        db.upsert_generation_preferences({"active_eval_set": "current"}, "ui_session")
+        db.register_architecture(
+            "hybrid",
+            {
+                "search_endpoint": "https://test.search.windows.net",
+                "index_name": "test-hybrid",
+            },
+        )
+
+        results = validate_architecture_readiness(db, cfg, ["hybrid"])
+
+        architecture = db.get_architecture("hybrid")
+        assert results["hybrid"]["state"] == "succeeded"
+        assert architecture["status"] == "active"
+        assert architecture["config"]["query_smoke"]["corpus_fingerprint"] == manifest[
+            "corpus_fingerprint"
+        ]
+        assert architecture["config"]["query_smoke"]["eval_set_id"] == eval_set_id
+        mock_query.assert_called_once()
+        db.close()
+
     def test_model_metrics_aggregate_raw_counters_and_recompute_rates(self):
         metrics = aggregate_model_metrics(
             [
@@ -137,6 +252,8 @@ class TestRunEvaluation:
         cfg.db_path = db_path
         cfg.architectures = ["hybrid"]
         cfg.azure.name_prefix = "test"
+        cfg.azure.corpus_fingerprint = "corpus-fingerprint"
+        cfg.corpus.output_dir = os.path.join(tmpdir, "missing-corpus")
 
         db = RetrieveDB(db_path)
         eid = db.create_eval_set("v1")
@@ -152,6 +269,11 @@ class TestRunEvaluation:
         assert len(runs) == 1
         assert runs[0]["architecture_name"] == "hybrid"
         assert runs[0]["aggregate_metrics"]["recall_at_5"] > 0
+        assert runs[0]["architecture_config"]["experiment_id"]
+        assert runs[0]["architecture_config"]["corpus_fingerprint"] == "corpus-fingerprint"
+        session = db.get_generation_preferences("ui_session")
+        assert session["active_experiment_id"] == runs[0]["architecture_config"]["experiment_id"]
+        assert session["active_experiment_architectures"] == ["hybrid"]
 
         results = db.get_results_for_run(runs[0]["id"])
         assert len(results) == 2

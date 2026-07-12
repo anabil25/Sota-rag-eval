@@ -931,7 +931,7 @@
 				{#if corpusReady}
 					<div class="panel corpus-ready">
 						<div>
-							<p class="eyebrow">Corpus ready · Step 1 of 6</p>
+							<p class="eyebrow">Corpus ready · Step 1 of 7</p>
 							<h2>{corpusDocCount} document{corpusDocCount === 1 ? '' : 's'} in the corpus</h2>
 							<p class="muted">
 								Saved to <code>{data.corpusFiles.output || ingestOutput}</code>. This corpus is the
@@ -943,7 +943,7 @@
 					</div>
 				{:else}
 					<div class="panel intro-panel section-stack">
-						<p class="eyebrow">Step 1 of 6 · Foundation</p>
+						<p class="eyebrow">Step 1 of 7 · Foundation</p>
 						<h2>Build the corpus Retrieve measures against</h2>
 						<p class="muted">
 							Retrieve helps you stop guessing which search architecture works and measure it
@@ -2807,14 +2807,27 @@
 										>{/if}
 								</div>
 								<dl class="definition-grid">
-									<div>
-										<dt>Search endpoint</dt>
-										<dd>{deployment.endpoint ?? 'n/a'}</dd>
-									</div>
-									<div>
-										<dt>Index name</dt>
-										<dd>{deployment.index_name ?? 'n/a'}</dd>
-									</div>
+									{#if deployment.endpoint}
+										<div>
+											<dt>{deployment.handoff_kind === 'azure-ai-search' ? 'Search endpoint' : 'Service endpoint'}</dt>
+											<dd>{deployment.endpoint}</dd>
+										</div>
+									{/if}
+									{#if deployment.query_target}
+										<div>
+											<dt>{deployment.handoff_kind === 'azure-ai-search'
+												? 'Index name'
+												: deployment.handoff_kind === 'agentic-kb'
+													? 'Knowledge base'
+													: deployment.handoff_kind === 'graphrag-job'
+														? 'Container Apps job'
+														: 'Working directory'}</dt>
+											<dd>{deployment.query_target}</dd>
+										</div>
+									{/if}
+									{#if deployment.artifact_prefix}
+										<div><dt>Artifact prefix</dt><dd>{deployment.artifact_prefix}</dd></div>
+									{/if}
 									<div>
 										<dt>Resource group</dt>
 										<dd>{deployment.resource_group ?? 'n/a'}</dd>
@@ -2824,9 +2837,11 @@
 										<dd>{deployment.location ?? 'n/a'}</dd>
 									</div>
 								</dl>
-								<details>
-									<summary>Copilot Studio HTTP action snippet</summary>
-									<pre>{`POST ${deployment.endpoint ?? '<search-endpoint>'}/indexes/${deployment.index_name ?? '<index-name>'}/docs/search?api-version=2024-07-01
+								{#if deployment.handoff_note}<p class="muted">{deployment.handoff_note}</p>{/if}
+								{#if deployment.handoff_kind === 'azure-ai-search'}
+									<details>
+										<summary>Copilot Studio HTTP action snippet</summary>
+										<pre>{`POST ${deployment.endpoint ?? '<search-endpoint>'}/indexes/${deployment.index_name ?? '<index-name>'}/docs/search?api-version=2024-07-01
 Authorization: Bearer <managed-identity-token>
 Content-Type: application/json
 
@@ -2836,7 +2851,8 @@ Content-Type: application/json
   "semanticConfiguration": "default",
   "top": 5
 }`}</pre>
-								</details>
+									</details>
+								{/if}
 							</article>
 						{/each}
 					</section>

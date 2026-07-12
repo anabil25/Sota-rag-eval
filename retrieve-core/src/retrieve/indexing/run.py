@@ -23,7 +23,7 @@ from retrieve.indexing.search_index import (
     rerun_indexer,
     wait_for_indexer,
 )
-from retrieve.ingest.manifest import load_corpus_manifest
+from retrieve.ingest.manifest import build_document_id_aliases, load_corpus_manifest
 from retrieve.observability import emit_error, emit_progress, step
 
 log = logging.getLogger(__name__)
@@ -47,6 +47,41 @@ def _indexer_wait_targets(architecture: str, index_name: str) -> list[tuple[str,
     if architecture in {"graphrag", "lightrag"}:
         return []
     return [(f"{index_name}-indexer", index_name)]
+
+
+def _grounded_eval_sample_contract(db: RetrieveDB, corpus_dir: str) -> dict[str, Any]:
+    """Return the active eval set's canonical graph-sampling contract."""
+    from retrieve.eval.runner import _canonical_doc_id, _retrieval_questions
+
+    session = db.get_generation_preferences("ui_session") or {}
+    version = str(session.get("active_eval_set") or "").strip()
+    eval_set = db.get_eval_set_by_version(version) if version else db.get_latest_eval_set()
+    if version and not eval_set:
+        raise ValueError(f"Active eval set does not exist: {version}")
+    manifest = load_corpus_manifest(corpus_dir)
+    if not eval_set:
+        return {
+            "eval_set_id": None,
+            "eval_set_version": "",
+            "corpus_fingerprint": str(manifest["corpus_fingerprint"]),
+            "required_document_ids": [],
+        }
+    aliases = build_document_id_aliases(manifest)
+    known = {str(document["document_id"]) for document in manifest["documents"]}
+    required: list[str] = []
+    for question in _retrieval_questions(db.get_questions(int(eval_set["id"]))):
+        for chunk_id in question["ground_truth_chunk_ids"]:
+            document_id = _canonical_doc_id(str(chunk_id), aliases)
+            if document_id not in known:
+                raise ValueError(f"Eval evidence is absent from the canonical corpus: {chunk_id}")
+            if document_id not in required:
+                required.append(document_id)
+    return {
+        "eval_set_id": int(eval_set["id"]),
+        "eval_set_version": str(eval_set["version_label"]),
+        "corpus_fingerprint": str(manifest["corpus_fingerprint"]),
+        "required_document_ids": required,
+    }
 
 
 def index_corpus(cfg: RetrieveConfig, *, dry_run: bool = False):
@@ -85,6 +120,12 @@ def index_corpus(cfg: RetrieveConfig, *, dry_run: bool = False):
         # 1. Upload corpus to blob
         console.print("\n[bold]Step 1: Upload corpus to blob[/bold]")
         corpus_dir = cfg.corpus.output_dir
+        graph_sample_contract = (
+            _grounded_eval_sample_contract(db, corpus_dir)
+            if any(arch["name"] in {"graphrag", "lightrag"} for arch in provisioned)
+            else {}
+        )
+        required_graph_documents = graph_sample_contract.get("required_document_ids", [])
         synchronized_fingerprint = str(first_config.get("corpus_fingerprint") or "")
         local_fingerprint = ""
         if synchronized_fingerprint:
@@ -183,9 +224,28 @@ def index_corpus(cfg: RetrieveConfig, *, dry_run: bool = False):
                             if arch_config.get("graphrag_chunk_overlap") not in (None, "")
                             else None
                         ),
+                        graphrag_required_document_ids=required_graph_documents,
                         lightrag_max_documents=int(arch_config.get("lightrag_max_documents", 50)),
+                        lightrag_required_document_ids=required_graph_documents,
+                        lightrag_working_dir=str(
+                            arch_config.get("lightrag_working_root", ".lightrag")
+                        ),
                     )
-                    if isinstance(index_result, dict) and index_result.get("cloud_index_status"):
+                    if isinstance(index_result, dict):
+                        if arch["name"] in {"graphrag", "lightrag"}:
+                            index_result.update(
+                                {
+                                    "representative_eval_set_id": graph_sample_contract.get(
+                                        "eval_set_id"
+                                    ),
+                                    "representative_eval_set_version": graph_sample_contract.get(
+                                        "eval_set_version", ""
+                                    ),
+                                    "representative_corpus_fingerprint": graph_sample_contract.get(
+                                        "corpus_fingerprint", ""
+                                    ),
+                                }
+                            )
                         arch_config.update(index_result)
                         db.conn.execute(
                             "UPDATE architectures SET config = ?, "
@@ -193,12 +253,13 @@ def index_corpus(cfg: RetrieveConfig, *, dry_run: bool = False):
                             (json.dumps(arch_config), json.dumps(arch_config), arch["id"]),
                         )
                         db.conn.commit()
-                        async_indexing.append({"architecture": arch["name"], **index_result})
-                        cloud_status = str(index_result["cloud_index_status"]).lower()
-                        if cloud_status in {"failed", "error"}:
-                            failed_architecture_ids.add(int(arch["id"]))
-                        else:
-                            indexing_architecture_ids.add(int(arch["id"]))
+                        cloud_status = str(index_result.get("cloud_index_status") or "").lower()
+                        if cloud_status:
+                            async_indexing.append({"architecture": arch["name"], **index_result})
+                            if cloud_status in {"failed", "error"}:
+                                failed_architecture_ids.add(int(arch["id"]))
+                            elif cloud_status not in {"succeeded", "success", "completed"}:
+                                indexing_architecture_ids.add(int(arch["id"]))
                 except RuntimeError as e:
                     if arch["name"] == "graphrag" and "cloud index endpoint" in str(e):
                         console.print(f"  [yellow]{e}[/yellow]")

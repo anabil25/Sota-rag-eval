@@ -366,7 +366,19 @@ def _sota_recommendation(ui: dict[str, Any]) -> dict[str, Any]:
 def _compare_context(db: RetrieveDB, cfg: RetrieveConfig, ui: dict[str, Any]) -> dict[str, Any]:
     from retrieve.registry.architectures import ARCHITECTURES
 
-    runs = db.get_all_completed_runs()
+    active_version = str(ui.get("active_experiment_eval_set_version") or "").strip()
+    active_eval = db.get_eval_set_by_version(active_version) if active_version else None
+    active_architectures = ui.get("active_experiment_architectures") or []
+    runs = (
+        db.get_completed_runs_for_experiment(
+            str(ui.get("active_experiment_id") or ""),
+            eval_set_id=int(active_eval["id"]),
+            architecture_names=[str(name) for name in active_architectures],
+            corpus_fingerprint=str(ui.get("active_experiment_corpus_fingerprint") or ""),
+        )
+        if active_eval and isinstance(active_architectures, list)
+        else []
+    )
     categories = {}
     failures = {}
     for run in runs:
@@ -390,12 +402,50 @@ def _compare_context(db: RetrieveDB, cfg: RetrieveConfig, ui: dict[str, Any]) ->
         cfg_data = arch.get("config") or {}
         resources = arch.get("resources_provisioned") or {}
         arch_meta = ARCHITECTURES.get(name)
+        if name == "agentic-kb":
+            handoff_kind = "agentic-kb"
+            endpoint = resources.get("search_endpoint") or cfg_data.get("search_endpoint")
+            query_target = resources.get("index_name") or cfg_data.get("index_name")
+            handoff_note = (
+                "This winner uses Azure AI Search Knowledge Base retrieval. "
+                "Call it through the Retrieve backend adapter; it is not a docs/search request."
+            )
+        elif name == "graphrag":
+            handoff_kind = "graphrag-job"
+            endpoint = None
+            query_target = cfg_data.get("graph_job_name")
+            handoff_note = (
+                "This winner is queried through the Retrieve GraphRAG job adapter. "
+                "No direct production HTTP endpoint is deployed."
+            )
+        elif name == "lightrag":
+            handoff_kind = (
+                "lightrag-http" if cfg_data.get("container_app_endpoint") else "lightrag-local"
+            )
+            endpoint = cfg_data.get("container_app_endpoint") or None
+            query_target = cfg_data.get("lightrag_working_dir")
+            handoff_note = (
+                "Use the configured LightRAG HTTP service."
+                if endpoint
+                else "This evaluated winner is a local LightRAG index. Deploy a persistent query "
+                "service before connecting an external client."
+            )
+        else:
+            handoff_kind = "azure-ai-search"
+            endpoint = resources.get("search_endpoint") or cfg_data.get("search_endpoint")
+            query_target = resources.get("index_name") or cfg_data.get("index_name")
+            handoff_note = "Use Azure AI Search data-plane retrieval with managed identity."
         deployments.append(
             {
                 "architecture_name": name,
                 "status": arch.get("status", "unknown"),
-                "endpoint": resources.get("search_endpoint") or resources.get("endpoint"),
-                "index_name": resources.get("index_name") or cfg_data.get("index_name"),
+                "handoff_kind": handoff_kind,
+                "endpoint": endpoint,
+                "index_name": query_target if handoff_kind == "azure-ai-search" else None,
+                "query_target": query_target,
+                "artifact_prefix": cfg_data.get("graph_worker_artifact_prefix"),
+                "working_dir": cfg_data.get("lightrag_working_dir"),
+                "handoff_note": handoff_note,
                 "resource_group": resources.get("resource_group") or cfg.azure.resource_group,
                 "location": resources.get("location") or cfg.azure.location,
                 "est_monthly_usd": arch_meta.est_monthly_usd if arch_meta else None,
@@ -406,7 +456,8 @@ def _compare_context(db: RetrieveDB, cfg: RetrieveConfig, ui: dict[str, Any]) ->
         "runs": runs,
         "categories": categories,
         "failures": failures,
-        "latest_eval": db.get_latest_eval_set(),
+        "latest_eval": active_eval or db.get_latest_eval_set(),
+        "experiment_id": str(ui.get("active_experiment_id") or ""),
         "selected_mode": ui.get("selected_mode") or "",
         "arch_costs": arch_costs,
         "winners": winners,
@@ -724,40 +775,51 @@ def _run_job_sync(
 
             with step("evaluate"):
                 requested_architectures = args.get("architectures") or cfg.architectures
+                from retrieve.eval.readiness import validate_architecture_readiness
                 from retrieve.indexing.reconcile import reconcile_architecture_rows
 
                 db = RetrieveDB(cfg.db_path)
                 try:
                     ready_architectures = []
                     rows = [db.get_architecture(str(name)) for name in requested_architectures]
-                    reconciled = reconcile_architecture_rows(
+                    reconcile_architecture_rows(
                         db,
                         [row for row in rows if row is not None],
                     )
-                    rows_by_name = {str(row["name"]): row for row in reconciled}
+                    validate_architecture_readiness(
+                        db,
+                        cfg,
+                        [str(name) for name in requested_architectures],
+                    )
+                    rows_by_name = {
+                        str(name): db.get_architecture(str(name))
+                        for name in requested_architectures
+                    }
+                    not_ready: list[str] = []
                     for name in requested_architectures:
                         row = rows_by_name.get(str(name))
                         row_config = row.get("config", {}) if row else {}
                         if not row or row.get("status") != "active":
-                            log.info("Skipping %s because indexing is not marked active", name)
+                            not_ready.append(str(name))
                             continue
                         if row_config.get("cloud_index_status") in {"started", "failed"}:
-                            log.info("Skipping %s because cloud indexing is not ready", name)
+                            not_ready.append(str(name))
                             continue
                         ready_architectures.append(str(name))
                 finally:
                     db.close()
-                if not ready_architectures:
+                if not_ready:
                     raise ValueError(
-                        "No architectures are ready to evaluate yet. "
-                        "GraphRAG/LightRAG indexing is still running in the background."
+                        "All selected candidates must pass grounded readiness before evaluation: "
+                        + ", ".join(not_ready)
                     )
-                run_evaluation(
+                experiment = run_evaluation(
                     eval_set_version=str(args.get("eval_set_version", "latest")),
                     architectures=ready_architectures,
                     cfg=cfg,
                     variants=variants,
                     mode=mode,
+                    experiment_id=operation_id,
                 )
             _patch_ui_session(
                 cfg,
@@ -769,7 +831,7 @@ def _run_job_sync(
                 },
                 completed_job_id=operation_id,
             )
-            return {"status": "completed"}
+            return {"status": "completed", **(experiment or {})}
 
         elif kind == "teardown":
             from retrieve.provision.teardown import teardown
@@ -808,10 +870,16 @@ def create_app(config_path: str = "retrieve.yaml") -> FastAPI:
     startup_db = RetrieveDB(cfg.db_path)
     try:
         interrupted_jobs = startup_db.mark_interrupted_operation_jobs_failed()
+        interrupted_runs = startup_db.mark_interrupted_runs_failed()
         if interrupted_jobs:
             log.warning(
                 "Marked %d interrupted operation job(s) failed during startup",
                 interrupted_jobs,
+            )
+        if interrupted_runs:
+            log.warning(
+                "Marked %d interrupted evaluation run(s) failed during startup",
+                interrupted_runs,
             )
     finally:
         startup_db.close()

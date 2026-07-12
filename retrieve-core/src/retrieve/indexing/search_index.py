@@ -222,7 +222,10 @@ def create_index_for_architecture(
     graphrag_max_documents: int | None = 50,
     graphrag_chunk_size: int | None = None,
     graphrag_chunk_overlap: int | None = None,
+    graphrag_required_document_ids: list[str] | None = None,
     lightrag_max_documents: int = 50,
+    lightrag_required_document_ids: list[str] | None = None,
+    lightrag_working_dir: str = ".lightrag",
 ):
     """Create the appropriate search index for a given architecture.
 
@@ -340,6 +343,7 @@ def create_index_for_architecture(
             max_documents=graphrag_max_documents,
             chunk_size=graphrag_chunk_size,
             chunk_overlap=graphrag_chunk_overlap,
+            required_document_ids=graphrag_required_document_ids,
         )
     elif arch_name == "lightrag":
         if not corpus_dir:
@@ -353,7 +357,9 @@ def create_index_for_architecture(
             container_app_endpoint=container_app_endpoint,
             embedding_model=embedding_model,
             llm_model=llm_model,
+            working_dir=lightrag_working_dir,
             max_documents=lightrag_max_documents,
+            required_document_ids=lightrag_required_document_ids,
         )
     else:
         console.print(f"  [yellow]{arch_name}: index builder not yet implemented[/yellow]")

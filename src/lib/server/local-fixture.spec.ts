@@ -373,7 +373,7 @@ CREATE TABLE generation_preferences (
 		1,
 		'hybrid',
 		'test',
-		'{"_variant_of":"hybrid","index_name":"idx"}',
+		'{"_variant_of":"hybrid","index_name":"idx","experiment_id":"fixture-experiment","corpus_fingerprint":"fixture-corpus"}',
 		'2026-01-01',
 		'2026-01-01',
 		'completed',
@@ -412,6 +412,11 @@ CREATE TABLE generation_preferences (
 		JSON.stringify({
 			selected_mode: 'test',
 			selected_architectures: ['keyword', 'hybrid'],
+			active_experiment_id: 'fixture-experiment',
+			active_experiment_eval_set_id: 1,
+			active_experiment_eval_set_version: 'v-fixture',
+			active_experiment_corpus_fingerprint: 'fixture-corpus',
+			active_experiment_architectures: ['hybrid'],
 			provision_done: true,
 			ingest_stats: { doc_count: 500, avg_doc_length: 6000, cross_ref_density: 3 }
 		}),

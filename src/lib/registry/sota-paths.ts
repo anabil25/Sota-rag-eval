@@ -55,36 +55,6 @@ export const SOTA_PATHS: Record<string, SotaPath> = {
 				options: ['on', 'off'],
 				default: 'on',
 				description: 'Azure AI Search built-in semantic reranker (L2 cross-encoder)'
-			},
-			{
-				name: 'chunking_strategy',
-				options: ['late_chunking', 'fixed_512', 'fixed_1024'],
-				default: 'late_chunking',
-				description: 'Late chunking preserves cross-chunk context via full-document pooling'
-			},
-			{
-				name: 'embedding_model',
-				options: ['text-embedding-3-small', 'text-embedding-3-large', 'bge-m3'],
-				default: 'text-embedding-3-large',
-				description: 'Embedding model for vector search'
-			},
-			{
-				name: 'chunk_size',
-				options: ['256', '512', '1024'],
-				default: '512',
-				description: 'Chunk size in tokens'
-			},
-			{
-				name: 'query_expansion',
-				options: ['on', 'off'],
-				default: 'off',
-				description: 'LLM-assisted query rewriting before search'
-			},
-			{
-				name: 'rrf_weights',
-				options: ['default', 'dense_heavy', 'sparse_heavy'],
-				default: 'default',
-				description: 'Reciprocal Rank Fusion weight balance between keyword and vector'
 			}
 		],
 		min_cross_ref_density: 1.0
@@ -95,15 +65,7 @@ export const SOTA_PATHS: Record<string, SotaPath> = {
 			'For product manuals, API docs, and technical documentation. Mostly standalone pages with clear headings.',
 		base_architecture: 'hybrid-reranker',
 		components: [
-			{ name: 'semantic_reranker', options: ['on', 'off'], default: 'on', description: '' },
-			{
-				name: 'embedding_model',
-				options: ['text-embedding-3-small', 'text-embedding-3-large'],
-				default: 'text-embedding-3-small',
-				description: 'Smaller model is cost-effective for clear, well-structured docs'
-			},
-			{ name: 'chunk_size', options: ['256', '512', '1024'], default: '512', description: '' },
-			{ name: 'query_expansion', options: ['on', 'off'], default: 'off', description: '' }
+			{ name: 'semantic_reranker', options: ['on', 'off'], default: 'on', description: '' }
 		],
 		max_cross_ref_density: 1.0,
 		min_avg_doc_length: 1500.0
@@ -114,31 +76,7 @@ export const SOTA_PATHS: Record<string, SotaPath> = {
 			'For legal documents, contracts, and compliance materials. Long documents, precise terminology, and heavy cross-referencing.',
 		base_architecture: 'hybrid-reranker',
 		components: [
-			{ name: 'semantic_reranker', options: ['on', 'off'], default: 'on', description: '' },
-			{
-				name: 'chunking_strategy',
-				options: ['late_chunking', 'fixed_512', 'fixed_1024'],
-				default: 'late_chunking',
-				description: ''
-			},
-			{
-				name: 'embedding_model',
-				options: ['text-embedding-3-large', 'bge-m3'],
-				default: 'text-embedding-3-large',
-				description: ''
-			},
-			{
-				name: 'chunk_size',
-				options: ['512', '1024'],
-				default: '1024',
-				description: 'Larger chunks preserve legal clause context'
-			},
-			{
-				name: 'query_expansion',
-				options: ['on', 'off'],
-				default: 'on',
-				description: 'Helps bridge formal legal language to natural queries'
-			}
+			{ name: 'semantic_reranker', options: ['on', 'off'], default: 'on', description: '' }
 		],
 		min_cross_ref_density: 2.0,
 		min_avg_doc_length: 5000.0
@@ -148,26 +86,7 @@ export const SOTA_PATHS: Record<string, SotaPath> = {
 		description:
 			'For FAQs, help center articles, and short-form knowledge bases. Short, self-contained documents with minimal cross-references.',
 		base_architecture: 'hybrid',
-		components: [
-			{
-				name: 'embedding_model',
-				options: ['text-embedding-3-small', 'text-embedding-3-large'],
-				default: 'text-embedding-3-small',
-				description: ''
-			},
-			{
-				name: 'chunk_size',
-				options: ['256', '512'],
-				default: '256',
-				description: 'Shorter chunks for short documents'
-			},
-			{
-				name: 'rrf_weights',
-				options: ['default', 'dense_heavy'],
-				default: 'default',
-				description: ''
-			}
-		],
+		components: [],
 		max_cross_ref_density: 0.5
 	})
 };

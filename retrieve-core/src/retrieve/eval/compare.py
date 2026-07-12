@@ -392,7 +392,22 @@ def compare_runs(
             if run_ids:
                 runs = db.compare_runs(run_ids)
             else:
-                runs = db.get_all_completed_runs()
+                ui = db.get_generation_preferences("ui_session") or {}
+                active_version = str(ui.get("active_experiment_eval_set_version") or "")
+                active_eval = db.get_eval_set_by_version(active_version) if active_version else None
+                active_architectures = ui.get("active_experiment_architectures") or []
+                runs = (
+                    db.get_completed_runs_for_experiment(
+                        str(ui.get("active_experiment_id") or ""),
+                        eval_set_id=int(active_eval["id"]),
+                        architecture_names=[str(name) for name in active_architectures],
+                        corpus_fingerprint=str(
+                            ui.get("active_experiment_corpus_fingerprint") or ""
+                        ),
+                    )
+                    if active_eval and isinstance(active_architectures, list)
+                    else []
+                )
 
         if not runs:
             console.print("[red]No completed runs to compare. Run 'retrieve eval run' first.[/red]")

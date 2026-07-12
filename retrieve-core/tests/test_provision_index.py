@@ -561,6 +561,50 @@ class TestTeardown:
 
 
 class TestIndexOrchestrator:
+    def test_graph_sample_contract_uses_active_grounded_eval_evidence(self, tmp_path):
+        from retrieve.indexing.run import _grounded_eval_sample_contract
+        from retrieve.ingest.manifest import build_manifest_entry, write_corpus_manifest
+        from retrieve.ingest.plugin import ConvertedDoc
+        from retrieve.ingest.run import save_doc
+
+        document = ConvertedDoc(
+            "100-3",
+            "Confidentiality",
+            "",
+            "https://example.test/100-3.htm",
+            "Confidential information is protected.",
+        )
+        output = save_doc(document, tmp_path)
+        manifest = write_corpus_manifest(
+            tmp_path,
+            [build_manifest_entry(document, output, tmp_path)],
+        )
+        db = RetrieveDB(tmp_path / "retrieve.db")
+        old_eval_id = db.create_eval_set("old")
+        db.add_question(old_eval_id, "Old?", "direct_lookup", [])
+        eval_set_id = db.create_eval_set("current")
+        db.add_question(eval_set_id, "Grounded?", "direct_lookup", ["100-3::0"])
+        db.add_question(
+            eval_set_id,
+            "Inactive?",
+            "direct_lookup",
+            ["missing::0"],
+            status="inactive",
+        )
+        db.upsert_generation_preferences(
+            {"active_eval_set": "current"}, scope_key="ui_session"
+        )
+
+        contract = _grounded_eval_sample_contract(db, str(tmp_path))
+
+        assert contract == {
+            "eval_set_id": eval_set_id,
+            "eval_set_version": "current",
+            "corpus_fingerprint": manifest["corpus_fingerprint"],
+            "required_document_ids": ["100-3"],
+        }
+        db.close()
+
     @patch("retrieve.indexing.run.time.sleep")
     @patch("retrieve.indexing.run.upload_corpus")
     @patch("retrieve.indexing.run.create_index_for_architecture")
@@ -870,9 +914,18 @@ class TestSearchIndexBuilder:
                 "https://test.search.windows.net",
                 "test-agentic-kb",
                 "What is residency?",
+                reasoning_effort="medium",
+                output_mode="extractiveData",
+                max_runtime_seconds=45,
+                include_activity=False,
             )
 
         assert document_ids == ["714-1_alaska_residency.md"]
+        request = kb_client.retrieve.call_args.kwargs["retrieval_request"]
+        assert request.retrieval_reasoning_effort == "medium"
+        assert request.output_mode == "extractiveData"
+        assert request.max_runtime_in_seconds == 45
+        assert request.include_activity is False
         assert latency_ms >= 0
         request = kb_client.retrieve.call_args.kwargs["retrieval_request"]
         params = request.knowledge_source_params[0]

@@ -41,7 +41,7 @@ export const ARCHITECTURES: Record<string, ArchitectureDefinition> = {
 		required_azure_resources: ['storage', 'search', 'ai_foundry'],
 		description: '',
 		est_monthly_usd: 190,
-		toggleable_components: ['embedding_model', 'chunk_size', 'rrf_weights']
+		toggleable_components: []
 	},
 	'hybrid-reranker': {
 		name: 'Hybrid + reranker',
@@ -52,14 +52,7 @@ export const ARCHITECTURES: Record<string, ArchitectureDefinition> = {
 		required_azure_resources: ['storage', 'search', 'ai_foundry'],
 		description: '',
 		est_monthly_usd: 280,
-		toggleable_components: [
-			'semantic_reranker',
-			'embedding_model',
-			'chunk_size',
-			'chunking_strategy',
-			'rrf_weights',
-			'query_expansion'
-		]
+		toggleable_components: ['semantic_reranker']
 	},
 	'hybrid-llm-enriched': {
 		name: 'Hybrid + LLM enrichment',
@@ -70,14 +63,7 @@ export const ARCHITECTURES: Record<string, ArchitectureDefinition> = {
 		required_azure_resources: ['storage', 'search', 'ai_foundry'],
 		description: '',
 		est_monthly_usd: 290,
-		toggleable_components: [
-			'semantic_reranker',
-			'embedding_model',
-			'chunk_size',
-			'chunking_strategy',
-			'rrf_weights',
-			'query_expansion'
-		]
+		toggleable_components: ['semantic_reranker']
 	},
 	'multi-vector': {
 		name: 'Multi-vector',

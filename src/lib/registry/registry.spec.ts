@@ -88,10 +88,7 @@ describe('sota path registry', () => {
 		);
 		expect(combinations).toHaveLength(1 + variantCount);
 		expect(combinations[0]).toEqual({
-			semantic_reranker: 'on',
-			embedding_model: 'text-embedding-3-small',
-			chunk_size: '512',
-			query_expansion: 'off'
+			semantic_reranker: 'on'
 		});
 		expect(generateToggleCombinations({ ...path, components: [{ name: 'custom' }] })).toEqual([
 			{ custom: '' }

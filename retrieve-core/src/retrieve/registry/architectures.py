@@ -48,7 +48,7 @@ ARCHITECTURES: dict[str, Architecture] = {
         latency="★★★★",
         best_for="General-purpose, covers both retrieval modes",
         required_azure_resources=["storage", "search", "ai_foundry"],
-        toggleable_components=["embedding_model", "chunk_size", "rrf_weights"],
+        toggleable_components=[],
         est_monthly_usd=190,
     ),
     "hybrid-reranker": Architecture(
@@ -58,14 +58,7 @@ ARCHITECTURES: dict[str, Architecture] = {
         latency="★★★",
         best_for="High-precision ranking on ambiguous queries",
         required_azure_resources=["storage", "search", "ai_foundry"],
-        toggleable_components=[
-            "semantic_reranker",
-            "embedding_model",
-            "chunk_size",
-            "chunking_strategy",
-            "rrf_weights",
-            "query_expansion",
-        ],
+        toggleable_components=["semantic_reranker"],
         est_monthly_usd=280,
     ),
     "hybrid-llm-enriched": Architecture(
@@ -75,14 +68,7 @@ ARCHITECTURES: dict[str, Architecture] = {
         latency="★★★",
         best_for="Cross-ref extraction and topic tagging at index time",
         required_azure_resources=["storage", "search", "ai_foundry"],
-        toggleable_components=[
-            "semantic_reranker",
-            "embedding_model",
-            "chunk_size",
-            "chunking_strategy",
-            "rrf_weights",
-            "query_expansion",
-        ],
+        toggleable_components=["semantic_reranker"],
         est_monthly_usd=290,
     ),
     "multi-vector": Architecture(

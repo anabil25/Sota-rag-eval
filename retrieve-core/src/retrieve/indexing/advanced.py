@@ -67,7 +67,11 @@ from retrieve.indexing.container_job import (
     wait_for_container_job,
 )
 from retrieve.indexing.search_index import build_private_indexer_payload
-from retrieve.ingest.manifest import build_document_id_aliases, load_corpus_manifest
+from retrieve.ingest.manifest import (
+    build_document_id_aliases,
+    load_corpus_manifest,
+    select_manifest_documents,
+)
 from retrieve.observability import emit_progress
 from retrieve.registry.models import EMBEDDING_MODELS
 
@@ -794,6 +798,10 @@ def query_agentic_kb(
     kb_name: str,
     query: str,
     top_k: int = 10,
+    reasoning_effort: str = "low",
+    output_mode: str = "extractiveData",
+    max_runtime_seconds: int = 30,
+    include_activity: bool = True,
 ) -> tuple[list[str], float]:
     """Query an Azure AI Search Knowledge Base.
 
@@ -827,6 +835,10 @@ def query_agentic_kb(
                 search=query,
             )
         ],
+        max_runtime_in_seconds=max_runtime_seconds,
+        retrieval_reasoning_effort=reasoning_effort,
+        include_activity=include_activity,
+        output_mode=output_mode,
         knowledge_source_params=[
             SearchIndexKnowledgeSourceParams(
                 knowledge_source_name=f"{base_index_name}-ks",
@@ -1300,6 +1312,7 @@ def run_lightrag_indexing(
     llm_model: str = "gpt-4.1",
     working_dir: str = ".lightrag",
     max_documents: int = 50,
+    required_document_ids: list[str] | None = None,
 ):
     """Run LightRAG indexing on the corpus.
 
@@ -1310,10 +1323,16 @@ def run_lightrag_indexing(
 
     corpus_path = Path(corpus_dir)
     corpus_manifest = load_corpus_manifest(corpus_path)
-    manifest_documents = list(corpus_manifest["documents"])
     if max_documents <= 0:
         raise ValueError("LightRAG indexing requires a positive document cap")
-    manifest_documents = manifest_documents[:max_documents]
+    manifest_documents = select_manifest_documents(
+        corpus_manifest,
+        max_documents,
+        required_document_ids,
+    )
+    selected_document_ids = [
+        str(document["document_id"]) for document in manifest_documents
+    ]
     md_files = [corpus_path / str(entry["relative_path"]) for entry in manifest_documents]
 
     if container_app_endpoint:
@@ -1402,6 +1421,11 @@ def run_lightrag_indexing(
             "cloud_index_status": "started",
             "lightrag_track_ids": track_ids,
             "lightrag_track_count": len(track_ids),
+            "lightrag_required_document_ids": list(required_document_ids or []),
+            "lightrag_selected_document_ids": selected_document_ids,
+            "lightrag_sample_selection": (
+                "required-plus-stratified" if required_document_ids else "stratified"
+            ),
             "lightrag_estimate": estimate,
         }
 
@@ -1415,14 +1439,59 @@ def run_lightrag_indexing(
         )
         return
 
-    work_path = Path(working_dir)
-    work_path.mkdir(parents=True, exist_ok=True)
+    index_identity = {
+        "corpus_fingerprint": str(corpus_manifest["corpus_fingerprint"]),
+        "document_ids": selected_document_ids,
+        "embedding_model": embedding_model,
+        "llm_model": llm_model,
+    }
+    index_fingerprint = hashlib.sha256(
+        json.dumps(index_identity, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    ).hexdigest()
+    working_root = Path(working_dir)
+    active_path = working_root / "runs" / index_fingerprint
+    marker_path = active_path / "retrieve-index.json"
+    result = {
+        "lightrag_required_document_ids": list(required_document_ids or []),
+        "lightrag_selected_document_ids": selected_document_ids,
+        "lightrag_sample_selection": (
+            "required-plus-stratified" if required_document_ids else "stratified"
+        ),
+        "lightrag_index_fingerprint": index_fingerprint,
+        "lightrag_working_dir": active_path.as_posix(),
+    }
+    if active_path.exists():
+        if not marker_path.is_file():
+            raise RuntimeError(
+                f"Existing LightRAG index is missing its completion marker: {active_path}"
+            )
+        persisted = json.loads(marker_path.read_text(encoding="utf-8"))
+        if persisted != index_identity:
+            raise RuntimeError(f"Existing LightRAG index identity mismatch: {active_path}")
+        return result
+
+    staging_path = working_root / ".staging" / index_fingerprint
+    staging_identity_path = staging_path / "retrieve-staging.json"
+    if staging_path.exists():
+        if not staging_identity_path.is_file():
+            raise RuntimeError(
+                f"Existing LightRAG staging index has no identity marker: {staging_path}"
+            )
+        staged_identity = json.loads(staging_identity_path.read_text(encoding="utf-8"))
+        if staged_identity != index_identity:
+            raise RuntimeError(f"Existing LightRAG staging identity mismatch: {staging_path}")
+    else:
+        staging_path.mkdir(parents=True, exist_ok=False)
+        staging_identity_path.write_text(
+            json.dumps(index_identity, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
 
     console.print("  [cyan]lightrag[/cyan]: initializing with Azure OpenAI...")
 
     rag = _create_lightrag(
         LightRAG,
-        working_dir=str(work_path),
+        working_dir=str(staging_path),
         ai_services_endpoint=ai_services_endpoint,
         llm_model=llm_model,
         embedding_model=embedding_model,
@@ -1432,44 +1501,53 @@ def run_lightrag_indexing(
     console.print(f"  Inserting {len(md_files)} documents into LightRAG...")
 
     async def insert_documents() -> None:
-        failures: list[str] = []
         await rag.initialize_storages()
         try:
-            for index, (entry, md_file) in enumerate(
-                zip(manifest_documents, md_files, strict=True),
-                start=1,
-            ):
+            contents: list[str] = []
+            file_paths: list[str] = []
+            for entry, md_file in zip(manifest_documents, md_files, strict=True):
                 content = md_file.read_text(encoding="utf-8")
                 if content.startswith("---"):
                     end = content.find("---", 3)
                     if end > 0:
                         content = content[end + 3 :].strip()
-                try:
-                    await rag.ainsert(
-                        content,
-                        ids=str(entry["document_id"]),
-                        file_paths=str(entry["relative_path"]),
-                    )
-                except Exception as exc:
-                    failures.append(f"{entry['relative_path']}: {exc}")
-                if index % 10 == 0 or index == len(md_files):
-                    emit_progress(
-                        f"LightRAG insert {index}/{len(md_files)}",
-                        stage="index.lightrag",
-                        completed=index,
-                        total=len(md_files),
-                    )
+                contents.append(content)
+                file_paths.append(str(entry["relative_path"]))
+            emit_progress(
+                f"LightRAG insert started for {len(contents)} documents",
+                stage="index.lightrag",
+                completed=0,
+                total=len(contents),
+            )
+            await rag.ainsert(
+                contents,
+                ids=selected_document_ids,
+                file_paths=file_paths,
+            )
         finally:
             await rag.finalize_storages()
-        if failures:
-            raise RuntimeError(
-                f"LightRAG failed to index {len(failures)} document(s): " + "; ".join(failures[:5])
-            )
+        emit_progress(
+            f"LightRAG insert {len(contents)}/{len(contents)}",
+            stage="index.lightrag",
+            completed=len(contents),
+            total=len(contents),
+        )
 
-    asyncio.run(insert_documents())
+    try:
+        asyncio.run(insert_documents())
+        (staging_path / "retrieve-index.json").write_text(
+            json.dumps(index_identity, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        staging_identity_path.unlink()
+        active_path.parent.mkdir(parents=True, exist_ok=True)
+        staging_path.replace(active_path)
+    except Exception:
+        raise
 
     console.print(f"  [green]LightRAG indexing complete ({len(md_files)} documents)[/green]")
     emit_progress("LightRAG indexing complete", stage="index.lightrag")
+    return result
 
 
 def _create_lightrag(
@@ -1530,6 +1608,7 @@ def _create_lightrag(
         llm_model_func=complete,
         llm_model_name=llm_model,
         embedding_func=embedding_func,
+        max_parallel_insert=1,
     )
 
 
@@ -1542,6 +1621,11 @@ def query_lightrag(
     corpus_dir: str = "corpus",
     embedding_model: str = "text-embedding-3-large",
     llm_model: str = "gpt-4.1",
+    top_k: int = 40,
+    chunk_top_k: int = 20,
+    enable_rerank: bool = True,
+    response_type: str = "Multiple Paragraphs",
+    debug_mode: str = "none",
 ) -> tuple[list[str], float]:
     """Query a LightRAG index.
 
@@ -1590,7 +1674,16 @@ def query_lightrag(
             try:
                 return await rag.aquery_data(
                     query,
-                    param=QueryParam(mode=mode, include_references=True),
+                    param=QueryParam(
+                        mode=mode,
+                        top_k=top_k,
+                        chunk_top_k=chunk_top_k,
+                        enable_rerank=enable_rerank,
+                        response_type=response_type,
+                        only_need_context=debug_mode == "context",
+                        only_need_prompt=debug_mode == "prompt",
+                        include_references=True,
+                    ),
                 )
             finally:
                 await rag.finalize_storages()

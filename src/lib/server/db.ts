@@ -214,6 +214,48 @@ export function getAllCompletedRuns(): (RunSummary & Row)[] {
 	return rows.map(runRow);
 }
 
+export function getCompletedRunsForExperiment(scope: {
+	experimentId: string;
+	evalSetId: number;
+	architectureNames: string[];
+	corpusFingerprint: string;
+}): (RunSummary & Row)[] {
+	if (
+		!scope.experimentId ||
+		!scope.corpusFingerprint ||
+		scope.architectureNames.length === 0
+	)
+		return [];
+	const database = dbWithTables('runs', 'eval_sets');
+	if (!database) return [];
+	const rows = database
+		.prepare(
+			`SELECT r.*, es.version_label AS eval_set_version
+			   FROM runs r
+			   LEFT JOIN eval_sets es ON es.id = r.eval_set_id
+			   WHERE r.status = 'completed' AND r.eval_set_id = ?
+			   ORDER BY r.id`
+		)
+		.all(scope.evalSetId) as Row[];
+	const allowed = new Set(scope.architectureNames);
+	const latestByName = new Map<string, RunSummary & Row>();
+	for (const row of rows) {
+		const run = runRow(row);
+		const config = run.architecture_config ?? {};
+		const baseName = String(
+			config._variant_of || config.candidate_base || run.architecture_name
+		).split('[', 1)[0];
+		if (
+			config.experiment_id !== scope.experimentId ||
+			config.corpus_fingerprint !== scope.corpusFingerprint ||
+			!allowed.has(baseName)
+		)
+			continue;
+		latestByName.set(run.architecture_name, run);
+	}
+	return [...latestByName.values()].sort((left, right) => left.id - right.id);
+}
+
 export function getRun(runId: number): (RunSummary & Row) | null {
 	const database = dbWithTables('runs');
 	if (!database) return null;

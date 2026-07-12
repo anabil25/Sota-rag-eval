@@ -218,6 +218,7 @@ def test_ui_job_provision_index_eval_branches(
     wizard_client: TestClient,
 ):
     import retrieve.provision as provision
+    from retrieve.eval import readiness
     from retrieve.eval import runner as eval_runner
     from retrieve.indexing import run as indexing_run
 
@@ -228,6 +229,11 @@ def test_ui_job_provision_index_eval_branches(
     )
     monkeypatch.setattr(indexing_run, "index_corpus", lambda cfg: None)
     monkeypatch.setattr(eval_runner, "run_evaluation", lambda **kwargs: None)
+    monkeypatch.setattr(
+        readiness,
+        "validate_architecture_readiness",
+        lambda db, cfg, architecture_names: {},
+    )
 
     for kind in ["provision", "index", "evaluate"]:
         start = wizard_client.post("/api/ui/job/start", json={"kind": kind, "args": {}})
@@ -407,6 +413,7 @@ def test_ui_job_deploy_foundry_embedding_updates_session(
 def test_ui_job_evaluate_sota_expands_component_choices(
     monkeypatch: pytest.MonkeyPatch, wizard_client: TestClient
 ):
+    from retrieve.eval import readiness
     from retrieve.eval import runner as eval_runner
 
     captured: dict = {}
@@ -415,6 +422,11 @@ def test_ui_job_evaluate_sota_expands_component_choices(
         captured.update(kwargs)
 
     monkeypatch.setattr(eval_runner, "run_evaluation", _capture_eval)
+    monkeypatch.setattr(
+        readiness,
+        "validate_architecture_readiness",
+        lambda db, cfg, architecture_names: {},
+    )
 
     wizard_client.post(
         "/api/ui/session",
@@ -423,7 +435,6 @@ def test_ui_job_evaluate_sota_expands_component_choices(
             "selected_sota_path": "government-policy",
             "sotaToggles": {
                 "semantic_reranker": ["on", "off"],
-                "chunk_size": ["256", "512", "1024"],
             },
         },
     )
@@ -434,18 +445,10 @@ def test_ui_job_evaluate_sota_expands_component_choices(
 
     assert done["error"] == ""
     assert captured["mode"] == "sota"
-    assert len(captured["variants"]) == 6
-    choices = {
-        (variant["toggles"]["semantic_reranker"], variant["toggles"]["chunk_size"])
-        for variant in captured["variants"]
-    }
-    assert choices == {
-        ("on", "256"),
-        ("on", "512"),
-        ("on", "1024"),
-        ("off", "256"),
-        ("off", "512"),
-        ("off", "1024"),
+    assert len(captured["variants"]) == 2
+    assert {variant["toggles"]["semantic_reranker"] for variant in captured["variants"]} == {
+        "on",
+        "off",
     }
 
 
