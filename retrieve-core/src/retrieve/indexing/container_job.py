@@ -286,6 +286,8 @@ def get_container_job_logs(
     resource_group: str,
     subscription_id: str = "",
     tail: int = 100,
+    require_result: bool = False,
+    retained_delays: tuple[int, ...] = (5, 10, 20, 30, 30),
 ) -> str:
     command = [
         "az",
@@ -306,22 +308,32 @@ def get_container_job_logs(
     ]
     if subscription_id:
         command.extend(["--subscription", subscription_id])
-    try:
-        result = _run(command)
-    except subprocess.CalledProcessError as exc:
-        details = "\n".join(
-            part.strip()
-            for part in (exc.stdout, exc.stderr)
-            if isinstance(part, str) and part.strip()
-        )
-        if "No replicas found" not in details:
-            raise
-        return _get_retained_container_job_logs(
-            execution_name=execution_name,
-            resource_group=resource_group,
-            subscription_id=subscription_id,
-        )
-    return "\n".join(part.strip() for part in (result.stdout, result.stderr) if part.strip())
+    for attempt in range(len(retained_delays) + 1):
+        try:
+            result = _run(command)
+            logs = "\n".join(
+                part.strip() for part in (result.stdout, result.stderr) if part.strip()
+            )
+        except subprocess.CalledProcessError as exc:
+            details = "\n".join(
+                part.strip()
+                for part in (exc.stdout, exc.stderr)
+                if isinstance(part, str) and part.strip()
+            )
+            if "No replicas found" not in details:
+                raise
+            logs = _get_retained_container_job_logs(
+                execution_name=execution_name,
+                resource_group=resource_group,
+                subscription_id=subscription_id,
+            )
+        if not require_result or "RETRIEVE_JOB_RESULT=" in logs:
+            return logs
+        if attempt < len(retained_delays):
+            time.sleep(retained_delays[attempt])
+    raise RuntimeError(
+        "Completed Container Apps Job logs contain no retained Retrieve result"
+    )
 
 
 def _get_retained_container_job_logs(
@@ -382,6 +394,4 @@ def _get_retained_container_job_logs(
         raise RuntimeError("Log Analytics returned invalid Container Apps Job logs")
     logs = [str(row.get("Log_s") or "") for row in rows if isinstance(row, dict)]
     retained = "\n".join(line for line in logs if line)
-    if not retained:
-        raise RuntimeError("Log Analytics contains no retained Container Apps Job logs")
     return retained

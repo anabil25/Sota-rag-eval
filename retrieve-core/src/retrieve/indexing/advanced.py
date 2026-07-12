@@ -1218,6 +1218,7 @@ def query_graphrag(
                 execution_name=execution_name,
                 resource_group=resource_group,
                 subscription_id=subscription_id,
+                require_result=True,
             )
         )
         if result.get("kind") != "query" or result.get("request_id") != request_id:

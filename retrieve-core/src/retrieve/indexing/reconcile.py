@@ -65,6 +65,7 @@ def _load_container_job_result(config: dict[str, Any]) -> dict[str, Any]:
         execution_name=str(config.get("graph_job_execution_name") or ""),
         resource_group=str(config.get("resource_group") or ""),
         subscription_id=str(config.get("subscription_id") or ""),
+        require_result=True,
     )
     result = parse_job_result(logs)
     if result.get("kind") != "index" or not isinstance(result.get("status"), dict):

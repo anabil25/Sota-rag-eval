@@ -346,7 +346,10 @@ def test_completed_job_logs_fall_back_to_log_analytics(mock_run):
             stdout=json.dumps(
                 [
                     {"TimeGenerated": "2026-07-12T01:00:00Z", "Log_s": "first"},
-                    {"TimeGenerated": "2026-07-12T01:00:01Z", "Log_s": "second"},
+                    {
+                        "TimeGenerated": "2026-07-12T01:00:01Z",
+                        "Log_s": "RETRIEVE_JOB_RESULT=result",
+                    },
                 ]
             ),
             stderr="",
@@ -358,9 +361,11 @@ def test_completed_job_logs_fall_back_to_log_analytics(mock_run):
         execution_name="azgrjtest-execution",
         resource_group="rg-test",
         subscription_id="sub-test",
+        require_result=True,
+        retained_delays=(),
     )
 
-    assert logs == "first\nsecond"
+    assert logs == "first\nRETRIEVE_JOB_RESULT=result"
     workspace_command = mock_run.call_args_list[1].args[0]
     assert workspace_command[1:5] == ["monitor", "log-analytics", "workspace", "list"]
     query_command = mock_run.call_args_list[2].args[0]
