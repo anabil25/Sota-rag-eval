@@ -26,6 +26,19 @@ def _optional_int(name: str) -> int | None:
     return int(value) if value else None
 
 
+def _required_document_ids() -> list[str]:
+    encoded = os.environ.get("GRAPHRAG_SAMPLE_SELECTION", "").strip()
+    if not encoded:
+        return []
+    payload = decode_payload(encoded)
+    document_ids = payload.get("required_document_ids")
+    if not isinstance(document_ids, list) or not all(
+        isinstance(document_id, str) and document_id for document_id in document_ids
+    ):
+        raise ValueError("GraphRAG sample selection contains invalid document IDs")
+    return document_ids
+
+
 def seed_canonical_corpus() -> dict[str, object]:
     corpus_dir = Path(os.environ.get("BUNDLED_CORPUS_DIR", "/app/corpus"))
     storage_account = os.environ.get("STORAGE_ACCOUNT_NAME", "").strip()
@@ -156,6 +169,7 @@ def main() -> None:
         max_documents=_optional_int("GRAPHRAG_MAX_DOCUMENTS"),
         chunk_size=_optional_int("GRAPHRAG_CHUNK_SIZE"),
         chunk_overlap=_optional_int("GRAPHRAG_CHUNK_OVERLAP"),
+        required_document_ids=_required_document_ids(),
         corpus_fingerprint=os.environ.get("CORPUS_FINGERPRINT", ""),
         ai_services_endpoint=os.environ.get("AI_SERVICES_ENDPOINT", ""),
         search_endpoint=os.environ.get("SEARCH_ENDPOINT", ""),

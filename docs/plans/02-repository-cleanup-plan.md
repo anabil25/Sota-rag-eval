@@ -1,6 +1,6 @@
 # Plan 2 — Clean and Normalize the Repository
 
-**Status:** Implemented; final clean-tree and live-operation evidence pending
+**Status:** Implemented; final tree validated; live-operation evidence pending
 **Priority:** P1
 **Last updated:** 2026-07-11
 
@@ -106,5 +106,5 @@ Create a maintainable monorepo with explicit source, generated, runtime, fixture
 - [x] Removed legacy Python ARM polling, random naming, nested/compiled Bicep, and their obsolete tests after azd parity.
 - [x] Added root architecture, contribution, operations, upstream-dependency, and cleanup evidence docs.
 - [x] Full Ruff and frontend formatting/lint pass; copied/generated path references are removed from active code.
-- [ ] Repeat complete offline/build/image/generated-path/secret/vulnerability gates on the final tree.
+- [x] Repeat complete offline/build/image/generated-path/secret/vulnerability gates on the final tree.
 - [ ] Record live deployment and cleanup evidence, then mark the plan complete.

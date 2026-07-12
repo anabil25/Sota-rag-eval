@@ -67,6 +67,7 @@ class IndexRequest(BaseModel):
     max_documents: int | None = Field(default=None, ge=1)
     chunk_size: int | None = Field(default=None, ge=1)
     chunk_overlap: int | None = Field(default=None, ge=0)
+    required_document_ids: list[str] = Field(default_factory=list, max_length=500)
     corpus_fingerprint: str = Field(default="")
     ai_services_endpoint: str = Field(default="")
     search_endpoint: str = Field(default="")
@@ -87,6 +88,9 @@ class JobStatus(BaseModel):
     max_documents: int | None = None
     chunk_size: int | None = None
     chunk_overlap: int | None = None
+    required_document_ids: list[str] = Field(default_factory=list)
+    selected_document_ids: list[str] = Field(default_factory=list)
+    sample_selection: str = ""
     error: str = ""
     heartbeat_at: str = ""
     workflows: list[str] = Field(default_factory=list)
@@ -106,6 +110,37 @@ class QueryRequest(BaseModel):
     response_type: str = Field(default="Multiple Paragraphs", max_length=100)
     community_level: int = Field(default=2, ge=0, le=10)
     dynamic_community_selection: bool = False
+
+
+def select_graphrag_documents(
+    manifest: dict[str, Any],
+    max_documents: int | None,
+    required_document_ids: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    documents = sorted(
+        manifest.get("documents") or [],
+        key=lambda document: str(document.get("relative_path") or ""),
+    )
+    by_id = {str(document.get("document_id") or ""): document for document in documents}
+    required_ids = list(dict.fromkeys(required_document_ids or []))
+    missing = [document_id for document_id in required_ids if document_id not in by_id]
+    if missing:
+        raise ValueError(
+            "Required GraphRAG sample documents are absent from the canonical manifest: "
+            + ", ".join(missing[:5])
+        )
+    if max_documents is not None and len(required_ids) > max_documents:
+        raise ValueError("Required GraphRAG sample documents exceed the document cap")
+    if max_documents is None or max_documents >= len(documents):
+        return documents
+
+    selected = [by_id[document_id] for document_id in required_ids]
+    remaining = [document for document in documents if document not in selected]
+    slots = max_documents - len(selected)
+    if slots:
+        indexes = [((2 * index + 1) * len(remaining)) // (2 * slots) for index in range(slots)]
+        selected.extend(remaining[index] for index in indexes)
+    return sorted(selected, key=lambda document: str(document["relative_path"]))
 
 
 def _credential() -> DefaultAzureCredential:
@@ -463,6 +498,7 @@ def _run_index(job_id: str, request: IndexRequest) -> None:
         "max_documents": request.max_documents,
         "chunk_size": request.chunk_size,
         "chunk_overlap": request.chunk_overlap,
+        "required_document_ids": list(request.required_document_ids),
         "error": "",
     }
     _set_status(storage_account, request.output_container, status)
@@ -496,7 +532,19 @@ def _run_index(job_id: str, request: IndexRequest) -> None:
         status["message"] = "Verified canonical corpus manifest"
         _set_status(storage_account, request.output_container, status)
 
-        managed_paths = [str(document["relative_path"]) for document in manifest["documents"]]
+        selected_documents = select_graphrag_documents(
+            manifest,
+            request.max_documents,
+            request.required_document_ids,
+        )
+        managed_paths = [str(document["relative_path"]) for document in selected_documents]
+        status["selected_document_ids"] = [
+            str(document["document_id"]) for document in selected_documents
+        ]
+        status["sample_selection"] = (
+            "required-plus-stratified" if request.required_document_ids else "stratified"
+        )
+        _set_status(storage_account, request.output_container, status)
         count = _download_corpus(
             storage_account,
             request.corpus_container,
@@ -504,13 +552,10 @@ def _run_index(job_id: str, request: IndexRequest) -> None:
             input_dir,
             progress_status=status,
             output_container=request.output_container,
-            max_documents=request.max_documents,
+            max_documents=None,
             managed_paths=managed_paths,
         )
-        expected_count = min(
-            len(managed_paths),
-            request.max_documents or len(managed_paths),
-        )
+        expected_count = len(managed_paths)
         if count != expected_count:
             raise RuntimeError(
                 f"Canonical corpus download mismatch: expected {expected_count}, got {count}"

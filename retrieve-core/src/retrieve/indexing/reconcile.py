@@ -151,6 +151,25 @@ def reconcile_graphrag_architecture(
     if not config.get("graph_worker_job_id"):
         return architecture
 
+    expected_contract = {
+        "run_scope": config.get("graph_worker_run_scope")
+        or config.get("graphrag_run_scope"),
+        "max_documents": (
+            config.get("graph_worker_max_documents")
+            if config.get("graph_worker_max_documents") is not None
+            else config.get("graphrag_max_documents")
+        ),
+        "chunk_size": config.get("graph_worker_chunk_size"),
+        "chunk_overlap": config.get("graph_worker_chunk_overlap"),
+    }
+    expected_required_document_ids = list(
+        config.get("graph_worker_required_document_ids") or []
+    )
+    for field, value in expected_contract.items():
+        target = f"graph_worker_{field}"
+        if config.get(target) in (None, "") and value not in (None, ""):
+            config[target] = value
+
     try:
         if config.get("graph_job_execution_name"):
             worker_status = _load_container_job_status(config)
@@ -165,32 +184,69 @@ def reconcile_graphrag_architecture(
             raise ValueError("GraphRAG worker status job ID mismatch")
 
         state = str(worker_status.get("state") or "").lower()
-        config.update(
-            {
-                "cloud_index_status": state,
-                "cloud_index_message": str(worker_status.get("message") or "")[:1_000],
-                "cloud_index_error": str(worker_status.get("error") or "")[:2_000],
-                "cloud_index_updated_at": str(worker_status.get("updated_at") or ""),
-                "cloud_index_heartbeat_at": str(worker_status.get("heartbeat_at") or ""),
-                "graph_worker_current_workflow": str(worker_status.get("current_workflow") or ""),
-                "graph_worker_completed_workflows": list(
-                    worker_status.get("completed_workflows") or []
-                ),
-                "graph_worker_progress_description": str(
-                    worker_status.get("progress_description") or ""
-                ),
-                "graph_worker_progress_completed": worker_status.get("progress_completed"),
-                "graph_worker_progress_total": worker_status.get("progress_total"),
-                "graph_worker_run_scope": str(worker_status.get("run_scope") or ""),
-                "graph_worker_max_documents": worker_status.get("max_documents"),
-                "graph_worker_last_reconciled_at": _now(),
-            }
-        )
+        config["cloud_index_status"] = state
+        optional_fields = {
+            "message": ("cloud_index_message", lambda value: str(value or "")[:1_000]),
+            "error": ("cloud_index_error", lambda value: str(value or "")[:2_000]),
+            "updated_at": ("cloud_index_updated_at", lambda value: str(value or "")),
+            "heartbeat_at": ("cloud_index_heartbeat_at", lambda value: str(value or "")),
+            "current_workflow": (
+                "graph_worker_current_workflow",
+                lambda value: str(value or ""),
+            ),
+            "completed_workflows": (
+                "graph_worker_completed_workflows",
+                lambda value: list(value or []),
+            ),
+            "progress_description": (
+                "graph_worker_progress_description",
+                lambda value: str(value or ""),
+            ),
+            "progress_completed": ("graph_worker_progress_completed", lambda value: value),
+            "progress_total": ("graph_worker_progress_total", lambda value: value),
+            "run_scope": ("graph_worker_run_scope", lambda value: str(value or "")),
+            "max_documents": ("graph_worker_max_documents", lambda value: value),
+            "chunk_size": ("graph_worker_chunk_size", lambda value: value),
+            "chunk_overlap": ("graph_worker_chunk_overlap", lambda value: value),
+            "required_document_ids": (
+                "graph_worker_required_document_ids",
+                lambda value: list(value or []),
+            ),
+            "selected_document_ids": (
+                "graph_worker_selected_document_ids",
+                lambda value: list(value or []),
+            ),
+            "sample_selection": ("graph_worker_sample_selection", lambda value: str(value or "")),
+        }
+        for source, (target, normalize) in optional_fields.items():
+            if source in worker_status:
+                config[target] = normalize(worker_status[source])
+        config["graph_worker_last_reconciled_at"] = _now()
         if state == "succeeded":
             artifact_prefix = _immutable_artifact_prefix(config, worker_status)
-            expected_scope = str(config.get("graph_worker_run_scope") or "")
-            if expected_scope and worker_status.get("run_scope") != expected_scope:
-                raise ValueError("GraphRAG worker run scope does not match the architecture")
+            for field, expected in expected_contract.items():
+                if expected in (None, ""):
+                    continue
+                actual = worker_status.get(field)
+                if field != "run_scope":
+                    expected = int(expected)
+                    actual = int(actual) if actual is not None else None
+                if actual != expected:
+                    raise ValueError(
+                        f"GraphRAG worker {field} does not match the architecture"
+                    )
+            if expected_required_document_ids:
+                selected_document_ids = set(worker_status.get("selected_document_ids") or [])
+                missing_required = [
+                    document_id
+                    for document_id in expected_required_document_ids
+                    if document_id not in selected_document_ids
+                ]
+                if missing_required:
+                    raise ValueError(
+                        "GraphRAG worker selection omitted required documents: "
+                        + ", ".join(missing_required[:5])
+                    )
             workflow_results = worker_status.get("workflow_results") or []
             if any(result.get("error") for result in workflow_results if isinstance(result, dict)):
                 raise ValueError("GraphRAG worker reported failed workflow results")

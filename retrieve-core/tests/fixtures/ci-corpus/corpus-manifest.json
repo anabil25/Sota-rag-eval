@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "status": "complete",
+  "generated_at": "2026-07-11T22:45:58.675350+00:00",
+  "corpus_fingerprint": "f769762bf7dc20b9dc9a36303bf9876e55535421c7d8718707e3371f59d24b40",
+  "document_count": 1,
+  "failed_sources": [],
+  "documents": [
+    {
+      "document_id": "ci-image-fixture",
+      "graphrag_document_id": "8b982c445be137da3bf4c41d8482ff659cba23111b5369a14423a29fb4e81ddb9919dfba053d7ce1fa525462387725d0655cb72c8c0478389551877d624d9057",
+      "source_id": "sha256:150cefea99a2816936629b1af2bdaa0486c4112252848140d435daaf1e38f2e7",
+      "source_url": "fixtures/ci-image-fixture.md",
+      "relative_path": "ci-image-fixture.md",
+      "content_sha256": "e699a1cbd8a614ac9d684b22d2f389f8297b1040ae7a91949f31cdd086a1634c",
+      "file_sha256": "da25764a25705e65bd30f77b911fb54d5b7819c2e5f925deb4d672306b2adbc1"
+    }
+  ]
+}

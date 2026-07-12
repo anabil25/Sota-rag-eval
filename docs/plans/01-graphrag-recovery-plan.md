@@ -45,9 +45,18 @@ Replace the failed experimental GraphRAG path with a pinned, schema-validated Gr
 - [x] Localhost queries load only successful immutable Blob runs and return canonical document IDs/citations.
 - [x] Evaluation consumes the persisted endpoint/artifact/fingerprint/storage contract.
 - [x] Full-corpus execution remains default-denied; sample and canary caps are enforced.
+- [x] Live pipeline smoke exposed zero golden-set coverage in lexicographic first-N sampling; bounded runs now use deterministic corpus-wide selection and can require all golden evidence documents, with selected IDs persisted for reconciliation.
 - [ ] Live 50-document runs for chunk sizes 100, 300, and 600, followed by query/eval comparison.
 - [ ] Live canary with throttle, cost, quality, and duration thresholds.
 - [ ] Full run only if every automated sample/canary gate passes.
+
+### Live pipeline smoke evidence
+
+- Execution `azgrjqg6risucd5ba6-sh506ft` completed all 10 GraphRAG workflows with zero workflow or model-response failures.
+- Immutable artifact: `runs/4fff6583bdc9113be4052735f8076c8d4ccfb8294eb6a6d4278fdaeb6f6f10a2/af2d420a58ec48f1bd930d8f30063ae4`.
+- Shape: 50 documents, 100-token chunks, 20-token overlap, 980 entity vectors, 249 community vectors, and 764 text-unit vectors.
+- Duration and usage: 5,568 seconds; 253 GPT-4.1 requests / 1,451,330 tokens; 99 embedding requests / 216,719 tokens.
+- Classification: pipeline smoke only. Lexicographic first-50 selection covered 0 of the 25 answerable `Simple Set` questions and is not accepted as a quality benchmark.
 
 ## Phase 1 — Canonical corpus
 

@@ -3,8 +3,8 @@
 > Source of truth for how the system is structured, what calls what,
 > and how data flows through the pipeline.
 >
-> Vision: [Retrieve.md](../retrieve-solution-accelerator/Retrieve.md)
-> Build plan: [TODO.md](../retrieve-solution-accelerator/TODO.md)
+> Vision: [Retrieve.md](../docs/vision/Retrieve.md)
+> Build plan: [TODO.md](../docs/vision/TODO.md)
 
 ---
 

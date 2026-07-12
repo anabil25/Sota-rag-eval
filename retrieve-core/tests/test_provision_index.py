@@ -372,6 +372,7 @@ class TestGraphRAGSafety:
             subscription_id="sub-test",
             chunk_size=100,
             chunk_overlap=20,
+            required_document_ids=["100"],
         )
 
         fingerprint = manifest["corpus_fingerprint"]
@@ -387,11 +388,40 @@ class TestGraphRAGSafety:
         assert "GRAPHRAG_MAX_DOCUMENTS=50" in environment
         assert "GRAPHRAG_CHUNK_SIZE=100" in environment
         assert "GRAPHRAG_CHUNK_OVERLAP=20" in environment
+        selection = next(
+            value.split("=", 1)[1]
+            for value in environment
+            if value.startswith("GRAPHRAG_SAMPLE_SELECTION=")
+        )
+        from retrieve.graphrag_worker.protocol import decode_payload
+
+        assert decode_payload(selection) == {"required_document_ids": ["100"]}
         assert result["graph_job_execution_name"] == "graph-job-abc"
         assert result["graph_worker_artifact_prefix"] == (f"runs/{fingerprint}/job123")
         assert result["graph_worker_status_blob"] == "jobs/job123/status.json"
         assert result["graph_worker_chunk_size"] == 100
         assert result["graph_worker_chunk_overlap"] == 20
+        assert result["graph_worker_required_document_ids"] == ["100"]
+
+    def test_sample_selection_includes_required_documents_and_spans_manifest(self):
+        from retrieve.graphrag_worker.app import select_graphrag_documents
+
+        documents = [
+            {"document_id": f"doc-{index}", "relative_path": f"{index:02d}.md"}
+            for index in range(10)
+        ]
+
+        selected = select_graphrag_documents(
+            {"documents": documents},
+            max_documents=4,
+            required_document_ids=["doc-5"],
+        )
+
+        selected_ids = {document["document_id"] for document in selected}
+        assert len(selected) == 4
+        assert "doc-5" in selected_ids
+        assert selected_ids & {"doc-0", "doc-1"}
+        assert selected_ids & {"doc-8", "doc-9"}
 
     def test_local_indexing_uses_public_api_not_cli(self, monkeypatch, tmp_path):
         from types import SimpleNamespace

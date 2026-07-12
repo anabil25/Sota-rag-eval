@@ -41,8 +41,14 @@ param searchEndpoint string
 @description('Chat model deployment name')
 param chatModelName string
 
+@description('Chat model capacity in thousands of tokens per minute')
+param chatModelCapacity int
+
 @description('Embedding model deployment name')
 param embeddingModelName string
+
+@description('Embedding model capacity in thousands of tokens per minute')
+param embeddingModelCapacity int
 
 var placeholderImage = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 var registryConfiguration = [
@@ -128,6 +134,10 @@ resource graphJob 'Microsoft.App/jobs@2025-07-01' = {
             { name: 'EMBEDDING_DIMENSIONS', value: '3072' }
             { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: applicationInsightsConnectionString }
             { name: 'GRAPHRAG_METHOD', value: 'fast' }
+            { name: 'GRAPHRAG_LLM_TOKENS_PER_MINUTE', value: string(chatModelCapacity * 1000) }
+            { name: 'GRAPHRAG_LLM_REQUESTS_PER_MINUTE', value: string(chatModelCapacity) }
+            { name: 'GRAPHRAG_EMBEDDING_TOKENS_PER_MINUTE', value: string(embeddingModelCapacity * 1000) }
+            { name: 'GRAPHRAG_EMBEDDING_REQUESTS_PER_MINUTE', value: string(embeddingModelCapacity) }
             { name: 'GRAPHRAG_RUN_SCOPE', value: 'sample' }
             { name: 'GRAPHRAG_MAX_DOCUMENTS', value: '50' }
             { name: 'RETRIEVE_GRAPHRAG_FULL_RUN_APPROVED', value: 'false' }

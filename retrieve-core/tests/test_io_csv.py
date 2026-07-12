@@ -101,6 +101,24 @@ class TestExport:
             for row in reader:
                 assert row["csv_eval_set_id"] == str(eid)
 
+
+def test_import_defaults_to_corpus_agnostic_persona(db, tmp_dir):
+    path = os.path.join(tmp_dir, "questions.csv")
+    with open(path, "w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=CSV_COLUMNS)
+        writer.writeheader()
+        writer.writerow({"question_text": "What does this document require?"})
+
+    eval_set_id, imported = import_eval_set_from_csv(
+        db,
+        input_path=path,
+        version_label="generic",
+        fresh=True,
+    )
+
+    assert imported == 1
+    assert db.get_questions(eval_set_id)[0]["persona"] == "domain_user"
+
     def test_export_lineage_imported_at_is_iso(self, db, tmp_dir):
         eid = _seed_eval_set(db)
         out = os.path.join(tmp_dir, "out.csv")

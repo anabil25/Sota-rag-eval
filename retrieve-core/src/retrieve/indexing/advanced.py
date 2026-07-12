@@ -893,6 +893,7 @@ def run_graphrag_indexing(
     max_documents: int | None = 50,
     chunk_size: int | None = None,
     chunk_overlap: int | None = None,
+    required_document_ids: list[str] | None = None,
 ):
     """Run GraphRAG indexing pipeline on the corpus.
 
@@ -907,6 +908,22 @@ def run_graphrag_indexing(
     validate_graphrag_run_scope(run_scope, max_documents)
     corpus_manifest = load_corpus_manifest(corpus_dir)
     corpus_fingerprint = str(corpus_manifest["corpus_fingerprint"])
+    required_document_ids = list(dict.fromkeys(required_document_ids or []))
+    known_document_ids = {
+        str(document["document_id"]) for document in corpus_manifest["documents"]
+    }
+    missing_document_ids = [
+        document_id
+        for document_id in required_document_ids
+        if document_id not in known_document_ids
+    ]
+    if missing_document_ids:
+        raise ValueError(
+            "Required GraphRAG sample documents are absent from the local manifest: "
+            + ", ".join(missing_document_ids[:5])
+        )
+    if max_documents is not None and len(required_document_ids) > max_documents:
+        raise ValueError("Required GraphRAG sample documents exceed the document cap")
 
     if graph_job_name:
         if not resource_group:
@@ -923,6 +940,8 @@ def run_graphrag_indexing(
             f"GRAPHRAG_MAX_DOCUMENTS={max_documents or ''}",
             f"GRAPHRAG_CHUNK_SIZE={chunk_size or ''}",
             f"GRAPHRAG_CHUNK_OVERLAP={chunk_overlap if chunk_overlap is not None else ''}",
+            "GRAPHRAG_SAMPLE_SELECTION="
+            + encode_payload({"required_document_ids": required_document_ids}),
         ]
         execution_name = start_container_job(
             job_name=graph_job_name,
@@ -950,6 +969,7 @@ def run_graphrag_indexing(
             "graph_worker_max_documents": max_documents,
             "graph_worker_chunk_size": chunk_size,
             "graph_worker_chunk_overlap": chunk_overlap,
+            "graph_worker_required_document_ids": required_document_ids,
             "graph_worker_estimate": estimate,
         }
 
@@ -967,6 +987,7 @@ def run_graphrag_indexing(
                 "max_documents": max_documents,
                 "chunk_size": chunk_size,
                 "chunk_overlap": chunk_overlap,
+                "required_document_ids": required_document_ids,
                 "corpus_fingerprint": corpus_fingerprint,
                 "ai_services_endpoint": ai_services_endpoint,
                 "search_endpoint": search_endpoint,
@@ -1003,6 +1024,7 @@ def run_graphrag_indexing(
             "graph_worker_max_documents": max_documents,
             "graph_worker_chunk_size": chunk_size,
             "graph_worker_chunk_overlap": chunk_overlap,
+            "graph_worker_required_document_ids": required_document_ids,
             "graph_worker_estimate": estimate,
         }
 

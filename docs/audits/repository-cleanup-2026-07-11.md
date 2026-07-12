@@ -46,3 +46,14 @@ The following remain local and ignored: corpus generations, GraphRAG/LightRAG st
 ## Validation gate
 
 Cleanup is accepted only after frontend lint/check/tests/build, complete Python tests, Bicep lint/build/topology assertions, GraphRAG image build/non-root inspection, reference scans, privacy/secret scans, and generated-path scans pass.
+
+## Final-tree evidence
+
+- Python: 413 tests passed and 2 platform/optional tests skipped; Ruff passed.
+- Frontend: 87 Vitest tests and 7 Playwright workflows passed; Svelte diagnostics, Prettier, ESLint, and the production build passed.
+- Infrastructure: Bicep lint/build passed with zero hosted Container Apps and exactly one Container Apps Job.
+- GraphRAG image: clean build passed; imports and baked NLTK resources loaded as non-root UID 999.
+- Clean checkout: an isolated clone with no local corpus, DB, config, logs, or caches built and smoke-tested the GraphRAG image from the canonical one-document CI fixture.
+- Dependency audits: npm reported zero vulnerabilities; a clean Python 3.12 environment reported no known vulnerabilities with the CI-documented `PYSEC-2026-113` exception ignored.
+- Repository boundary: tracked secret and device-path scans passed; seven tracked LightRAG failed-auth runtime artifacts were removed; no generated runtime/cache/database path remains present in the final tree.
+- Documentation: stale links to the removed `retrieve-solution-accelerator` tree were repaired and no references to that path remain.

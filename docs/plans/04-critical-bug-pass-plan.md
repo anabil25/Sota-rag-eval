@@ -8,7 +8,9 @@
 
 Run an adversarial, evidence-based audit across the complete Step 1–7 workflow and deployed trust boundaries. Prioritize unauthorized mutation, runaway spend, data loss/corruption, false readiness/success, invalid evaluation, unrecoverable jobs, and outages. Findings require reproduction and evidence; speculation is not marked confirmed.
 
-## Confirmed release blockers
+## Confirmed release blockers at audit start
+
+All blockers below have local fixes and regression coverage. The disposable live sample/canary remains the release sign-off gate.
 
 - GraphRAG/corpus/query/persistence failures documented in Plan 1.
 - Search/index orchestration can exhaust retries and still mark architectures active.
@@ -55,6 +57,8 @@ Run an adversarial, evidence-based audit across the complete Step 1–7 workflow
 - [x] LightRAG 1.5 API compatibility, managed identity, explicit storage lifecycle, bounded sample indexing, failure propagation, and structured evidence.
 - [x] Removed the unused unauthenticated OpenAI proxy and all non-deployed application images.
 - [x] Pinned CI actions/Bicep; full Ruff, frontend gates, root Bicep, and non-root GraphRAG image are CI contracts.
+- [x] Repaired the clean-checkout GraphRAG image job to use the root Docker context and a canonical one-document test fixture; isolated-clone build/import/non-root checks pass.
+- [x] Preserve the bounded GraphRAG launch contract during sparse running-state reconciliation and validate scope, document cap, chunk size, and overlap before activation.
 - [ ] Run the complete workflow against the disposable Azure environment, including RBAC propagation, Search/index/query failures, graph restart/timeout evidence, and cleanup.
 - [ ] Publish final P0/P1 disposition and residual-risk recommendation after the live sample/canary.
 

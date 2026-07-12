@@ -1,6 +1,6 @@
 # Plan 3 — Rebuild Azure Deployment as an azd Accelerator
 
-**Status:** Validated and authorized; live deployment pending execution
+**Status:** Isolated environment deployed; GraphRAG sample gate in progress
 **Priority:** P0/P1
 **Last updated:** 2026-07-11
 
@@ -125,6 +125,7 @@ Replace Python-driven split-brain provisioning with one deterministic `azd` prov
 - [x] Rerun focused frontend/API tests and full local validation.
 - [x] Run `azd provision --preview` and subscription-scope ARM validation against a new environment only.
 - [x] Obtain explicit approval before provisioning the validated isolated environment.
+- [x] Provision and validate the isolated `retrieve-v7k2` environment without modifying the protected resource group.
 - [ ] Run an approved GraphRAG sample before any canary or full-corpus execution.
 
 Deployment authorization was provided on 2026-07-11 with instructions to continue through live provisioning and debugging without another approval pause. Capacity-only regional fallback may purge failed isolated attempts; protected environments remain excluded.
@@ -143,7 +144,10 @@ Deployment authorization was provided on 2026-07-11 with instructions to continu
 - Official `azure.yaml` schema validation, regional availability, quota checks, assigned-policy review, azd what-if, and subscription-scope ARM validation passed for the isolated validation environment in `northcentralus`.
 - Static RBAC review removed a redundant Search reader assignment and replaced deployer `AcrPush` with Container Registry Tasks Contributor, which grants the quick-build operations used by `az acr build`.
 - Non-mutation proof: the preview succeeded while the isolated validation resource group remained absent.
-- No Azure deployment, paid GraphRAG execution, or mutation of the protected live resource group occurred.
+- The isolated environment is deployed in `rg-retrieve-v7k2`; the protected resource group remains untouched.
+- Private Storage, Search private access, managed identity, ACR, Container Apps environment, and the manual GraphRAG Job are live.
+- The canonical 1,617-document corpus is seeded; hybrid-reranker, true agentic Knowledge Base, and bounded LightRAG live checks passed.
+- The approved 50-document, 100-token GraphRAG sample is running; no canary or full-corpus GraphRAG execution has started.
 
 ## Key files
 

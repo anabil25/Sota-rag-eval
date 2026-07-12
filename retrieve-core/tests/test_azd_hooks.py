@@ -20,6 +20,7 @@ from retrieve.ingest.plugin import ConvertedDoc
 from retrieve.ingest.run import save_doc
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+CI_CORPUS = Path(__file__).parent / "fixtures" / "ci-corpus"
 
 
 def _load_script(name: str):
@@ -29,6 +30,13 @@ def _load_script(name: str):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def test_ci_graph_image_corpus_fixture_is_canonical():
+    manifest = load_corpus_manifest(CI_CORPUS)
+
+    assert manifest["document_count"] == 1
+    assert manifest["documents"][0]["document_id"] == "ci-image-fixture"
 
 
 def test_preprovision_reuses_persisted_whole_stack_region(monkeypatch):

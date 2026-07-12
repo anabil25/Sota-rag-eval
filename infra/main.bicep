@@ -159,7 +159,9 @@ module containerApps './modules/container-apps.bicep' = {
     aiServicesEndpoint: aiServices.outputs.endpoint
     searchEndpoint: search.outputs.endpoint
     chatModelName: chatModelName
+    chatModelCapacity: chatModelCapacity
     embeddingModelName: embeddingModelName
+    embeddingModelCapacity: embeddingModelCapacity
   }
 }
 

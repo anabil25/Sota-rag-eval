@@ -96,7 +96,9 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Build GraphRAG job image
-        run: docker build -f retrieve-core/Dockerfile.graphrag-job -t retrieve-graphrag:${{ github.sha }} retrieve-core
+        run: |
+          cp -R retrieve-core/tests/fixtures/ci-corpus corpus
+          docker build -f retrieve-core/Dockerfile.graphrag-job -t retrieve-graphrag:${{ github.sha }} .
 
       - name: Inspect GraphRAG job image
         run: |

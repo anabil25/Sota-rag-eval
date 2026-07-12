@@ -54,6 +54,10 @@ def _job_architecture(db: RetrieveDB, fingerprint: str = "f" * 64) -> dict:
             "corpus_fingerprint": fingerprint,
             "cloud_index_status": "started",
             "graph_worker_run_scope": "sample",
+            "graph_worker_max_documents": 50,
+            "graph_worker_chunk_size": 100,
+            "graph_worker_chunk_overlap": 20,
+            "graph_worker_required_document_ids": ["doc-required"],
         },
     )
     db.conn.execute("UPDATE architectures SET status = 'indexing'")
@@ -156,6 +160,12 @@ def test_container_job_and_durable_status_must_both_succeed(
         "artifact_prefix": f"runs/{'f' * 64}/job123",
         "corpus_fingerprint": "f" * 64,
         "run_scope": "sample",
+        "max_documents": 50,
+        "chunk_size": 100,
+        "chunk_overlap": 20,
+        "required_document_ids": ["doc-required"],
+        "selected_document_ids": ["doc-required"],
+        "sample_selection": "required-plus-stratified",
         "workflow_results": [],
     }
 
@@ -163,12 +173,46 @@ def test_container_job_and_durable_status_must_both_succeed(
 
     assert reconciled["status"] == "active"
     assert reconciled["config"]["cloud_index_status"] == "succeeded"
+    assert reconciled["config"]["graph_worker_selected_document_ids"] == ["doc-required"]
     mock_execution.assert_called_once_with(
         job_name="azgrjtest",
         execution_name="azgrjtest-abc",
         resource_group="rg-test",
         subscription_id="sub-test",
     )
+    db.close()
+
+
+@patch("retrieve.indexing.reconcile.get_container_job_execution")
+def test_running_container_job_preserves_launch_contract(mock_execution, tmp_path):
+    db = RetrieveDB(tmp_path / "retrieve.db")
+    architecture = _job_architecture(db)
+    architecture["config"].update(
+        {
+            "graph_worker_completed_workflows": ["create_base_text_units"],
+            "graph_worker_progress_completed": 4,
+            "graph_worker_progress_total": 10,
+        }
+    )
+    db.conn.execute(
+        "UPDATE architectures SET config = ? WHERE id = ?",
+        (json.dumps(architecture["config"]), architecture["id"]),
+    )
+    db.conn.commit()
+    mock_execution.return_value = {"properties": {"status": "Running"}}
+
+    reconciled = reconcile_graphrag_architecture(db, architecture)
+
+    config = reconciled["config"]
+    assert reconciled["status"] == "indexing"
+    assert config["graph_worker_run_scope"] == "sample"
+    assert config["graph_worker_max_documents"] == 50
+    assert config["graph_worker_chunk_size"] == 100
+    assert config["graph_worker_chunk_overlap"] == 20
+    assert config["graph_worker_required_document_ids"] == ["doc-required"]
+    assert config["graph_worker_completed_workflows"] == ["create_base_text_units"]
+    assert config["graph_worker_progress_completed"] == 4
+    assert config["graph_worker_progress_total"] == 10
     db.close()
 
 

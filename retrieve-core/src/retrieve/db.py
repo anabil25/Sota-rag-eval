@@ -376,7 +376,7 @@ class RetrieveDB:
         metadata: dict[str, Any] | None = None,
         answer_text: str = "",
         question_type: str = "direct_lookup",
-        persona: str = "alaska_dpa_operator",
+        persona: str = "domain_user",
         intent_family: str = "policy_lookup",
         difficulty: str = "medium",
         expected_search_challenge: str = "",
