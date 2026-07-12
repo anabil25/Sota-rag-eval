@@ -118,6 +118,9 @@ def catalog_embedding_presets(query: str = "") -> list[dict[str, Any]]:
 def search_foundry_embedding_catalog(query: str = "") -> dict[str, Any]:
     """Return curated presets plus best-effort Azure ML registry matches."""
     results = [dict(item, source="preset") for item in catalog_embedding_presets(query)]
+    if not query.strip():
+        return {"items": results, "errors": []}
+
     seen = {item.get("model_id") or item.get("name") for item in results}
     registry_errors: list[str] = []
 
