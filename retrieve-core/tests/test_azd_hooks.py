@@ -144,6 +144,7 @@ def test_postprovision_seeds_verified_manifest_in_azure(monkeypatch, tmp_path):
         "temporary_graph_seed_image",
         lambda *_args: nullcontext(),
     )
+    monkeypatch.setattr(hook, "storage_creation_time", lambda: "2026-07-13T20:00:00Z")
     monkeypatch.setattr(hook, "set_azd_value", persisted.__setitem__)
 
     hook.upload_canonical_corpus(
@@ -155,6 +156,7 @@ def test_postprovision_seeds_verified_manifest_in_azure(monkeypatch, tmp_path):
     assert starts[0]["subscription_id"] == "sub-test"
     assert commands[0][1] == "Azure-side corpus seed status"
     assert persisted["RETRIEVE_CORPUS_FINGERPRINT"] == manifest["corpus_fingerprint"]
+    assert persisted["RETRIEVE_CORPUS_STORAGE_CREATED_AT"] == "2026-07-13T20:00:00Z"
 
 
 def test_postprovision_retries_failed_corpus_seed(monkeypatch, tmp_path):
@@ -206,6 +208,7 @@ def test_postprovision_retries_failed_corpus_seed(monkeypatch, tmp_path):
         "temporary_graph_seed_image",
         lambda *_args: nullcontext(),
     )
+    monkeypatch.setattr(hook, "storage_creation_time", lambda: "2026-07-13T20:00:00Z")
     monkeypatch.setattr(hook, "set_azd_value", persisted.__setitem__)
     monkeypatch.setattr(hook.time, "sleep", sleeps.append)
 
@@ -533,11 +536,25 @@ def test_postprovision_main_skips_graph_work_when_runtime_is_disabled(
     monkeypatch.setattr(
         hook, "sync_local_runtime_contract", lambda: calls.append("runtime-contract")
     )
+    monkeypatch.setattr(
+        hook,
+        "validate_private_corpus_attestation",
+        lambda: calls.append("corpus-attestation"),
+    )
 
     hook.main()
 
-    assert calls == ["private-link", "runtime-contract"]
-    assert "GraphRAG runtime disabled" in capsys.readouterr().out
+    assert calls == ["private-link", "corpus-attestation", "runtime-contract"]
+    assert "reusing attested private Blob corpus" in capsys.readouterr().out
+
+
+def test_postprovision_rejects_stale_private_corpus_attestation(monkeypatch):
+    hook = _load_script("postprovision")
+    monkeypatch.setenv("RETRIEVE_CORPUS_STORAGE_CREATED_AT", "old-storage")
+    monkeypatch.setattr(hook, "storage_creation_time", lambda: "new-storage")
+
+    with pytest.raises(RuntimeError, match="not attested for the current Storage"):
+        hook.validate_private_corpus_attestation()
 
 
 def test_postprovision_rejects_incomplete_graph_runtime_outputs(monkeypatch):

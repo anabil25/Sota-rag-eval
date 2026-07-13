@@ -55,6 +55,41 @@ def graph_runtime_enabled() -> bool:
     return bool(job_name)
 
 
+def storage_creation_time() -> str:
+    account = _json_command(
+        [
+            "az",
+            "storage",
+            "account",
+            "show",
+            "--name",
+            required("AZURE_STORAGE_ACCOUNT_NAME"),
+            "--resource-group",
+            required("AZURE_RESOURCE_GROUP"),
+            "--subscription",
+            required("AZURE_SUBSCRIPTION_ID"),
+            "--output",
+            "json",
+            "--only-show-errors",
+        ],
+        "Storage account creation-time inspection",
+    )
+    creation_time = str(account.get("creationTime") or "").strip()
+    if not creation_time:
+        raise RuntimeError("Storage account has no creation time")
+    return creation_time
+
+
+def validate_private_corpus_attestation() -> None:
+    expected = os.environ.get("RETRIEVE_CORPUS_STORAGE_CREATED_AT", "").strip()
+    actual = storage_creation_time()
+    if not expected or expected != actual:
+        raise RuntimeError(
+            "Private corpus is not attested for the current Storage account. "
+            "Set AZURE_DEPLOY_GRAPH_RUNTIME=true once to seed it through Azure."
+        )
+
+
 def graph_image_tag() -> str:
     """Return a deterministic tag for the exact GraphRAG job build inputs."""
     core = REPO_ROOT / "retrieve-core"
@@ -528,6 +563,7 @@ def upload_canonical_corpus(
     count = int(manifest["document_count"])
     fingerprint = str(manifest["corpus_fingerprint"])
     set_azd_value("RETRIEVE_CORPUS_FINGERPRINT", fingerprint)
+    set_azd_value("RETRIEVE_CORPUS_STORAGE_CREATED_AT", storage_creation_time())
     print(
         f"[postprovision] synchronized {count} documents through private Blob "
         f"({fingerprint[:12]})."
@@ -707,7 +743,8 @@ def main() -> None:
     if graph_enabled:
         upload_canonical_corpus(worker_image=worker_image)
     else:
-        print("[postprovision] GraphRAG runtime disabled; skipping image and corpus seed")
+        validate_private_corpus_attestation()
+        print("[postprovision] reusing attested private Blob corpus")
     sync_local_runtime_contract()
     print("[postprovision] complete")
 

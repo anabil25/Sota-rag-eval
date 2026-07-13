@@ -993,7 +993,8 @@ class TestIndexOrchestrator:
 
         from retrieve.indexing.run import index_corpus
 
-        index_corpus(cfg)
+        with pytest.raises(RuntimeError, match="Indexing failed for architecture.*hybrid"):
+            index_corpus(cfg)
 
         assert mock_rerun.call_count == 5
         db = RetrieveDB(db_path)

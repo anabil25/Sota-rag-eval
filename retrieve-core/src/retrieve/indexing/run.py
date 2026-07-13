@@ -436,6 +436,16 @@ def index_corpus(cfg: RetrieveConfig, *, dry_run: bool = False):
             )
         db.conn.commit()
 
+        if failed_architecture_ids:
+            failed_names = [
+                arch["name"]
+                for arch in provisioned
+                if int(arch["id"]) in failed_architecture_ids
+            ]
+            raise RuntimeError(
+                "Indexing failed for architecture(s): " + ", ".join(failed_names)
+            )
+
         console.print("\n[bold green]Indexing complete![/bold green]")
         if async_indexing:
             console.print(
