@@ -61,28 +61,26 @@ def client():
     yield TestClient(app)
 
 
-class TestHTMLPages:
+class TestFrontendRedirects:
     def test_home(self, client):
-        resp = client.get("/")
-        assert resp.status_code == 200
-        assert "Retrieve" in resp.text
-        assert "Step 1 - Ingest" in resp.text
+        resp = client.get("/", follow_redirects=False)
+        assert resp.status_code == 302
+        assert resp.headers["location"] == "http://127.0.0.1:5173/"
 
     def test_compare(self, client):
-        resp = client.get("/compare")
-        assert resp.status_code == 200
-        assert "Evaluate &amp; Select" in resp.text
-        assert "hybrid" in resp.text
+        resp = client.get("/compare", follow_redirects=False)
+        assert resp.status_code == 302
+        assert resp.headers["location"] == "http://127.0.0.1:5173/flow/compare"
 
     def test_history(self, client):
-        resp = client.get("/history")
-        assert resp.status_code == 200
-        assert "Iteration History" in resp.text
+        resp = client.get("/history", follow_redirects=False)
+        assert resp.status_code == 302
+        assert resp.headers["location"] == "http://127.0.0.1:5173/runs"
 
     def test_eval_sets(self, client):
-        resp = client.get("/eval-sets")
-        assert resp.status_code == 200
-        assert "Golden Eval Set" in resp.text
+        resp = client.get("/eval-sets", follow_redirects=False)
+        assert resp.status_code == 302
+        assert resp.headers["location"] == "http://127.0.0.1:5173/eval-sets"
 
 
 class TestAPIEndpoints:

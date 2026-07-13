@@ -6,7 +6,7 @@ test('dashboard, workflow, runs, and eval sets render from real local data', asy
 }) => {
 	await page.goto('/');
 	await expect(page.getByRole('heading', { level: 1, name: 'Retrieve' })).toBeVisible();
-	await expect(page.getByRole('link', { name: 'Open Workflow' })).toBeVisible();
+	await expect(page.getByRole('link', { name: /Continue:|Review outcome/ }).first()).toBeVisible();
 
 	const workflow = [
 		['/flow/ingest', 'Ingest'],

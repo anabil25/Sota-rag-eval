@@ -92,19 +92,20 @@ def _wait_job_done(client: TestClient, job_id: str, timeout: float = 2.0) -> dic
     raise AssertionError("job did not finish in time")
 
 
-def test_step_routes_render(wizard_client: TestClient):
+def test_step_routes_redirect_to_sveltekit(wizard_client: TestClient):
     steps = ["ingest", "eval", "mode", "configure", "provision", "compare", "history", "settings"]
     for step in steps:
-        resp = wizard_client.get(f"/step/{step}")
-        assert resp.status_code == 200
-        assert "Retrieve Flow" in resp.text
+        resp = wizard_client.get(f"/step/{step}", follow_redirects=False)
+        assert resp.status_code == 302
+        assert resp.headers["location"].startswith("http://127.0.0.1:5173/")
 
 
-def test_step_partial_hx(wizard_client: TestClient):
-    resp = wizard_client.get("/step/eval", headers={"HX-Request": "true"})
-    assert resp.status_code == 200
-    assert "Generate Golden Eval Set" in resp.text
-    assert "<!DOCTYPE html>" not in resp.text
+def test_step_partial_hx_redirects_to_sveltekit(wizard_client: TestClient):
+    resp = wizard_client.get(
+        "/step/eval", headers={"HX-Request": "true"}, follow_redirects=False
+    )
+    assert resp.status_code == 302
+    assert resp.headers["location"] == "http://127.0.0.1:5173/flow/eval"
 
 
 def test_unknown_step_404(wizard_client: TestClient):

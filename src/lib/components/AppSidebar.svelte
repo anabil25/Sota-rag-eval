@@ -15,6 +15,14 @@
 		{ href: resolve('/pricing'), match: '/pricing', label: 'Pricing' },
 		{ href: resolve('/settings'), match: '/settings', label: 'Settings' }
 	];
+
+	function stepStatus(state: StepNavItem['state']) {
+		if (state === 'done') return 'Complete';
+		if (state === 'active') return 'Up next';
+		if (state === 'error') return 'Needs attention';
+		if (state === 'locked') return 'Locked';
+		return 'Not started';
+	}
 </script>
 
 <nav class="sidebar" aria-label="Retrieve navigation">
@@ -31,18 +39,28 @@
 		<ol class="step-list">
 			{#each steps as step (step.id)}
 				<li>
-					<a
-						class="step-link"
-						class:active={currentPath === step.href}
-						href={resolve('/flow/[step]', { step: step.id })}
-						aria-current={currentPath === step.href ? 'step' : undefined}
-					>
-						<span class="step-index" data-state={step.state}>{step.index}</span>
-						<span>
-							<strong>{step.shortTitle}</strong>
-							<small>{step.title}</small>
+					{#if step.state === 'locked'}
+						<span class="step-link locked" aria-disabled="true">
+							<span class="step-index" data-state={step.state}>{step.index}</span>
+							<span>
+								<strong>{step.shortTitle}</strong>
+								<small>{stepStatus(step.state)}</small>
+							</span>
 						</span>
-					</a>
+					{:else}
+						<a
+							class="step-link"
+							class:active={currentPath === step.href}
+							href={resolve('/flow/[step]', { step: step.id })}
+							aria-current={currentPath === step.href ? 'step' : undefined}
+						>
+							<span class="step-index" data-state={step.state}>{step.index}</span>
+							<span>
+								<strong>{step.shortTitle}</strong>
+								<small>{stepStatus(step.state)}</small>
+							</span>
+						</a>
+					{/if}
 				</li>
 			{/each}
 		</ol>
@@ -145,6 +163,17 @@
 		text-decoration: none;
 	}
 
+	.step-link.locked {
+		color: var(--color-subtle);
+		cursor: not-allowed;
+		opacity: 0.58;
+	}
+
+	.step-link.locked:hover {
+		border-color: transparent;
+		background: transparent;
+	}
+
 	.step-index {
 		display: grid;
 		place-items: center;
@@ -165,6 +194,10 @@
 		border-color: color-mix(in oklab, var(--color-accent) 70%, transparent);
 		background: color-mix(in oklab, var(--color-accent) 22%, transparent);
 		color: var(--color-accent-strong);
+	}
+
+	.step-index[data-state='locked'] {
+		border-style: dashed;
 	}
 
 	.step-link strong {

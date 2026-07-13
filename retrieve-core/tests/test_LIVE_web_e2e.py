@@ -220,7 +220,7 @@ def step_6_read_apis(client: TestClient):
     r = client.get("/api/models")
     assert r.status_code == 200
 
-    # Step pages should render
+    # Legacy step pages should redirect to the sole SvelteKit frontend.
     for step_name in [
         "ingest",
         "eval",
@@ -231,10 +231,10 @@ def step_6_read_apis(client: TestClient):
         "history",
         "settings",
     ]:
-        r = client.get(f"/step/{step_name}")
-        assert r.status_code == 200, f"Step page {step_name} failed"
+        r = client.get(f"/step/{step_name}", follow_redirects=False)
+        assert r.status_code == 302, f"Step redirect {step_name} failed"
 
-    log("6_READ_APIS", "All read APIs and step pages verified", "PASS")
+    log("6_READ_APIS", "All read APIs and SvelteKit redirects verified", "PASS")
 
 
 def step_7_teardown(client: TestClient):

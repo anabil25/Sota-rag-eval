@@ -116,11 +116,19 @@ export function getStepState(
 	session: UiSession,
 	status: RetrieveStatus
 ): StepState {
+	const inferReusableArtifacts = session.workflow_reset_mode !== 'fresh';
 	if (id === 'ingest')
-		return session.ingest_done || hasIngestArtifact(session) ? 'done' : 'pending';
-	if (id === 'eval') return session.eval_done || hasEvalArtifact(status) ? 'done' : 'pending';
+		return session.ingest_done || (inferReusableArtifacts && hasIngestArtifact(session))
+			? 'done'
+			: 'pending';
+	if (id === 'eval')
+		return session.eval_done || (inferReusableArtifacts && hasEvalArtifact(status))
+			? 'done'
+			: 'pending';
 	if (id === 'configure')
-		return session.configure_done || hasConfigureChoice(session) ? 'done' : 'pending';
+		return session.configure_done || (inferReusableArtifacts && hasConfigureChoice(session))
+			? 'done'
+			: 'pending';
 	if (id === 'provision') {
 		if (hasActiveJob(session, ['provision', 'provision_index', 'index'])) return 'pending';
 		return hasProvisionArtifact(status) ? 'done' : 'pending';
@@ -137,13 +145,13 @@ export function getStepState(
 	return 'pending';
 }
 
-export function buildStepNav(
-	session: UiSession,
-	status: RetrieveStatus,
-	currentPath = ''
-): StepNavItem[] {
+export function buildStepNav(session: UiSession, status: RetrieveStatus): StepNavItem[] {
+	let nextStepFound = false;
 	return workflowSteps.map((step) => {
-		const state = currentPath === step.href ? 'active' : getStepState(step.id, session, status);
-		return { ...step, state };
+		const artifactState = getStepState(step.id, session, status);
+		if (nextStepFound) return { ...step, state: 'locked' as const };
+		if (artifactState === 'done') return { ...step, state: 'done' as const };
+		nextStepFound = true;
+		return { ...step, state: artifactState === 'error' ? 'error' : ('active' as const) };
 	});
 }

@@ -8,7 +8,7 @@ export const load: LayoutServerLoad = async ({ url }) => {
 	return {
 		status,
 		session,
-		steps: buildStepNav(session, status, url.pathname),
+		steps: buildStepNav(session, status),
 		currentPath: url.pathname
 	};
 };

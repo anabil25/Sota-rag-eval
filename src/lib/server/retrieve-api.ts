@@ -24,6 +24,7 @@ import {
 	getJobStatus,
 	importEvalCsv,
 	operationApiConfigured,
+	resetOperationUiSession,
 	startJob,
 	updateOperationUiSession
 } from '$lib/server/clients/operation-api-client';
@@ -180,4 +181,11 @@ export async function updateUiSession(
 	headers: HeadersInit = {}
 ): Promise<{ status: string; session: UiSession }> {
 	return updateOperationUiSession(session, headers);
+}
+
+export async function resetUiSession(
+	mode: 'reuse' | 'fresh',
+	headers: HeadersInit = {}
+): Promise<{ status: string; session: UiSession }> {
+	return resetOperationUiSession(mode, headers);
 }

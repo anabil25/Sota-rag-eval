@@ -178,19 +178,26 @@ def seeded_db(tmp_config: RetrieveConfig) -> RetrieveDB:
     return RetrieveDB(tmp_config.db_path)
 
 
-# ── HTML page tests ───────────────────────────────────────────────────
+# ── SvelteKit redirect tests ──────────────────────────────────────────
 
 
-class TestHTMLPages:
+class TestFrontendRedirects:
     def test_home_redirects(self, client: TestClient):
         r = client.get("/", follow_redirects=False)
         assert r.status_code == 302
-        assert r.headers["location"] == "/step/ingest"
+        assert r.headers["location"] == "http://127.0.0.1:5173/"
 
     def test_legacy_redirects(self, client: TestClient):
-        for path in ["/compare", "/history", "/eval-sets", "/eval-workbench"]:
+        expected = {
+            "/compare": "/flow/compare",
+            "/history": "/runs",
+            "/eval-sets": "/eval-sets",
+            "/eval-workbench": "/flow/eval",
+        }
+        for path, target in expected.items():
             r = client.get(path, follow_redirects=False)
             assert r.status_code == 302
+            assert r.headers["location"] == f"http://127.0.0.1:5173{target}"
 
     @pytest.mark.parametrize(
         "step_name",
@@ -205,14 +212,26 @@ class TestHTMLPages:
             "settings",
         ],
     )
-    def test_step_pages_render(self, client: TestClient, seeded_db: RetrieveDB, step_name: str):
-        r = client.get(f"/step/{step_name}")
-        assert r.status_code == 200
-        assert "text/html" in r.headers["content-type"]
+    def test_step_pages_redirect_to_sveltekit(self, client: TestClient, step_name: str):
+        targets = {
+            "ingest": "/flow/ingest",
+            "eval": "/flow/eval",
+            "mode": "/flow/configure",
+            "configure": "/flow/configure",
+            "provision": "/flow/provision",
+            "compare": "/flow/compare",
+            "history": "/runs",
+            "settings": "/settings",
+        }
+        r = client.get(f"/step/{step_name}", follow_redirects=False)
+        assert r.status_code == 302
+        assert r.headers["location"] == f"http://127.0.0.1:5173{targets[step_name]}"
 
-    def test_step_htmx_partial(self, client: TestClient, seeded_db: RetrieveDB):
-        r = client.get("/step/ingest", headers={"HX-Request": "true"})
-        assert r.status_code == 200
+    def test_step_htmx_requests_also_redirect(self, client: TestClient):
+        r = client.get(
+            "/step/ingest", headers={"HX-Request": "true"}, follow_redirects=False
+        )
+        assert r.status_code == 302
 
     def test_unknown_step_404(self, client: TestClient):
         r = client.get("/step/nonexistent")
@@ -229,6 +248,31 @@ class TestReadAPI:
         data = r.json()
         assert "eval_set" in data
         assert data["run_count"] == 1
+        assert "provisioned_architectures" in data
+
+    def test_status_reports_only_selected_architectures_with_live_local_state(
+        self, client: TestClient, seeded_db: RetrieveDB
+    ):
+        architecture_id = seeded_db.register_architecture("keyword", {})
+        seeded_db.conn.execute(
+            "UPDATE architectures SET status = 'provisioned' WHERE id = ?",
+            (architecture_id,),
+        )
+        seeded_db.upsert_generation_preferences(
+            {
+                "selected_mode": "test",
+                "selected_architectures": ["keyword", "hybrid"],
+                "provision_done": True,
+            },
+            "ui_session",
+        )
+        seeded_db.conn.commit()
+
+        response = client.get("/api/status")
+
+        assert response.status_code == 200
+        assert response.json()["architectures"] == ["keyword", "hybrid"]
+        assert response.json()["provisioned_architectures"] == ["keyword"]
 
     def test_runs(self, client: TestClient, seeded_db: RetrieveDB):
         r = client.get("/api/runs")
@@ -330,6 +374,38 @@ class TestPreferences:
     def test_ui_session_rejects_non_dict(self, client: TestClient):
         r = client.post("/api/ui/session", json="bad")
         assert r.status_code == 400
+
+    def test_ui_session_reset_starts_new_experiment_without_deleting_history(
+        self, client: TestClient
+    ):
+        client.post(
+            "/api/ui/session",
+            json={
+                "selected_mode": "sota",
+                "selected_architectures": ["hybrid-reranker"],
+                "run_done": True,
+                "compare_done": True,
+                "teardown_done": True,
+                "winners": ["hybrid-reranker"],
+            },
+        )
+
+        response = client.post("/api/ui/session/reset", json={"mode": "reuse"})
+
+        assert response.status_code == 200
+        session = response.json()["session"]
+        assert session["workflow_reset_mode"] == "reuse"
+        assert session["workflow_id"]
+        assert session["selected_mode"] == "test"
+        assert session["selected_architectures"] == []
+        assert session["run_done"] is False
+        assert session["compare_done"] is False
+        assert session["teardown_done"] is False
+        assert session["winners"] == []
+
+    def test_ui_session_reset_rejects_unknown_mode(self, client: TestClient):
+        response = client.post("/api/ui/session/reset", json={"mode": "erase"})
+        assert response.status_code == 400
 
 
 # ── Mutation API tests (mocked core) ──────────────────────────────────

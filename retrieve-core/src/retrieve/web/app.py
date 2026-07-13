@@ -11,6 +11,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import os
 import re
 import uuid
 from datetime import UTC, datetime
@@ -18,9 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 
 from retrieve.config import RetrieveConfig, load_config
 from retrieve.config_io import atomic_update_yaml
@@ -35,32 +34,6 @@ from retrieve.observability import (
 from retrieve.web.auth import AuthenticatedPrincipal, authorize_mutation
 
 log = logging.getLogger(__name__)
-
-STATIC_DIR = Path(__file__).parent / "static"
-TEMPLATES_DIR = Path(__file__).parent / "templates"
-
-STEP_ORDER = ["ingest", "eval", "mode", "configure", "provision", "compare"]
-STEP_TEMPLATES = {
-    "ingest": "steps/ingest.html",
-    "eval": "steps/eval.html",
-    "mode": "steps/mode.html",
-    "configure": "steps/configure.html",
-    "provision": "steps/provision.html",
-    "compare": "steps/compare.html",
-    "history": "steps/history.html",
-    "settings": "steps/settings.html",
-}
-
-STEP_TITLES = {
-    "ingest": ("Step 1 - Ingest", "Convert policy source into markdown corpus."),
-    "eval": ("Step 2 - Golden Eval Set", "Generate and curate realistic operator questions."),
-    "mode": ("Step 3 - Mode Selection", "Choose test mode or SOTA pathing."),
-    "configure": ("Step 4 - Configure", "Set architecture and model choices before provisioning."),
-    "provision": ("Step 5 - Provision", "Deploy Azure resources and indexing pipeline."),
-    "compare": ("Step 6 - Evaluate & Select", "Run eval, compare metrics, and pick a winner."),
-    "history": ("History", "Review previous runs and outcomes."),
-    "settings": ("Settings", "Review current retrieve configuration."),
-}
 
 ALLOWED_JOB_KINDS = frozenset(
     {
@@ -378,9 +351,7 @@ def _compare_context(db: RetrieveDB, cfg: RetrieveConfig, ui: dict[str, Any]) ->
             corpus_fingerprint=str(ui.get("active_experiment_corpus_fingerprint") or ""),
         )
         if active_experiment_id and active_eval and isinstance(active_architectures, list)
-        else (
-            [] if ui.get("pending_experiment_id") else db.get_all_completed_runs()
-        )
+        else ([] if ui.get("pending_experiment_id") else db.get_all_completed_runs())
     )
     categories = {}
     failures = {}
@@ -888,7 +859,7 @@ def create_app(config_path: str = "retrieve.yaml") -> FastAPI:
         startup_db.close()
     app = FastAPI(title="Retrieve", version="0.1.0")
     app.state.cfg = cfg
-    app.state.templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+    frontend_url = os.environ.get("RETRIEVE_FRONTEND_URL", "http://127.0.0.1:5173").rstrip("/")
 
     # Track active jobs: operation_id → {kind, task, done, error, result}
     app.state.jobs: dict[str, dict[str, Any]] = {}
@@ -939,62 +910,43 @@ def create_app(config_path: str = "retrieve.yaml") -> FastAPI:
             async with app.state.admission_lock:
                 app.state.direct_mutation_active = False
 
-    if STATIC_DIR.exists():
-        app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+    # SvelteKit owns every browser-facing route. FastAPI remains the API and job worker.
+    frontend_routes = {
+        "/": "/",
+        "/compare": "/flow/compare",
+        "/history": "/runs",
+        "/eval-sets": "/eval-sets",
+        "/eval-workbench": "/flow/eval",
+    }
+    legacy_step_routes = {
+        "ingest": "/flow/ingest",
+        "eval": "/flow/eval",
+        "mode": "/flow/configure",
+        "configure": "/flow/configure",
+        "provision": "/flow/provision",
+        "compare": "/flow/compare",
+        "history": "/runs",
+        "settings": "/settings",
+    }
 
-    # ── HTML pages ─────────────────────────────────────────────────────
+    for legacy_path, svelte_path in frontend_routes.items():
 
-    @app.get("/", response_class=HTMLResponse)
-    async def home(request: Request):
-        return RedirectResponse(url="/step/ingest", status_code=302)
+        async def redirect_to_frontend(path: str = svelte_path):
+            return RedirectResponse(url=f"{frontend_url}{path}", status_code=302)
 
-    @app.get("/compare", response_class=HTMLResponse)
-    async def compare_legacy():
-        return RedirectResponse(url="/step/compare", status_code=302)
+        app.add_api_route(
+            legacy_path,
+            redirect_to_frontend,
+            methods=["GET"],
+            include_in_schema=False,
+        )
 
-    @app.get("/history", response_class=HTMLResponse)
-    async def history_legacy():
-        return RedirectResponse(url="/step/history", status_code=302)
-
-    @app.get("/eval-sets", response_class=HTMLResponse)
-    async def eval_sets_legacy():
-        return RedirectResponse(url="/step/eval", status_code=302)
-
-    @app.get("/eval-workbench", response_class=HTMLResponse)
-    async def eval_workbench_legacy():
-        return RedirectResponse(url="/step/eval", status_code=302)
-
-    @app.get("/step/{step_name}", response_class=HTMLResponse)
-    async def step_page(request: Request, step_name: str):
-        if step_name not in STEP_TEMPLATES:
+    @app.get("/step/{step_name}", include_in_schema=False)
+    async def legacy_step_redirect(step_name: str):
+        svelte_path = legacy_step_routes.get(step_name)
+        if not svelte_path:
             raise HTTPException(404, "Unknown step")
-
-        db = RetrieveDB(cfg.db_path)
-        try:
-            ctx = _build_step_context(step_name, db, cfg)
-            ui_session = db.get_generation_preferences("ui_session")
-            step_states = _compute_step_states(db, cfg, ui_session)
-        finally:
-            db.close()
-
-        title, subtitle = STEP_TITLES.get(step_name, ("Retrieve", ""))
-        template_ctx = {
-            "request": request,
-            "cfg": cfg,
-            "current_step": step_name,
-            "step_states": step_states,
-            "ui": ui_session,
-            "page_title": title,
-            "page_subtitle": subtitle,
-            **ctx,
-        }
-        template_ctx["step_template"] = STEP_TEMPLATES[step_name]
-
-        templates: Jinja2Templates = app.state.templates
-        if request.headers.get("HX-Request") == "true":
-            return templates.TemplateResponse(request, "partials/content_shell.html", template_ctx)
-
-        return templates.TemplateResponse(request, "base.html", template_ctx)
+        return RedirectResponse(url=f"{frontend_url}{svelte_path}", status_code=302)
 
     # ── REST API (read-only) ───────────────────────────────────────────
 
@@ -1004,10 +956,33 @@ def create_app(config_path: str = "retrieve.yaml") -> FastAPI:
         try:
             latest_eval = db.get_latest_eval_set()
             runs = db.get_all_completed_runs()
+            ui = db.get_generation_preferences("ui_session") or {}
+            architectures = list(cfg.architectures)
+            if ui.get("selected_mode") == "sota":
+                from retrieve.registry.sota_paths import SOTA_PATHS
+
+                path = SOTA_PATHS.get(str(ui.get("selected_sota_path") or ""))
+                if path:
+                    architectures = [path.base_architecture]
+            elif (
+                isinstance(ui.get("selected_architectures"), list) and ui["selected_architectures"]
+            ):
+                architectures = [str(name) for name in ui["selected_architectures"]]
+
+            provisioned_architectures = []
+            if ui.get("provision_done"):
+                for name in architectures:
+                    architecture = db.get_architecture(name)
+                    if architecture and architecture.get("status") in {
+                        "provisioned",
+                        "active",
+                    }:
+                        provisioned_architectures.append(name)
             return {
                 "eval_set": latest_eval,
                 "run_count": len(runs),
-                "architectures": cfg.architectures,
+                "architectures": architectures,
+                "provisioned_architectures": provisioned_architectures,
             }
         finally:
             db.close()
@@ -1383,6 +1358,50 @@ def create_app(config_path: str = "retrieve.yaml") -> FastAPI:
         finally:
             db.close()
 
+    @app.post("/api/ui/session/reset")
+    async def api_ui_session_reset(request: Request):
+        body = await request.json()
+        if not isinstance(body, dict):
+            raise HTTPException(400, "body must be an object")
+        mode = str(body.get("mode", "reuse")).strip().lower()
+        if mode not in {"reuse", "fresh"}:
+            raise HTTPException(400, "mode must be reuse or fresh")
+
+        db = RetrieveDB(cfg.db_path)
+        try:
+            current = db.get_generation_preferences("ui_session") or {}
+            current.update(
+                {
+                    "workflow_id": str(uuid.uuid4()),
+                    "workflow_started_at": datetime.now(UTC).isoformat(),
+                    "workflow_reset_mode": mode,
+                    "selected_mode": "test",
+                    "selected_sota_path": "",
+                    "selected_architectures": [],
+                    "configure_done": False,
+                    "ingest_done": False,
+                    "eval_done": False,
+                    "provision_done": False,
+                    "run_done": False,
+                    "compare_done": False,
+                    "teardown_done": False,
+                    "active_job_id": "",
+                    "active_job_kind": "",
+                    "active_job_started_at": "",
+                    "active_experiment_id": "",
+                    "active_experiment_eval_set_id": None,
+                    "active_experiment_eval_set_version": "",
+                    "active_experiment_corpus_fingerprint": "",
+                    "active_experiment_architectures": [],
+                    "pending_experiment_id": "",
+                    "winners": [],
+                }
+            )
+            db.upsert_generation_preferences(current, "ui_session")
+            return {"status": "ok", "session": current}
+        finally:
+            db.close()
+
     # ── Job system (long-running operations with SSE streaming) ────────
     # Start a job → get an operation_id → stream events via SSE.
     # Jobs run the SAME core functions as the CLI, in a worker thread.
@@ -1579,119 +1598,3 @@ def create_app(config_path: str = "retrieve.yaml") -> FastAPI:
         )
 
     return app
-
-
-# ── Step context helpers ───────────────────────────────────────────────
-
-
-def _compute_step_states(db: RetrieveDB, cfg: RetrieveConfig, ui: dict[str, Any]) -> dict[str, str]:
-    latest_eval = db.get_latest_eval_set()
-    runs = db.get_all_completed_runs()
-    provisioned = []
-    for name in cfg.architectures:
-        arch = db.get_architecture(name)
-        if arch and arch["status"] in ("provisioned", "active"):
-            provisioned.append(arch)
-
-    states = {
-        "ingest": "done" if ui.get("ingest_done") else "pending",
-        "eval": "done" if latest_eval else "pending",
-        "mode": "done" if ui.get("selected_mode") else "pending",
-        "configure": "done"
-        if (
-            ui.get("configure_done")
-            or ui.get("selected_architectures")
-            or ui.get("selected_sota_path")
-        )
-        else "pending",
-        "provision": "done" if provisioned else "pending",
-        "compare": "done" if runs else "pending",
-        "history": "done" if runs else "pending",
-        "settings": "done",
-    }
-    return states
-
-
-def _build_step_context(step_name: str, db: RetrieveDB, cfg: RetrieveConfig) -> dict[str, Any]:
-    ui = db.get_generation_preferences("ui_session")
-    latest_eval = db.get_latest_eval_set()
-    runs = db.get_all_completed_runs()
-
-    if step_name == "ingest":
-        output_dir = ui.get("output", cfg.corpus.output_dir)
-        corpus_files = []
-        output_path = Path(output_dir)
-        if not output_path.is_absolute():
-            output_path = (
-                Path(cfg.corpus.source).parent / output_dir if cfg.corpus.source else output_path
-            )
-        if output_path.is_dir():
-            for f in sorted(output_path.glob("*.md")):
-                corpus_files.append({"name": f.name, "size": f.stat().st_size})
-        return {
-            "ingest_stats": ui.get("ingest_stats", {}),
-            "source": ui.get("source", cfg.corpus.source),
-            "plugin": ui.get("plugin", cfg.corpus.plugin),
-            "output": ui.get("output", cfg.corpus.output_dir),
-            "corpus_files": corpus_files,
-        }
-
-    if step_name == "eval":
-        rows = db.conn.execute("SELECT * FROM eval_sets ORDER BY id DESC").fetchall()
-        eval_sets = [dict(r) for r in rows]
-        questions = db.get_questions(latest_eval["id"]) if latest_eval else []
-        return {
-            "eval_set": latest_eval,
-            "eval_sets": eval_sets,
-            "questions": questions[:200],
-            "operator_context": ui.get(
-                "operator_context",
-                "",
-            ),
-        }
-
-    if step_name == "mode":
-        from retrieve.registry.sota_paths import SOTA_PATHS
-
-        recommendation = _sota_recommendation(ui)
-        return {
-            "architectures": cfg.architectures,
-            "selected_mode": ui.get("selected_mode"),
-            "sota_paths": {k: v.model_dump() for k, v in SOTA_PATHS.items()},
-            **recommendation,
-        }
-
-    if step_name == "configure":
-        from retrieve.registry.architectures import ARCHITECTURES
-        from retrieve.registry.models import EMBEDDING_MODELS
-        from retrieve.registry.sota_paths import SOTA_PATHS
-
-        return {
-            "architectures": cfg.architectures,
-            "selected_mode": ui.get("selected_mode") or "test",
-            "selected_architectures": ui.get("selected_architectures") or list(cfg.architectures),
-            "selected_embedding": ui.get("selected_embedding") or "text-embedding-3-large",
-            "selected_sota_path": ui.get("selected_sota_path"),
-            "sota_toggles": ui.get("sota_toggles") or {},
-            "all_architectures": {k: v.model_dump() for k, v in ARCHITECTURES.items()},
-            "embedding_models": {k: v.model_dump() for k, v in EMBEDDING_MODELS.items()},
-            "sota_paths": {k: v.model_dump() for k, v in SOTA_PATHS.items()},
-        }
-
-    if step_name == "provision":
-        return {
-            "architectures": _architecture_rows(db, cfg),
-            "resource_group": cfg.azure.resource_group,
-            "location": cfg.azure.location,
-        }
-
-    if step_name == "compare":
-        return _compare_context(db, cfg, ui)
-
-    if step_name == "history":
-        return {"runs": runs}
-
-    if step_name == "settings":
-        return {"cfg": cfg}
-
-    return {}

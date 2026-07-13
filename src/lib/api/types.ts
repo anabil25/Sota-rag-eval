@@ -7,7 +7,7 @@ export type WorkflowStepId =
 	| 'compare'
 	| 'teardown';
 
-export type StepState = 'pending' | 'active' | 'done' | 'error';
+export type StepState = 'pending' | 'active' | 'done' | 'error' | 'locked';
 
 export interface StepNavItem {
 	id: WorkflowStepId;
@@ -64,6 +64,9 @@ export interface RetrieveConfigSummary {
 }
 
 export interface UiSession {
+	workflow_id?: string;
+	workflow_started_at?: string;
+	workflow_reset_mode?: 'reuse' | 'fresh' | string;
 	selected_mode?: 'test' | 'sota' | string;
 	selected_sota_path?: string;
 	selected_architectures?: string[];

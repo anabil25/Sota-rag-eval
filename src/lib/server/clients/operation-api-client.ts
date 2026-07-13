@@ -128,3 +128,11 @@ export function updateOperationUiSession(session: Partial<UiSession>, headers: H
 		headers
 	);
 }
+
+export function resetOperationUiSession(mode: 'reuse' | 'fresh', headers: HeadersInit = {}) {
+	return postJson<{ status: string; session: UiSession }>(
+		'/api/ui/session/reset',
+		{ mode },
+		headers
+	);
+}
