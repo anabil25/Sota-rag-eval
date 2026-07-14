@@ -1057,6 +1057,13 @@ class TestIndexOrchestrator:
 
 
 class TestSearchIndexBuilder:
+    def test_indexer_wait_default_covers_large_corpus(self):
+        from inspect import signature
+
+        from retrieve.indexing.search_index import wait_for_indexer
+
+        assert signature(wait_for_indexer).parameters["timeout"].default == 3600
+
     @patch("retrieve.indexing.search_index._search_rest_put")
     @patch("retrieve.indexing.search_index.SearchIndexerClient")
     @patch("retrieve.indexing.search_index.SearchIndexClient")

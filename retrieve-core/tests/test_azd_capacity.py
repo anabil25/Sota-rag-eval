@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -9,6 +10,8 @@ from retrieve.config import RetrieveConfig
 from retrieve.provision.azd import (
     RegionCapacityAssessment,
     RegionUnavailableError,
+    _cleanup_temporary_graph_runtime,
+    _purge_matching_soft_deleted_ai_account,
     _selected_architectures,
     assess_region_capacity,
     classify_deployment_failure,
@@ -87,6 +90,8 @@ def test_persisted_ui_architectures_override_yaml_defaults(tmp_path):
 
 
 @patch("retrieve.provision.azd.load_config")
+@patch("retrieve.provision.azd._private_corpus_is_attested", return_value=True)
+@patch("retrieve.provision.azd._purge_matching_soft_deleted_ai_account")
 @patch("retrieve.provision.azd._cleanup_failed_attempt")
 @patch("retrieve.provision.azd._run")
 @patch("retrieve.provision.azd._set_azd_value")
@@ -100,6 +105,8 @@ def test_capacity_failure_cleans_then_retries_whole_stack_region(
     mock_set,
     mock_run,
     mock_cleanup,
+    mock_purge_deleted,
+    mock_attested,
     mock_load_config,
     tmp_path,
 ):
@@ -146,3 +153,136 @@ def test_capacity_failure_cleans_then_retries_whole_stack_region(
     assert ("AZURE_LOCATION", "northcentralus") in [call.args for call in mock_set.call_args_list]
     assert ("AZURE_LOCATION", "westus3") in [call.args for call in mock_set.call_args_list]
     assert cfg.azure.location == "westus3"
+
+
+@patch("retrieve.provision.azd.load_config")
+@patch("retrieve.provision.azd._cleanup_temporary_graph_runtime")
+@patch("retrieve.provision.azd._private_corpus_is_attested", return_value=False)
+@patch("retrieve.provision.azd._purge_matching_soft_deleted_ai_account")
+@patch("retrieve.provision.azd._run")
+@patch("retrieve.provision.azd._set_azd_value")
+@patch("retrieve.provision.azd.assess_region_capacity")
+@patch("retrieve.provision.azd._validate_provider_registrations")
+@patch("retrieve.provision.azd._azd_value")
+def test_fresh_winner_deployment_uses_temporary_seed_runtime(
+    mock_value,
+    mock_validate,
+    mock_assess,
+    mock_set,
+    mock_run,
+    mock_purge_deleted,
+    mock_attested,
+    mock_cleanup_runtime,
+    mock_load_config,
+    tmp_path,
+):
+    values = {
+        "AZURE_ENV_NAME": "retrieve-test-1234",
+        "AZURE_SUBSCRIPTION_ID": "sub-test",
+        "RETRIEVE_DEPLOYMENT_REGION": "northcentralus",
+        "AZURE_LOCATION": "northcentralus",
+        "AZURE_SEARCH_SKU": "basic",
+        "AZURE_OPENAI_CHAT_CAPACITY": "10",
+        "AZURE_OPENAI_EMBEDDING_CAPACITY": "100",
+    }
+    mock_value.side_effect = lambda name: values.get(name, "")
+    mock_assess.return_value = _assessment("northcentralus")
+    mock_run.side_effect = [
+        SimpleNamespace(returncode=0, stdout="preview", stderr=""),
+        SimpleNamespace(returncode=0, stdout="success", stderr=""),
+    ]
+    refreshed = RetrieveConfig()
+    refreshed.azure.location = "northcentralus"
+    refreshed.architectures = ["hybrid-reranker"]
+    mock_load_config.return_value = refreshed
+    cfg = RetrieveConfig(architectures=["hybrid-reranker"])
+
+    result = provision_architectures(cfg, config_path=tmp_path / "retrieve.yaml")
+
+    assert result["status"] == "provisioned"
+    assert ("AZURE_DEPLOY_GRAPH_RUNTIME", "true") in [
+        call.args for call in mock_set.call_args_list
+    ]
+    mock_cleanup_runtime.assert_called_once_with(
+        cfg,
+        environment_name="retrieve-test-1234",
+        subscription_id="sub-test",
+        region="northcentralus",
+    )
+
+
+@patch("retrieve.provision.azd._set_azd_value")
+@patch("retrieve.provision.teardown._delete_graph_runtime")
+@patch("retrieve.provision.azd._azd_value")
+def test_temporary_seed_runtime_cleanup_uses_exact_outputs(
+    mock_value,
+    mock_delete,
+    mock_set,
+):
+    values = {
+        "AZURE_RESOURCE_TOKEN": "token123",
+        "AZURE_GRAPHRAG_JOB_NAME": "azgrjtoken123",
+        "AZURE_CONTAINER_APPS_ENVIRONMENT_NAME": "azcaetoken123",
+    }
+    mock_value.side_effect = lambda name: values.get(name, "")
+    cfg = RetrieveConfig()
+
+    _cleanup_temporary_graph_runtime(
+        cfg,
+        environment_name="retrieve-e2e",
+        subscription_id="sub-test",
+        region="northcentralus",
+    )
+
+    mock_delete.assert_called_once_with(
+        {
+            "resource_group": "rg-retrieve-e2e",
+            "subscription_id": "sub-test",
+            "resource_token": "token123",
+            "location": "northcentralus",
+            "graph_job_name": "azgrjtoken123",
+            "graph_worker_environment": "azcaetoken123",
+        }
+    )
+    mock_set.assert_called_once_with("AZURE_DEPLOY_GRAPH_RUNTIME", "false")
+
+
+@patch("retrieve.provision.azd._run")
+@patch("retrieve.provision.azd._azd_value", return_value="azaitoken123")
+def test_purges_only_exact_soft_deleted_ai_account(mock_value, mock_run):
+    deleted_id = (
+        "/subscriptions/sub-test/providers/Microsoft.CognitiveServices/locations/"
+        "northcentralus/resourceGroups/rg-retrieve-e2e/deletedAccounts/azaitoken123"
+    )
+    mock_run.side_effect = [
+        SimpleNamespace(
+            returncode=0,
+            stdout=json.dumps(
+                [
+                    {
+                        "id": deleted_id,
+                        "name": "azaitoken123",
+                        "location": "northcentralus",
+                    },
+                    {
+                        "id": deleted_id.replace("rg-retrieve-e2e", "rg-other"),
+                        "name": "azaitoken123",
+                        "location": "northcentralus",
+                    },
+                ]
+            ),
+            stderr="",
+        ),
+        SimpleNamespace(returncode=0, stdout="", stderr=""),
+    ]
+
+    _purge_matching_soft_deleted_ai_account(
+        "retrieve-e2e",
+        "sub-test",
+        "northcentralus",
+    )
+
+    purge = mock_run.call_args_list[1].args[0]
+    assert purge[0:4] == ["az", "cognitiveservices", "account", "purge"]
+    assert purge[purge.index("--resource-group") + 1] == "rg-retrieve-e2e"
+    assert purge[purge.index("--name") + 1] == "azaitoken123"

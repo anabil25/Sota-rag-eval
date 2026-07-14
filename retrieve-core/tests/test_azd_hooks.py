@@ -86,6 +86,59 @@ def test_preprovision_persists_selected_region(monkeypatch):
     assert writes["RETRIEVE_REGION_CANDIDATES"].split(",") == list(hook.REGIONS)
 
 
+def test_predown_removes_only_exact_search_shared_private_link(monkeypatch):
+    hook = _load_script("predown")
+    values = {
+        "AZURE_ENV_NAME": "retrieve-e2e",
+        "AZURE_SUBSCRIPTION_ID": "sub-test",
+        "AZURE_RESOURCE_GROUP": "rg-retrieve-e2e",
+        "AZURE_RESOURCE_TOKEN": "token123",
+        "AZURE_SEARCH_SERVICE_NAME": "azsrtoken123",
+    }
+    expected_id = (
+        "/subscriptions/sub-test/resourceGroups/rg-retrieve-e2e/providers/"
+        "Microsoft.Search/searchServices/azsrtoken123/sharedPrivateLinkResources/"
+        "storage-blob"
+    )
+    calls = []
+    monkeypatch.setattr(hook, "_azd_value", lambda name: values.get(name, ""))
+
+    def run(command, **_kwargs):
+        calls.append(command)
+        if command[0:4] == [
+            "az",
+            "search",
+            "shared-private-link-resource",
+            "show",
+        ]:
+            return SimpleNamespace(returncode=0, stdout=json.dumps({"id": expected_id}), stderr="")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(hook, "_run", run)
+
+    hook.main()
+
+    delete = calls[1]
+    assert delete[0:4] == ["az", "search", "shared-private-link-resource", "delete"]
+    assert delete[delete.index("--name") + 1] == "storage-blob"
+    assert delete[delete.index("--service-name") + 1] == "azsrtoken123"
+
+
+def test_predown_rejects_protected_group(monkeypatch):
+    hook = _load_script("predown")
+    values = {
+        "AZURE_ENV_NAME": "ret-test2",
+        "AZURE_SUBSCRIPTION_ID": "sub-test",
+        "AZURE_RESOURCE_GROUP": "rg-ret-test2",
+        "AZURE_RESOURCE_TOKEN": "token123",
+        "AZURE_SEARCH_SERVICE_NAME": "azsrtoken123",
+    }
+    monkeypatch.setattr(hook, "_azd_value", lambda name: values.get(name, ""))
+
+    with pytest.raises(RuntimeError, match="protected group"):
+        hook.main()
+
+
 def test_postprovision_skips_when_manifest_is_absent(monkeypatch, tmp_path, capsys):
     hook = _load_script("postprovision")
     monkeypatch.setenv("RETRIEVE_CORPUS_DIR", str(tmp_path))
@@ -559,11 +612,21 @@ def test_postprovision_rejects_stale_private_corpus_attestation(monkeypatch):
 
 def test_postprovision_rejects_incomplete_graph_runtime_outputs(monkeypatch):
     hook = _load_script("postprovision")
+    monkeypatch.setenv("AZURE_DEPLOY_GRAPH_RUNTIME", "true")
     monkeypatch.setenv("AZURE_GRAPHRAG_JOB_NAME", "azgrjtest")
     monkeypatch.delenv("AZURE_CONTAINER_APPS_ENVIRONMENT_NAME", raising=False)
 
     with pytest.raises(RuntimeError, match="runtime outputs are incomplete"):
         hook.graph_runtime_enabled()
+
+
+def test_postprovision_ignores_stale_graph_outputs_when_runtime_is_disabled(monkeypatch):
+    hook = _load_script("postprovision")
+    monkeypatch.setenv("AZURE_DEPLOY_GRAPH_RUNTIME", "false")
+    monkeypatch.setenv("AZURE_GRAPHRAG_JOB_NAME", "deleted-job")
+    monkeypatch.setenv("AZURE_CONTAINER_APPS_ENVIRONMENT_NAME", "deleted-environment")
+
+    assert hook.graph_runtime_enabled() is False
 
 
 def test_postprovision_syncs_localhost_contract_and_selected_architectures(monkeypatch, tmp_path):
@@ -587,6 +650,7 @@ def test_postprovision_syncs_localhost_contract_and_selected_architectures(monke
         "AZURE_SEARCH_ENDPOINT": "https://azsrtest.search.windows.net",
         "AZURE_OPENAI_CHAT_DEPLOYMENT": "gpt-4.1",
         "AZURE_OPENAI_EMBEDDING_DEPLOYMENT": "text-embedding-3-large",
+        "AZURE_DEPLOY_GRAPH_RUNTIME": "true",
         "AZURE_GRAPHRAG_JOB_NAME": "azgrjtest",
         "AZURE_CONTAINER_APPS_ENVIRONMENT_NAME": "azcaetest",
     }
@@ -707,6 +771,7 @@ def test_postprovision_preserves_same_environment_runtime_evidence(monkeypatch, 
         "AZURE_SEARCH_ENDPOINT": "https://azsrtest.search.windows.net",
         "AZURE_OPENAI_CHAT_DEPLOYMENT": "gpt-4.1",
         "AZURE_OPENAI_EMBEDDING_DEPLOYMENT": "text-embedding-3-large",
+        "AZURE_DEPLOY_GRAPH_RUNTIME": "true",
         "AZURE_GRAPHRAG_JOB_NAME": "azgrjtest",
         "AZURE_CONTAINER_APPS_ENVIRONMENT_NAME": "azcaetest",
     }

@@ -660,7 +660,7 @@ def _create_hybrid_index(
     )
 
 
-def wait_for_indexer(endpoint: str, indexer_name: str, timeout: int = 1800) -> dict:
+def wait_for_indexer(endpoint: str, indexer_name: str, timeout: int = 3600) -> dict:
     """Poll indexer status until complete or timeout.
 
     Returns dict with 'status', 'item_count', 'failed_count', 'errors' keys.

@@ -100,6 +100,13 @@ class TestIndexCommand:
         result = runner.invoke(app, ["index"])
         assert result.exit_code == 0
 
+    @patch("retrieve.indexing.index_corpus", side_effect=RuntimeError("index failed"))
+    def test_index_failure_exits_nonzero(self, mock_idx):
+        result = runner.invoke(app, ["index"])
+
+        assert result.exit_code != 0
+        assert isinstance(result.exception, RuntimeError)
+
 
 class TestTeardownCommand:
     @patch("retrieve.provision.teardown.teardown")

@@ -46,6 +46,8 @@ def _truthy(name: str) -> bool:
 
 
 def graph_runtime_enabled() -> bool:
+    if not _truthy("AZURE_DEPLOY_GRAPH_RUNTIME"):
+        return False
     job_name = os.environ.get("AZURE_GRAPHRAG_JOB_NAME", "").strip()
     environment_name = os.environ.get(
         "AZURE_CONTAINER_APPS_ENVIRONMENT_NAME", ""
@@ -571,6 +573,7 @@ def upload_canonical_corpus(
 
 
 def _output_contract() -> dict[str, str]:
+    graph_enabled = graph_runtime_enabled()
     return {
         "subscription_id": required("AZURE_SUBSCRIPTION_ID"),
         "location": required("AZURE_LOCATION"),
@@ -584,10 +587,16 @@ def _output_contract() -> dict[str, str]:
         "search_endpoint": required("AZURE_SEARCH_ENDPOINT"),
         "chat_deployment": required("AZURE_OPENAI_CHAT_DEPLOYMENT"),
         "embedding_deployment": required("AZURE_OPENAI_EMBEDDING_DEPLOYMENT"),
-        "graph_job_name": os.environ.get("AZURE_GRAPHRAG_JOB_NAME", "").strip(),
-        "container_apps_environment": os.environ.get(
-            "AZURE_CONTAINER_APPS_ENVIRONMENT_NAME", ""
-        ).strip(),
+        "graph_job_name": (
+            os.environ.get("AZURE_GRAPHRAG_JOB_NAME", "").strip()
+            if graph_enabled
+            else ""
+        ),
+        "container_apps_environment": (
+            os.environ.get("AZURE_CONTAINER_APPS_ENVIRONMENT_NAME", "").strip()
+            if graph_enabled
+            else ""
+        ),
     }
 
 

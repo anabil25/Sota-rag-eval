@@ -109,6 +109,112 @@ def _set_azd_value(name: str, value: str) -> None:
     _run(["azd", "env", "set", name, value])
 
 
+def _private_corpus_is_attested(environment_name: str, subscription_id: str) -> bool:
+    attested_creation = _azd_value("RETRIEVE_CORPUS_STORAGE_CREATED_AT")
+    storage_account = _azd_value("AZURE_STORAGE_ACCOUNT_NAME")
+    if not attested_creation or not storage_account:
+        return False
+    result = _run(
+        [
+            "az",
+            "storage",
+            "account",
+            "show",
+            "--subscription",
+            subscription_id,
+            "--resource-group",
+            _isolated_resource_group(environment_name),
+            "--name",
+            storage_account,
+            "--query",
+            "creationTime",
+            "--output",
+            "tsv",
+        ],
+        check=False,
+    )
+    return result.returncode == 0 and result.stdout.strip() == attested_creation
+
+
+def _cleanup_temporary_graph_runtime(
+    cfg: RetrieveConfig,
+    *,
+    environment_name: str,
+    subscription_id: str,
+    region: str,
+) -> None:
+    from retrieve.provision.teardown import _delete_graph_runtime
+
+    resource_token = _azd_value("AZURE_RESOURCE_TOKEN") or cfg.azure.name_prefix
+    _delete_graph_runtime(
+        {
+            "resource_group": _isolated_resource_group(environment_name),
+            "subscription_id": subscription_id,
+            "resource_token": resource_token,
+            "location": region,
+            "graph_job_name": _azd_value("AZURE_GRAPHRAG_JOB_NAME"),
+            "graph_worker_environment": _azd_value(
+                "AZURE_CONTAINER_APPS_ENVIRONMENT_NAME"
+            ),
+        }
+    )
+    _set_azd_value("AZURE_DEPLOY_GRAPH_RUNTIME", "false")
+
+
+def _purge_matching_soft_deleted_ai_account(
+    environment_name: str,
+    subscription_id: str,
+    region: str,
+) -> None:
+    account_name = _azd_value("AZURE_AI_SERVICES_NAME")
+    if not account_name:
+        return
+    resource_group = _isolated_resource_group(environment_name)
+    result = _run(
+        [
+            "az",
+            "cognitiveservices",
+            "account",
+            "list-deleted",
+            "--subscription",
+            subscription_id,
+            "--output",
+            "json",
+        ]
+    )
+    deleted = json.loads(result.stdout or "[]")
+    expected_suffix = (
+        f"/resourcegroups/{resource_group}/deletedaccounts/{account_name}"
+    ).lower()
+    matches = [
+        account
+        for account in deleted
+        if str(account.get("name") or "") == account_name
+        and str(account.get("location") or "").lower() == region.lower()
+        and str(account.get("id") or "").lower().endswith(expected_suffix)
+    ]
+    if not matches:
+        return
+    if len(matches) != 1:
+        raise RuntimeError("Multiple matching soft-deleted AI Services accounts found")
+    _run(
+        [
+            "az",
+            "cognitiveservices",
+            "account",
+            "purge",
+            "--subscription",
+            subscription_id,
+            "--location",
+            region,
+            "--resource-group",
+            resource_group,
+            "--name",
+            account_name,
+        ]
+    )
+
+
 def _arm_get(path: str, query: dict[str, str] | None = None) -> dict[str, Any]:
     token_result = _json_command(
         ["az", "account", "get-access-token", "--resource", "https://management.azure.com/"]
@@ -348,6 +454,14 @@ def provision_architectures(
     embedding_capacity = int(_azd_value("AZURE_OPENAI_EMBEDDING_CAPACITY") or 100)
     config_target = Path(config_path).resolve()
     cfg.architectures = _selected_architectures(cfg, config_target)
+    graph_runtime_required = "graphrag" in cfg.architectures
+    seed_runtime_only = not graph_runtime_required and not _private_corpus_is_attested(
+        environment_name, subscription_id
+    )
+    _set_azd_value(
+        "AZURE_DEPLOY_GRAPH_RUNTIME",
+        "true" if graph_runtime_required or seed_runtime_only else "false",
+    )
     command_env = os.environ.copy()
     command_env.update(
         {
@@ -380,6 +494,11 @@ def provision_architectures(
 
         _set_azd_value("AZURE_LOCATION", region)
         _set_azd_value("RETRIEVE_DEPLOYMENT_REGION", region)
+        _purge_matching_soft_deleted_ai_account(
+            environment_name,
+            subscription_id,
+            region,
+        )
         emit_progress(
             f"Azure capacity preflight passed in {region}",
             stage="provision.capacity",
@@ -403,6 +522,13 @@ def provision_architectures(
             refreshed = load_config(config_target)
             cfg.azure = refreshed.azure
             cfg.architectures = refreshed.architectures
+            if seed_runtime_only:
+                _cleanup_temporary_graph_runtime(
+                    cfg,
+                    environment_name=environment_name,
+                    subscription_id=subscription_id,
+                    region=region,
+                )
             return {
                 "status": "provisioned",
                 "environment": environment_name,
