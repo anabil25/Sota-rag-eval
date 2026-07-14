@@ -280,11 +280,15 @@ def _config_summary(cfg: RetrieveConfig) -> dict[str, Any]:
     }
 
 
-def _architecture_rows(db: RetrieveDB, cfg: RetrieveConfig) -> list[dict[str, Any]]:
+def _architecture_rows(
+    db: RetrieveDB,
+    cfg: RetrieveConfig,
+    names: list[str] | None = None,
+) -> list[dict[str, Any]]:
     from retrieve.indexing.reconcile import reconcile_architecture_rows
 
     rows = []
-    for name in cfg.architectures:
+    for name in names or cfg.architectures:
         rows.append(
             db.get_architecture(name)
             or {
@@ -971,13 +975,12 @@ def create_app(config_path: str = "retrieve.yaml") -> FastAPI:
 
             provisioned_architectures = []
             if ui.get("provision_done"):
-                for name in architectures:
-                    architecture = db.get_architecture(name)
-                    if architecture and architecture.get("status") in {
+                for architecture in _architecture_rows(db, cfg, architectures):
+                    if architecture.get("status") in {
                         "provisioned",
                         "active",
                     }:
-                        provisioned_architectures.append(name)
+                        provisioned_architectures.append(str(architecture["name"]))
             return {
                 "eval_set": latest_eval,
                 "run_count": len(runs),

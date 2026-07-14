@@ -6,8 +6,12 @@ import json
 import subprocess
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import urlparse
 
 import requests
+from azure.core.exceptions import AzureError, HttpResponseError, ResourceNotFoundError
+from azure.identity import DefaultAzureCredential
+from azure.search.documents.indexes import SearchIndexClient
 
 from retrieve.db import RetrieveDB
 from retrieve.graphrag_worker.protocol import parse_job_result
@@ -28,6 +32,7 @@ _AZURE_FAILURE_STATES = {
     "timedout",
     "timed_out",
 }
+_AZURE_OBSERVED_STATES = {"provisioned", "indexing", "active", "missing", "empty"}
 
 
 def _now() -> str:
@@ -45,6 +50,183 @@ def _persist_architecture(
         (status, json.dumps(config), json.dumps(config), architecture_id),
     )
     db.conn.commit()
+
+
+def _arm_resource_exists(
+    resource_id: str,
+    api_version: str,
+    credential: DefaultAzureCredential,
+    timeout: tuple[float, float],
+) -> bool:
+    token = credential.get_token("https://management.azure.com/.default").token
+    response = requests.get(
+        f"https://management.azure.com{resource_id}?api-version={api_version}",
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=timeout,
+    )
+    if response.status_code == 404:
+        return False
+    response.raise_for_status()
+    return True
+
+
+def _search_service_name(endpoint: str) -> str:
+    hostname = (urlparse(endpoint).hostname or "").lower()
+    suffix = ".search.windows.net"
+    if not hostname.endswith(suffix):
+        raise ValueError("Architecture Search endpoint is not an Azure AI Search endpoint")
+    return hostname[: -len(suffix)]
+
+
+def _observe_search_architecture(
+    architecture: dict[str, Any],
+    *,
+    credential: DefaultAzureCredential | None = None,
+    timeout: tuple[float, float] = (3.0, 10.0),
+) -> dict[str, Any]:
+    config = dict(architecture.get("config") or {})
+    subscription_id = str(config.get("subscription_id") or "").strip()
+    resource_group = str(config.get("resource_group") or "").strip()
+    endpoint = str(config.get("search_endpoint") or "").strip().rstrip("/")
+    index_name = str(config.get("index_name") or "").strip()
+    if not all((subscription_id, resource_group, endpoint, index_name)):
+        raise ValueError("Architecture has an incomplete Azure Search observation contract")
+
+    credential = credential or DefaultAzureCredential(
+        exclude_interactive_browser_credential=True
+    )
+    resource_group_id = (
+        f"/subscriptions/{subscription_id}/resourceGroups/{resource_group}"
+    )
+    if not _arm_resource_exists(
+        resource_group_id,
+        "2024-03-01",
+        credential,
+        timeout,
+    ):
+        return {"state": "missing", "reason": "Azure resource group not found"}
+
+    service_name = _search_service_name(endpoint)
+    search_service_id = (
+        f"{resource_group_id}/providers/Microsoft.Search/searchServices/{service_name}"
+    )
+    if not _arm_resource_exists(
+        search_service_id,
+        "2025-05-01",
+        credential,
+        timeout,
+    ):
+        return {"state": "missing", "reason": "Azure AI Search service not found"}
+
+    observed_index_name = (
+        f"{index_name}-base"
+        if architecture.get("name") == "agentic-kb"
+        else index_name
+    )
+    index_client = SearchIndexClient(endpoint, credential)
+    try:
+        index_client.get_index(observed_index_name)
+    except ResourceNotFoundError:
+        if architecture.get("status") == "provisioned":
+            return {"state": "provisioned", "reason": "Search service exists; index not built"}
+        return {"state": "missing", "reason": "Azure AI Search index not found"}
+    except HttpResponseError as exc:
+        if getattr(exc, "status_code", None) == 404:
+            if architecture.get("status") == "provisioned":
+                return {"state": "provisioned", "reason": "Search service exists; index not built"}
+            return {"state": "missing", "reason": "Azure AI Search index not found"}
+        raise
+
+    if architecture.get("status") == "active":
+        statistics = index_client.get_index_statistics(observed_index_name)
+        document_count = int(
+            statistics.get("document_count", 0)
+            if isinstance(statistics, dict)
+            else getattr(statistics, "document_count", 0)
+        )
+        if document_count <= 0:
+            return {
+                "state": "empty",
+                "reason": "Azure AI Search index contains no documents",
+                "document_count": 0,
+            }
+        return {
+            "state": "active",
+            "reason": "Azure AI Search index verified",
+            "document_count": document_count,
+        }
+    return {
+        "state": str(architecture.get("status") or "provisioned"),
+        "reason": "Azure AI Search service and index verified",
+    }
+
+
+def reconcile_azure_architecture(
+    db: RetrieveDB,
+    architecture: dict[str, Any],
+) -> dict[str, Any]:
+    desired_status = str(architecture.get("status") or "registered")
+    config = dict(architecture.get("config") or {})
+    if desired_status not in _AZURE_OBSERVED_STATES:
+        return architecture
+    if architecture.get("name") in {"graphrag", "lightrag"}:
+        return architecture
+    if not architecture.get("id"):
+        return architecture
+
+    observed_at = _now()
+    try:
+        observation = _observe_search_architecture(architecture)
+        observed_status = str(observation["state"])
+        status_detail = str(observation.get("reason") or "")
+        config.update(
+            {
+                "azure_observed_status": observed_status,
+                "azure_observed_at": observed_at,
+                "azure_observation_detail": status_detail,
+            }
+        )
+        if "document_count" in observation:
+            config["azure_observed_document_count"] = int(
+                observation["document_count"]
+            )
+        persisted_status = observed_status
+        _persist_architecture(
+            db,
+            int(architecture["id"]),
+            persisted_status,
+            config,
+        )
+        reconciled = db.get_architecture(str(architecture["name"])) or architecture
+        reconciled["desired_status"] = desired_status
+        reconciled["observed_at"] = observed_at
+        reconciled["status_detail"] = status_detail
+        return reconciled
+    except (
+        AzureError,
+        requests.RequestException,
+        subprocess.CalledProcessError,
+        ValueError,
+    ) as exc:
+        config.update(
+            {
+                "azure_observed_status": "unverified",
+                "azure_observed_at": observed_at,
+                "azure_observation_detail": str(exc)[:2_000],
+            }
+        )
+        _persist_architecture(
+            db,
+            int(architecture["id"]),
+            desired_status,
+            config,
+        )
+        unverified = db.get_architecture(str(architecture["name"])) or architecture
+        unverified["desired_status"] = desired_status
+        unverified["status"] = "unverified"
+        unverified["observed_at"] = observed_at
+        unverified["status_detail"] = "Live Azure state could not be verified"
+        return unverified
 
 
 def _expected_status_url(config: dict[str, Any]) -> str:
@@ -298,5 +480,6 @@ def reconcile_architecture_rows(
         )
         if needs_graph_reconcile:
             architecture = reconcile_graphrag_architecture(db, architecture)
+        architecture = reconcile_azure_architecture(db, architecture)
         reconciled.append(architecture)
     return reconciled

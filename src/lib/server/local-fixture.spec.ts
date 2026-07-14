@@ -145,6 +145,11 @@ eval:
 		updateUiSession({ winners: ['hybrid'] });
 		expect(getUiSession().winners).toEqual(['hybrid']);
 		expect(getArchitectureStatus().map((row) => row.name)).toEqual(['keyword', 'hybrid']);
+		expect(getArchitectureStatus().find((row) => row.name === 'hybrid')?.status).toBe('unverified');
+		expect(getArchitectureStatus().find((row) => row.name === 'keyword')?.status).toBe(
+			'registered'
+		);
+		expect(getStatus().provisioned_architectures).toEqual([]);
 		updateUiSession({ provision_done: false });
 		expect(getArchitectureStatus()).toEqual([]);
 		expect(getStatus().provisioned_architectures).toEqual([]);

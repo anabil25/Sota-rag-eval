@@ -92,7 +92,9 @@
 	function architectureStatusRows() {
 		return effectivePendingJobKind && provisionLifecycleJobKinds.includes(effectivePendingJobKind)
 			? []
-			: data.architectureStatus;
+			: data.architectureStatus.filter((architecture: ArchitectureStatus) =>
+					['provisioned', 'indexing', 'active', 'empty'].includes(architecture.status)
+				);
 	}
 
 	function shortHandle(value: unknown): string {
@@ -102,6 +104,12 @@
 
 	function architectureIndexLabel(architecture: ArchitectureStatus): string {
 		const config = architecture.config ?? {};
+		if (architecture.status === 'missing' || architecture.status === 'empty') {
+			return architecture.status_detail || 'Azure resources are missing';
+		}
+		if (architecture.status === 'unverified') {
+			return architecture.status_detail || 'Live Azure state is not verified';
+		}
 		if (typeof config.graph_worker_job_id === 'string' && config.graph_worker_job_id) {
 			if (config.cloud_index_status === 'failed') {
 				return `GraphRAG indexing failed · ${config.cloud_index_error ?? 'check worker logs'}`;
@@ -2373,7 +2381,7 @@
 				<div class="panel section-stack">
 					<div>
 						<p class="eyebrow">Current state</p>
-						<h2>Architecture Status</h2>
+						<h2>Deployed Architectures</h2>
 					</div>
 					<div class="table-scroll compact-table">
 						<table>
@@ -2387,7 +2395,7 @@
 									</tr>
 								{:else}
 									<tr>
-										<td colspan="3" class="muted">No architecture status for this run yet.</td>
+										<td colspan="3" class="muted">No architectures are currently deployed.</td>
 									</tr>
 								{/each}
 							</tbody>

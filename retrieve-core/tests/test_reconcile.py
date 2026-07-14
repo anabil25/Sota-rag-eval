@@ -8,7 +8,10 @@ from unittest.mock import MagicMock, patch
 import requests
 
 from retrieve.db import RetrieveDB
-from retrieve.indexing.reconcile import reconcile_graphrag_architecture
+from retrieve.indexing.reconcile import (
+    reconcile_azure_architecture,
+    reconcile_graphrag_architecture,
+)
 
 
 def _architecture(db: RetrieveDB, fingerprint: str = "f" * 64) -> dict:
@@ -65,6 +68,82 @@ def _job_architecture(db: RetrieveDB, fingerprint: str = "f" * 64) -> dict:
     architecture = db.get_architecture("graphrag")
     assert architecture is not None
     return architecture
+
+
+def _search_architecture(db: RetrieveDB, status: str = "active") -> dict:
+    db.register_architecture(
+        "hybrid-reranker",
+        {
+            "subscription_id": "sub-test",
+            "resource_group": "rg-test",
+            "search_endpoint": "https://test-search.search.windows.net",
+            "index_name": "test-index",
+        },
+    )
+    db.conn.execute("UPDATE architectures SET status = ?", (status,))
+    db.conn.commit()
+    architecture = db.get_architecture("hybrid-reranker")
+    assert architecture is not None
+    return architecture
+
+
+@patch("retrieve.indexing.reconcile._observe_search_architecture")
+def test_deleted_resource_group_reconciles_active_architecture_to_missing(
+    mock_observe, tmp_path
+):
+    db = RetrieveDB(tmp_path / "retrieve.db")
+    architecture = _search_architecture(db)
+    mock_observe.return_value = {
+        "state": "missing",
+        "reason": "Azure resource group not found",
+    }
+
+    reconciled = reconcile_azure_architecture(db, architecture)
+
+    assert reconciled["status"] == "missing"
+    assert reconciled["desired_status"] == "active"
+    assert reconciled["status_detail"] == "Azure resource group not found"
+    persisted = db.get_architecture("hybrid-reranker")
+    assert persisted is not None
+    assert persisted["status"] == "missing"
+    assert persisted["config"]["azure_observed_status"] == "missing"
+    db.close()
+
+
+@patch("retrieve.indexing.reconcile._observe_search_architecture")
+def test_transient_azure_failure_is_unverified_without_destroying_local_state(
+    mock_observe, tmp_path
+):
+    db = RetrieveDB(tmp_path / "retrieve.db")
+    architecture = _search_architecture(db)
+    mock_observe.side_effect = requests.ConnectionError("temporary outage")
+
+    reconciled = reconcile_azure_architecture(db, architecture)
+
+    assert reconciled["status"] == "unverified"
+    assert reconciled["desired_status"] == "active"
+    persisted = db.get_architecture("hybrid-reranker")
+    assert persisted is not None
+    assert persisted["status"] == "active"
+    assert persisted["config"]["azure_observed_status"] == "unverified"
+    db.close()
+
+
+@patch("retrieve.indexing.reconcile._observe_search_architecture")
+def test_verified_search_index_remains_active(mock_observe, tmp_path):
+    db = RetrieveDB(tmp_path / "retrieve.db")
+    architecture = _search_architecture(db)
+    mock_observe.return_value = {
+        "state": "active",
+        "reason": "Azure AI Search index verified",
+        "document_count": 42,
+    }
+
+    reconciled = reconcile_azure_architecture(db, architecture)
+
+    assert reconciled["status"] == "active"
+    assert reconciled["config"]["azure_observed_document_count"] == 42
+    db.close()
 
 
 @patch("retrieve.indexing.reconcile.requests.get")

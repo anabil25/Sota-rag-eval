@@ -208,6 +208,9 @@ export interface ArchitectureStatus {
 	config?: Record<string, unknown>;
 	resources_provisioned?: Record<string, unknown>;
 	status: string;
+	desired_status?: string;
+	observed_at?: string;
+	status_detail?: string;
 	created_at?: string;
 }
 

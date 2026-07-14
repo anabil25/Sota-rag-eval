@@ -21,6 +21,12 @@ test('dashboard, workflow, runs, and eval sets render from real local data', asy
 	for (const [path, heading] of workflow) {
 		await page.goto(path);
 		await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible();
+		if (path === '/flow/provision') {
+			await expect(
+				page.getByRole('heading', { level: 2, name: 'Deployed Architectures' })
+			).toBeVisible();
+			await expect(page.getByText('No architectures are currently deployed.')).toBeVisible();
+		}
 	}
 
 	const runs = (await (await request.get('/api/runs')).json()) as Array<{

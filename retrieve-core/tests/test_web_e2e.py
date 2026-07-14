@@ -250,8 +250,12 @@ class TestReadAPI:
         assert data["run_count"] == 1
         assert "provisioned_architectures" in data
 
-    def test_status_reports_only_selected_architectures_with_live_local_state(
-        self, client: TestClient, seeded_db: RetrieveDB
+    @patch(
+        "retrieve.indexing.reconcile._observe_search_architecture",
+        return_value={"state": "provisioned", "reason": "Search service verified"},
+    )
+    def test_status_reports_only_selected_architectures_with_observed_azure_state(
+        self, mock_observe, client: TestClient, seeded_db: RetrieveDB
     ):
         architecture_id = seeded_db.register_architecture("keyword", {})
         seeded_db.conn.execute(
@@ -273,6 +277,45 @@ class TestReadAPI:
         assert response.status_code == 200
         assert response.json()["architectures"] == ["keyword", "hybrid"]
         assert response.json()["provisioned_architectures"] == ["keyword"]
+
+    @patch(
+        "retrieve.indexing.reconcile._observe_search_architecture",
+        return_value={"state": "missing", "reason": "Azure resource group not found"},
+    )
+    def test_architecture_status_reconciles_deleted_azure_environment(
+        self, mock_observe, client: TestClient, seeded_db: RetrieveDB
+    ):
+        architecture_id = seeded_db.register_architecture(
+            "keyword",
+            {
+                "subscription_id": "sub-test",
+                "resource_group": "rg-missing",
+                "search_endpoint": "https://missing.search.windows.net",
+                "index_name": "missing-index",
+            },
+        )
+        seeded_db.conn.execute(
+            "UPDATE architectures SET status = 'active' WHERE id = ?",
+            (architecture_id,),
+        )
+        seeded_db.upsert_generation_preferences(
+            {
+                "selected_architectures": ["keyword"],
+                "provision_done": True,
+            },
+            "ui_session",
+        )
+        seeded_db.conn.commit()
+
+        architecture_response = client.get("/api/architecture-status")
+        status_response = client.get("/api/status")
+
+        assert architecture_response.status_code == 200
+        assert architecture_response.json()[0]["status"] == "missing"
+        assert architecture_response.json()[0]["status_detail"] == (
+            "Azure resource group not found"
+        )
+        assert status_response.json()["provisioned_architectures"] == []
 
     def test_runs(self, client: TestClient, seeded_db: RetrieveDB):
         r = client.get("/api/runs")

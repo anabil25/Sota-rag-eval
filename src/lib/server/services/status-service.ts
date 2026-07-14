@@ -32,6 +32,16 @@ function hasCurrentProvisionCycle(session: UiSession): boolean {
 	return session.provision_done === true && !hasActiveProvisionJob(session);
 }
 
+function unverifiedArchitecture(row: ArchitectureStatus): ArchitectureStatus {
+	if (!['provisioned', 'indexing', 'active', 'missing', 'empty'].includes(row.status)) return row;
+	return {
+		...row,
+		desired_status: row.status,
+		status: 'unverified',
+		status_detail: 'Start the Retrieve backend to verify live Azure state.'
+	};
+}
+
 export function selectedArchitectureNames(
 	session: UiSession = db.getUiSession(),
 	config: RetrieveConfigSummary = loadConfig()
@@ -60,12 +70,7 @@ export function getStatus(): RetrieveStatus {
 		eval_set,
 		run_count: db.getAllCompletedRuns().length,
 		architectures,
-		provisioned_architectures: hasCurrentProvisionCycle(session)
-			? architectures.filter((name) => {
-					const row = db.getArchitecture(name);
-					return row?.status === 'provisioned' || row?.status === 'active';
-				})
-			: []
+		provisioned_architectures: []
 	};
 }
 
@@ -83,6 +88,6 @@ export function getArchitectureStatus(): ArchitectureStatus[] {
 
 	return selectedArchitectureNames(session).flatMap((name) => {
 		const row = db.getArchitecture(name);
-		return row ? [row] : [];
+		return row ? [unverifiedArchitecture(row)] : [];
 	});
 }

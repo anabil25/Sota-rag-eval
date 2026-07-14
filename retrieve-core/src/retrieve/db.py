@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS architectures (
     name                  TEXT NOT NULL,
     config                TEXT NOT NULL DEFAULT '{}',  -- JSON
     resources_provisioned TEXT NOT NULL DEFAULT '{}',  -- JSON
-    -- registered|provisioned|indexing|active|failed|torn_down
+    -- registered|provisioned|indexing|active|missing|empty|failed|torn_down
     status                TEXT NOT NULL DEFAULT 'registered',
     created_at            TEXT NOT NULL DEFAULT (datetime('now'))
 );
