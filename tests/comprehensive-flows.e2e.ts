@@ -36,6 +36,18 @@ test('read-only flow inventory uses real SvelteKit data surfaces', async ({ page
 	for (const [path, heading] of workflow) {
 		await audit.goto(page, path);
 		await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible();
+		if (path === '/flow/provision') {
+			const region = page.getByLabel('Region (Azure location)');
+			await expect(region).toHaveRole('combobox');
+			await expect(region.locator('option')).toHaveCount(6);
+			await expect(region.getByRole('option', { name: 'Sweden Central' })).toHaveAttribute(
+				'value',
+				'swedencentral'
+			);
+			await expect(region).toHaveValue(
+				/^(northcentralus|westus3|centralus|southcentralus|eastus2|swedencentral)$/
+			);
+		}
 	}
 
 	await audit.goto(page, '/flow/compare');

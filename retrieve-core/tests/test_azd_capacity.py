@@ -8,6 +8,7 @@ import pytest
 
 from retrieve.config import RetrieveConfig
 from retrieve.provision.azd import (
+    REGION_CANDIDATES,
     RegionCapacityAssessment,
     RegionUnavailableError,
     _cleanup_temporary_graph_runtime,
@@ -17,6 +18,10 @@ from retrieve.provision.azd import (
     classify_deployment_failure,
     provision_architectures,
 )
+
+
+def test_swedencentral_is_a_provisioning_candidate():
+    assert "swedencentral" in REGION_CANDIDATES
 
 
 def _assessment(region: str) -> RegionCapacityAssessment:

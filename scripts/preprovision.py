@@ -19,6 +19,7 @@ REGIONS = (
     "centralus",
     "southcentralus",
     "eastus2",
+    "swedencentral",
 )
 PROTECTED_RESOURCE_GROUPS = {
     resource_group.strip()

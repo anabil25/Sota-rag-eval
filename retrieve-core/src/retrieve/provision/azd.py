@@ -23,6 +23,7 @@ REGION_CANDIDATES = (
     "centralus",
     "southcentralus",
     "eastus2",
+    "swedencentral",
 )
 _REQUIRED_PROVIDERS = (
     "Microsoft.App",

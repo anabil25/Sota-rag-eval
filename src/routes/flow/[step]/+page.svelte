@@ -308,6 +308,14 @@
 	);
 	let operatorContext = $state(sessionString('operator_context'));
 	const selectedVectorizer = 'azure_openai';
+	const azureRegions = [
+		{ value: 'northcentralus', label: 'North Central US' },
+		{ value: 'westus3', label: 'West US 3' },
+		{ value: 'centralus', label: 'Central US' },
+		{ value: 'southcentralus', label: 'South Central US' },
+		{ value: 'eastus2', label: 'East US 2' },
+		{ value: 'swedencentral', label: 'Sweden Central' }
+	] as const;
 	let selectedEmbedding = $state(initialOpenAiEmbedding());
 	let provisionResourceGroup = $state(initialProvisionResourceGroup());
 	let provisionLocation = $state(initialProvisionLocation());
@@ -491,7 +499,10 @@
 	}
 
 	function initialProvisionLocation() {
-		return sessionString('location', data.config.azure.location || 'eastus');
+		const configured = sessionString('location', data.config.azure.location || 'northcentralus');
+		return azureRegions.some((region) => region.value === configured)
+			? configured
+			: 'northcentralus';
 	}
 
 	function initialRunEvalVersion() {
@@ -2212,7 +2223,11 @@
 						</label>
 						<label>
 							<span>Region (Azure location)</span>
-							<input name="location" bind:value={provisionLocation} placeholder="eastus" />
+							<select name="location" bind:value={provisionLocation}>
+								{#each azureRegions as region (region.value)}
+									<option value={region.value}>{region.label}</option>
+								{/each}
+							</select>
 						</label>
 						<label>
 							<span>Keep on teardown</span>
